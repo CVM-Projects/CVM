@@ -105,7 +105,7 @@ namespace CVM
 					Common::Output::println("stvarb:");
 					if (regset.stsize() != 0) {
 						Runtime::DataPointer address = regset.get_static(regset.dysize() + 1).data;
-						auto &str = Runtime::DataManage::ToStringData(address, regset.stmemsize());
+						const auto &str = Runtime::DataManage::ToStringData(address, regset.stmemsize());
 						Common::Output::println(str);
 					}
 					Common::Output::println("=======================");

@@ -2,14 +2,17 @@ cmake_minimum_required(VERSION 3.0)
 project(CVM)
 
 include(cotire.cmake)
+
 set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -O2 -std=c++14")
+
+include_directories(prilib/include)
+aux_source_directory(prilib/source PRILIB_SOURCE_FILES)
+
 include_directories(include)
-include_directories(../ICM/include/common)
-include_directories(../ICM/include)
 aux_source_directory(source SOURCE_FILES)
 aux_source_directory(source/runtime SOURCE_RUNTIME_FILES)
-aux_source_directory(../ICM/source/common ICM_COMMON_SOURCE_FILES)
-add_executable(cvm ${SOURCE_FILES} ${SOURCE_RUNTIME_FILES} ${ICM_COMMON_SOURCE_FILES})
 
-set_target_properties(cvm PROPERTIES COTIRE_CXX_PREFIX_HEADER_INIT "../ICM/include/basic.h")
+add_executable(cvm ${SOURCE_FILES} ${SOURCE_RUNTIME_FILES} ${PRILIB_SOURCE_FILES})
+
+set_target_properties(cvm PROPERTIES COTIRE_CXX_PREFIX_HEADER_INIT "include/basic.h")
 cotire(cvm)
