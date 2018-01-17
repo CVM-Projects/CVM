@@ -17,6 +17,7 @@
 #include <utility>
 //  common
 #include "file.h"
+#include "convert.h"
 #include "prints.h"
 #include "memory.h"
 #include "charptr.h"
@@ -62,7 +63,7 @@ namespace ICM
 	inline void print(const T &obj)
 	{
 		using ICM::to_string;
-		using Convert::to_string;
+		using PriLib::Convert::to_string;
 		using std::to_string;
 
 		PriLib::Output::print(to_string(obj));
