@@ -1,5 +1,5 @@
-#ifndef _ICM_BASIC_H_
-#define _ICM_BASIC_H_
+#ifndef _CVM_BASIC_H_
+#define _CVM_BASIC_H_
 // Includes
 //  default
 #include <string>
@@ -45,7 +45,6 @@ using std::unique_ptr;
 using std::list;
 using std::bitset;
 using std::to_string;
-using namespace Common;
 
 template <typename T> constexpr T MaxValue() { return std::numeric_limits<T>::max(); }
 
@@ -66,20 +65,20 @@ namespace ICM
 		using Convert::to_string;
 		using std::to_string;
 
-		Common::Output::print(to_string(obj));
+		PriLib::Output::print(to_string(obj));
 	}
 	template <>
 	inline void print(const std::string &obj)
 	{
-		Common::Output::print(obj);
+		PriLib::Output::print(obj);
 	}
 	inline void print(const char *obj)
 	{
-		Common::Output::print(obj);
+		PriLib::Output::print(obj);
 	}
 	inline void println()
 	{
-		Common::Output::println();
+		PriLib::Output::println();
 	}
 	template <typename T>
 	inline void println(const T &obj)

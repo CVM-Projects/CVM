@@ -1,5 +1,6 @@
 #pragma once
 #include "explicittype.h"
+#include "typeinfo.h"
 #include <cstdint>
 
 namespace CVM
@@ -8,11 +9,11 @@ namespace CVM
 	{
 		using byte = uint8_t;
 
-		class DataPointer : private Common::ExplicitType<void*, nullptr>
+		class DataPointer : private PriLib::ExplicitType<void*, nullptr>
 		{
 		public:
 			explicit DataPointer(void *ptr = nullptr)
-				: Common::ExplicitType<void*, nullptr>(ptr) {}
+				: PriLib::ExplicitType<void*, nullptr>(ptr) {}
 
 			template <typename T = void>
 			T* get() const {
@@ -23,7 +24,10 @@ namespace CVM
 			DataPointer offset(T _offset) const {
 				return DataPointer(get<byte>() + _offset);
 			}
+			DataPointer offset(MemorySize _offset) const {
+				return DataPointer(get<byte>() + _offset.data);
+			}
 		};
-		using ConstDataPointer = Common::ExplicitType<const void*, nullptr>;
+		using ConstDataPointer = PriLib::ExplicitType<const void*, nullptr>;
 	}
 }

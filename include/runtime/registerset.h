@@ -33,7 +33,7 @@ namespace CVM
 
 		protected:
 			size_t _size;
-			Common::lightlist<DataRegister> _data;
+			PriLib::lightlist<DataRegister> _data;
 		};
 
 		// The DataRegisterSet (Dynamic) Class
@@ -56,7 +56,7 @@ namespace CVM
 		class DataRegisterSetStatic : public DataRegisterSetBase<DataRegisterStatic>
 		{
 		public:
-			using SizeList = Common::lightlist<MemorySize>;
+			using SizeList = PriLib::lightlist<MemorySize>;
 
 		public:
 			explicit DataRegisterSetStatic()
@@ -79,8 +79,8 @@ namespace CVM
 		class DataRegisterSet
 		{
 		public:
-			using DyDatRegSize = Common::ExplicitType<size_t>;
-			using StDatRegSize = Common::ExplicitType<size_t>;
+			using DyDatRegSize = PriLib::ExplicitType<size_t>;
+			using StDatRegSize = PriLib::ExplicitType<size_t>;
 
 		public:
 			explicit DataRegisterSet(DyDatRegSize dy_size)

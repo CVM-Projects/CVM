@@ -1,7 +1,7 @@
 #include "basic.h"
 #include "runtime/environment.h"
 #include "virtualmachine.h"
-using namespace Common;
+using namespace PRILIB;
 using Output::print;
 using Output::println;
 using Output::putError;
@@ -58,18 +58,35 @@ CVM::Instruction::Function CreateFunction_Main() {
 
 	Function::InstList instlist;
 
-	// load %1, 5
-	// mov  %2, %1
-	// ret
+	// main:
+	//     .arg    0
+	//     .dyvarb 2
+	//     .stvarb %3 %4 %5 %6, int
+	//     db_outr
+	//     load %1, 5, int
+	//     db_outr
+	//     mov  %2, %1
+	//     mov  %3, %1
+	//     mov  %4, %1
+	//     db_outr
+	//     load %5, 6, int
+	//     db_outr
+	//     ret
 
 	instlist.push_back(new Debug_OutputRegister());
 	instlist.push_back(new Load1(Register(r_n, e_current, 1), Data(5), CVM::TypeIndex(1)));
 	instlist.push_back(new Debug_OutputRegister());
 	instlist.push_back(new Move(Register(r_n, e_current, 2), Register(r_n, e_current, 1)));
+	instlist.push_back(new Move(Register(r_n, e_current, 3), Register(r_n, e_current, 1)));
+	instlist.push_back(new Move(Register(r_n, e_current, 4), Register(r_n, e_current, 1)));
+	instlist.push_back(new Debug_OutputRegister());
+	instlist.push_back(new Load1(Register(r_n, e_current, 5), Data(6), CVM::TypeIndex(1)));
 	instlist.push_back(new Debug_OutputRegister());
 	instlist.push_back(new Return());
 
-	return Function(instlist, 2, Function::TypeList {}, Function::ArgList {});
+	Function::TypeList typelist = { CVM::TypeIndex(1), CVM::TypeIndex(1), CVM::TypeIndex(1), CVM::TypeIndex(1) };
+
+	return Function(instlist, 2, typelist, Function::ArgList {});
 }
 
 int main()

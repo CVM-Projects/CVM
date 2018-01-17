@@ -133,7 +133,7 @@ namespace CVM
 			}
 
 			std::string toString() const {
-				return "0x" + Common::Convert::to_hex(_data);
+				return "0x" + PriLib::Convert::to_hex(_data);
 			}
 
 		private:

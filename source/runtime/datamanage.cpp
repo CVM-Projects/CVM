@@ -10,7 +10,7 @@ namespace CVM
 		namespace DataManage
 		{
 			static void CopyTo(DataPointer dst, DataPointer src, MemorySize size) {
-				Common::Memory::copyTo(dst.get(), src.get(), size.data);
+				PriLib::Memory::copyTo(dst.get(), src.get(), size.data);
 			}
 			static MemorySize GetSize(Environment &env, const TypeIndex &type) {
 				return env.getType(type).size;
@@ -21,7 +21,7 @@ namespace CVM
 			}
 
 			static std::string ToStringData(byte *bp, size_t size) {
-				Common::charptr result(7 + 3 * size);
+				PriLib::charptr result(7 + 3 * size);
 
 				byte *begin = bp;
 				byte *end = bp + size;
@@ -30,7 +30,7 @@ namespace CVM
 
 				char *rp = (char*)result + 6;
 
-				for (auto ptr : Common::range(begin, end)) {
+				for (auto ptr : PriLib::range(begin, end)) {
 					int v;
 					rp[0] = ' ';
 					v = *ptr / 0x10;
@@ -74,10 +74,10 @@ namespace CVM
 			}
 
 			void Debug_PrintRegister(Environment &env, const DataRegisterDynamic &src) {
-				Common::Output::println(ToStringData(src.data, GetSize(env, src.type)));
+				PriLib::Output::println(ToStringData(src.data, GetSize(env, src.type)));
 			}
 			void Debug_PrintRegister(Environment &env, const DataRegisterStatic &src, TypeIndex type) {
-				Common::Output::println(ToStringData(src.data, GetSize(env, type)));
+				PriLib::Output::println(ToStringData(src.data, GetSize(env, type)));
 			}
 		}
 	}

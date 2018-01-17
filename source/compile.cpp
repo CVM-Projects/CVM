@@ -94,22 +94,32 @@ namespace CVM
 				};
 			}
 			else if (inst.instcode == Instruction::id_opreg) {
+				const auto &typelist = func.stvarb_typelist();
 				return [=](Runtime::Environment &env) {
+					size_t regcount = 0;
 					auto &regset = env.getDataRegisterSet();
-					Common::Output::println("=======================");
-					Common::Output::println("dyvarb:");
+					PriLib::Output::println("=======================");
+					PriLib::Output::println("dyvarb:");
 					for (size_t i = 1; i <= regset.dysize(); i++) {
-						Common::Output::print("type(", regset.get_dynamic(i).type.data, "), ");
+						PriLib::Output::print("  %", ++regcount, ": type(", regset.get_dynamic(i).type.data, "), ");
 						Runtime::DataManage::Debug_PrintRegister(env, regset.get_dynamic(i));
 					}
-					Common::Output::println("stvarb:");
 					if (regset.stsize() != 0) {
+						PriLib::Output::print("stvarb:");
+						//for (size_t i = regset.dysize(); i <= regset.stsize() + regset.stsize());
+						//env.getType()
 						Runtime::DataPointer address = regset.get_static(regset.dysize() + 1).data;
-						const auto &str = Runtime::DataManage::ToStringData(address, regset.stmemsize());
-						Common::Output::println(str);
+						printf(" [address : 0x%016X]\n", address.get());
+						for (size_t i = 0; i < typelist.size(); ++i) {
+							MemorySize size = env.getType(typelist[i]).size;
+							PriLib::Output::print("  %", ++regcount, ": type(", typelist[i].data, "), ");
+							const auto &str = Runtime::DataManage::ToStringData(address, size);
+							PriLib::Output::println(str);
+							address = address.offset(size);
+						}
 					}
-					Common::Output::println("=======================");
-					Common::Output::println();
+					PriLib::Output::println("=======================");
+					PriLib::Output::println();
 				};
 			}
 			assert(false);
