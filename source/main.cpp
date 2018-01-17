@@ -89,8 +89,44 @@ CVM::Instruction::Function CreateFunction_Main() {
 	return Function(instlist, 2, typelist, Function::ArgList {});
 }
 
+void Test()
+{
+	TextFile cmsfile;
+
+	cmsfile.open("test.cms", File::Read);
+
+	printf("%d\n", cmsfile.size());
+
+	if (cmsfile.bad()) {
+		putError("Error in open file.");
+	}
+
+	size_t lcount = 0;
+	while (cmsfile.eof()) {
+		++lcount;
+		const std::string &line = cmsfile.getline();
+		if (line.empty())
+			continue;
+
+		char fc = line[0];
+		if (std::isblank(fc)) {
+
+		}
+		else if (fc == '.') {
+
+		}
+		else {
+			fprintf(stderr, "Parse Error in line(%d).\n", lcount);
+		}
+	}
+}
+
 int main()
 {
+	//Test();
+
+	//return 0;
+
 	using namespace CVM;
 
 	VirtualMachine VM;
@@ -134,7 +170,7 @@ int main()
 
 	println("=========");
 
-	Compile::CreateGlobalEnvironment(VM, 0xff, tim);
+	VM.addGlobalEnvironment(Compile::CreateGlobalEnvironment(0xff, tim));
 	Runtime::LocalEnvironment *lenv = Compile::CreateLoaclEnvironment(CreateFunction_Main(), tim);
 
 	VM.Genv().addSubEnvironment(lenv);

@@ -8,9 +8,8 @@ namespace CVM
 	public:
 		VirtualMachine() {}
 
-		template <typename... Args>
-		void addGlobalEnvironment(Args&&... args) {
-			_genv = std::shared_ptr<Runtime::GlobalEnvironment>(new Runtime::GlobalEnvironment(args...));
+		void addGlobalEnvironment(Runtime::GlobalEnvironment *genv) {
+			_genv = std::shared_ptr<Runtime::GlobalEnvironment>(genv);
 		}
 
 		Runtime::GlobalEnvironment& Genv() {

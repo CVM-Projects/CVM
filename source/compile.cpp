@@ -164,12 +164,12 @@ namespace CVM
 			return new Runtime::LocalEnvironment(drs, new_func);
 		}
 
-		void CreateGlobalEnvironment(VirtualMachine &vm, size_t dysize, const TypeInfoMap &tim) {
+		Runtime::GlobalEnvironment* CreateGlobalEnvironment(size_t dysize, const TypeInfoMap &tim) {
 			Runtime::DataRegisterSet::DyDatRegSize _dysize(dysize);
 			Runtime::DataRegisterSet drs(_dysize);
 
-			// Add Environment
-			vm.addGlobalEnvironment(drs, tim);
+			// Return Environment
+			return new Runtime::GlobalEnvironment(drs, tim);
 		}
 	}
 }
