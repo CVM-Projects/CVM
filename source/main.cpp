@@ -93,6 +93,14 @@ CVM::InstStruct::Function CreateFunction_Main() {
 
 int main()
 {
+	DLLLoader dll(L"F:/temp/math.dll");
+
+	auto f = dll.get<int(int,int)>("add_int");
+
+	println(f(5, 6));
+
+	return 0;
+
 	TextFile cmsfile;
 
 	cmsfile.open("test.cms", File::Read);
