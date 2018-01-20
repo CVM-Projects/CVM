@@ -1,6 +1,6 @@
 #include "compile.h"
-#include "instruction/instpart.h"
-#include "instruction/instdef.h"
+#include "inststruct/instpart.h"
+#include "inststruct/instdef.h"
 #include "runtime/environment.h"
 #include "runtime/datamanage.h"
 #include <algorithm>
@@ -9,7 +9,7 @@ namespace CVM
 {
 	namespace Compile
 	{
-		inline static Runtime::EnvType Convert(Instruction::EnvType etype) {
+		inline static Runtime::EnvType Convert(InstStruct::EnvType etype) {
 			return static_cast<Runtime::EnvType>(static_cast<int>(etype));
 		}
 
@@ -20,9 +20,9 @@ namespace CVM
 			}
 		}
 
-		Runtime::Instruction Compile(const Instruction::Instruction &inst, const Instruction::Function &func) {
-			if (inst.instcode == Instruction::i_mov) {
-				auto &Inst = static_cast<const Instruction::Insts::Move&>(inst);
+		Runtime::Instruction Compile(const InstStruct::Instruction &inst, const InstStruct::Function &func) {
+			if (inst.instcode == InstStruct::i_mov) {
+				auto &Inst = static_cast<const InstStruct::Insts::Move&>(inst);
 
 				auto dst_e = Convert(Inst.dst.etype());
 				auto src_e = Convert(Inst.src.etype());
@@ -44,23 +44,23 @@ namespace CVM
 					};
 				}
 				else if (func.is_dyvarb(dst_id) && func.is_stvarb(src_id)) {
-					return [=](Runtime::Environment &env) {
+					return [=, &func](Runtime::Environment &env) {
 						auto &dst = env.get_dyvarb(dst_id, dst_e);
 						auto &src = env.get_stvarb(src_id, src_e);
 						Runtime::DataManage::MoveRegister(env, dst, src, func.get_stvarb_type(src_id));
 					};
 				}
 				else if (func.is_stvarb(dst_id) && func.is_stvarb(src_id)) {
-					return [=](Runtime::Environment &env) {
+					return [=, &func](Runtime::Environment &env) {
 						auto &dst = env.get_stvarb(dst_id, dst_e);
 						auto &src = env.get_stvarb(src_id, src_e);
 						Runtime::DataManage::MoveRegister(env, dst, src, func.get_stvarb_type(src_id));
 					};
 				}
 			}
-			else if (inst.instcode == Instruction::i_load) {
+			else if (inst.instcode == InstStruct::i_load) {
 				if (inst._subid == 1) {
-					auto &Inst = static_cast<const Instruction::Insts::Load1&>(inst);
+					auto &Inst = static_cast<const InstStruct::Insts::Load1&>(inst);
 
 					auto dst_e = Convert(Inst.dst.etype());
 					auto dst_id = Inst.dst.index();
@@ -84,16 +84,16 @@ namespace CVM
 					}
 				}
 				else if (inst._subid == 2) {
-					auto &Inst = static_cast<const Instruction::Insts::Load2&>(inst);
+					auto &Inst = static_cast<const InstStruct::Insts::Load2&>(inst);
 				}
 			}
-			else if (inst.instcode == Instruction::i_ret) {
+			else if (inst.instcode == InstStruct::i_ret) {
 				return [=](Runtime::Environment &env) {
 					CheckLocalEnv(env);
 					static_cast<Runtime::LocalEnvironment&>(env).Controlflow().setProgramCounterEnd();
 				};
 			}
-			else if (inst.instcode == Instruction::id_opreg) {
+			else if (inst.instcode == InstStruct::id_opreg) {
 				const auto &typelist = func.stvarb_typelist();
 				return [=](Runtime::Environment &env) {
 					size_t regcount = 0;
@@ -109,7 +109,7 @@ namespace CVM
 						//for (size_t i = regset.dysize(); i <= regset.stsize() + regset.stsize());
 						//env.getType()
 						Runtime::DataPointer address = regset.get_static(regset.dysize() + 1).data;
-						printf(" [address : 0x%016X]\n", address.get());
+						printf(" [address : 0x%p]\n", address.get());
 						for (size_t i = 0; i < typelist.size(); ++i) {
 							MemorySize size = env.getType(typelist[i]).size;
 							PriLib::Output::print("  %", ++regcount, ": type(", typelist[i].data, "), ");
@@ -126,18 +126,18 @@ namespace CVM
 			return nullptr;
 		}
 
-		Runtime::Function Compile(const Instruction::Function &func) {
-			const Instruction::Function::InstList &src = func.instlist();
+		Runtime::Function Compile(const InstStruct::Function &func) {
+			const InstStruct::InstList &src = func.instlist();
 			Runtime::Function::InstList dst;
 
-			std::transform(src.begin(), src.end(), std::back_inserter(dst), [&](const Instruction::Instruction *inst) {
+			std::transform(src.begin(), src.end(), std::back_inserter(dst), [&](const InstStruct::Instruction *inst) {
 				return Compile(*inst, func);
 			});
 
 			return Runtime::Function(dst);
 		}
 
-		Runtime::LocalEnvironment* CreateLoaclEnvironment(const Instruction::Function &func, const TypeInfoMap &tim) {
+		Runtime::LocalEnvironment* CreateLoaclEnvironment(const InstStruct::Function &func, const TypeInfoMap &tim) {
 			// Initialize DataRegisterSet
 			Runtime::DataRegisterSet::DyDatRegSize dysize(func.dyvarb_count());
 			Runtime::DataRegisterSet::StDatRegSize stsize(func.stvarb_count());
@@ -146,7 +146,7 @@ namespace CVM
 			Runtime::DataRegisterSetStatic::SizeList sizelist(typelist.size());
 
 			size_t i = 0;
-			size_t size = 0;
+			uint32_t size = 0;
 			for (auto &type : typelist) {
 				MemorySize s = tim.at(type).size;
 				sizelist[i++] = s;

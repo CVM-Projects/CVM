@@ -7,7 +7,7 @@
 
 namespace CVM
 {
-	namespace Instruction
+	namespace InstStruct
 	{
 		enum RegisterType : uint8_t {
 			r_n = 0,   // %_

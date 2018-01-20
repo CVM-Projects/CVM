@@ -3,7 +3,7 @@
 
 namespace CVM
 {
-	namespace Instruction
+	namespace InstStruct
 	{
 		struct Instruction
 		{

@@ -3,7 +3,7 @@
 
 namespace CVM
 {
-	namespace Instruction
+	namespace InstStruct
 	{
 		enum InstCode : uint8_t {
 			i_nop = 0,

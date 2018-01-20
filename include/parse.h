@@ -1,15 +1,12 @@
 #pragma once
-#include "Instruction/instruction.h"
+#include <memory>
+#include "file.h"
+#include "storeptr.h"
 
 namespace CVM
 {
-	enum ParseLineType
-	{
+	class ParseInfo;
 
-	};
-
-	class Match;
-
-	Instruction::Instruction* parseInstruction();
-	Instruction::Instruction* parseFunction();
+	PriLib::StorePtr<ParseInfo> createParseInfo();
+	void parseFile(ParseInfo &parseinfo, PriLib::TextFile &file);
 }

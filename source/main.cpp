@@ -47,30 +47,30 @@ namespace CVM
 	}
 }
 
-#include "instruction/instpart.h"
-#include "instruction/instdef.h"
+#include "inststruct/instpart.h"
+#include "inststruct/instdef.h"
 #include "typeinfo.h"
 #include "compile.h"
 
-CVM::Instruction::Function CreateFunction_Main() {
-	using namespace CVM::Instruction;
+CVM::InstStruct::Function CreateFunction_Main() {
+	using namespace CVM::InstStruct;
 	using namespace Insts;
 
-	Function::InstList instlist;
+	InstList instlist;
 
 	// main:
 	//     .arg    0
 	//     .dyvarb 2
 	//     .stvarb %3 %4 %5 %6, int
-	//     db_outr
+	//     db_opreg
 	//     load %1, 5, int
-	//     db_outr
+	//     db_opreg
 	//     mov  %2, %1
 	//     mov  %3, %1
 	//     mov  %4, %1
-	//     db_outr
+	//     db_opreg
 	//     load %5, 6, int
-	//     db_outr
+	//     db_opreg
 	//     ret
 
 	instlist.push_back(new Debug_OutputRegister());
@@ -84,48 +84,27 @@ CVM::Instruction::Function CreateFunction_Main() {
 	instlist.push_back(new Debug_OutputRegister());
 	instlist.push_back(new Return());
 
-	Function::TypeList typelist = { CVM::TypeIndex(1), CVM::TypeIndex(1), CVM::TypeIndex(1), CVM::TypeIndex(1) };
+	TypeList typelist = { CVM::TypeIndex(1), CVM::TypeIndex(1), CVM::TypeIndex(1), CVM::TypeIndex(1) };
 
-	return Function(instlist, 2, typelist, Function::ArgList {});
+	return Function(FunctionInfo(std::move(instlist), 2, std::move(typelist), ArgList {}));
 }
 
-void Test()
+#include "parse.h"
+
+int main()
 {
 	TextFile cmsfile;
 
 	cmsfile.open("test.cms", File::Read);
 
-	printf("%d\n", cmsfile.size());
-
 	if (cmsfile.bad()) {
 		putError("Error in open file.");
 	}
+	
+	auto parseInfo = CVM::createParseInfo();
+	parseFile(parseInfo, cmsfile);
 
-	size_t lcount = 0;
-	while (cmsfile.eof()) {
-		++lcount;
-		const std::string &line = cmsfile.getline();
-		if (line.empty())
-			continue;
-
-		char fc = line[0];
-		if (std::isblank(fc)) {
-
-		}
-		else if (fc == '.') {
-
-		}
-		else {
-			fprintf(stderr, "Parse Error in line(%d).\n", lcount);
-		}
-	}
-}
-
-int main()
-{
-	//Test();
-
-	//return 0;
+	return 0;
 
 	using namespace CVM;
 

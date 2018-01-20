@@ -4,7 +4,7 @@
 
 namespace CVM
 {
-	namespace Instruction
+	namespace InstStruct
 	{
 		namespace Insts
 		{

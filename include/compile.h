@@ -1,6 +1,6 @@
 #pragma once
-#include "instruction/instruction.h"
-#include "instruction/function.h"
+#include "inststruct/instruction.h"
+#include "inststruct/function.h"
 #include "runtime/instruction.h"
 #include "runtime/function.h"
 #include "runtime/environment.h"
@@ -10,10 +10,10 @@ namespace CVM
 {
 	namespace Compile
 	{
-		Runtime::Instruction Compile(const Instruction::Instruction &inst, const Instruction::Function &func);
-		Runtime::Function Compile(const Instruction::Function &func);
+		Runtime::Instruction Compile(const InstStruct::Instruction &inst, const InstStruct::Function &func);
+		Runtime::Function Compile(const InstStruct::Function &func);
 
-		Runtime::LocalEnvironment* CreateLoaclEnvironment(const Instruction::Function &func, const TypeInfoMap &tim);
+		Runtime::LocalEnvironment* CreateLoaclEnvironment(const InstStruct::Function &func, const TypeInfoMap &tim);
 		Runtime::GlobalEnvironment* CreateGlobalEnvironment(size_t dysize, const TypeInfoMap &tim);
 	}
 }
