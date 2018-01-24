@@ -1,7 +1,7 @@
 #pragma once
 #include <cassert>
 #include <vector>
-#include "lightlist.h"
+#include "../prilib/include/lightlist.h"
 #include "register.h"
 #include "typeinfo.h"
 

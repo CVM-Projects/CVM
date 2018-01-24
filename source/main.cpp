@@ -1,12 +1,14 @@
 #include "basic.h"
-#include "runtime/environment.h"
 #include "virtualmachine.h"
-using namespace PRILIB;
-using Output::print;
-using Output::println;
-using Output::putError;
 #include "typeinfo.h"
+#include "typeinfo.h"
+#include "compile.h"
+#include "parse.h"
+#include "inststruct/instpart.h"
+#include "inststruct/instdef.h"
+#include "runtime/environment.h"
 #include "runtime/datapointer.h"
+#include "runtime/datamanage.h"
 
 int add_int(int x, int y) {
 	return x + y;
@@ -22,8 +24,6 @@ Point add_Point(Point x, Point y)
 {
 	return Point { x.x + y.x, x.y + y.y };
 }
-
-#include "runtime/datamanage.h"
 
 string to_string_data(CVM::Runtime::DataPointer dp, CVM::MemorySize size) {
 	return CVM::Runtime::DataManage::ToStringData(dp, size);
@@ -46,11 +46,6 @@ namespace CVM
 		}
 	}
 }
-
-#include "inststruct/instpart.h"
-#include "inststruct/instdef.h"
-#include "typeinfo.h"
-#include "compile.h"
 
 CVM::InstStruct::Function CreateFunction_Main() {
 	using namespace CVM::InstStruct;
@@ -84,39 +79,14 @@ CVM::InstStruct::Function CreateFunction_Main() {
 	instlist.push_back(new Debug_OutputRegister());
 	instlist.push_back(new Return());
 
-	TypeList typelist = { CVM::TypeIndex(1), CVM::TypeIndex(1), CVM::TypeIndex(1), CVM::TypeIndex(1) };
+	TypeList typelist { CVM::TypeIndex(1), CVM::TypeIndex(1), CVM::TypeIndex(1), CVM::TypeIndex(1) };
 
 	return Function(FunctionInfo(std::move(instlist), 2, std::move(typelist), ArgList {}));
 }
 
-#include "parse.h"
-
-int main()
+CVM::TypeInfoMap InitTypeInfoMap()
 {
-	DLLLoader dll(L"F:/temp/math.dll");
-
-	auto f = dll.get<int(int,int)>("add_int");
-
-	println(f(5, 6));
-
-	return 0;
-
-	TextFile cmsfile;
-
-	cmsfile.open("test.cms", File::Read);
-
-	if (cmsfile.bad()) {
-		putError("Error in open file.");
-	}
-	
-	auto parseInfo = CVM::createParseInfo();
-	parseFile(parseInfo, cmsfile);
-
-	return 0;
-
 	using namespace CVM;
-
-	VirtualMachine VM;
 
 	TypeInfoMap tim;
 
@@ -128,37 +98,66 @@ int main()
 
 	TypeInfo ti_int;
 
-	ti_int.index.data = 1;
-	ti_int.name.data = "int";
 	ti_int.size.data = sizeof(int);
 
-	DataPointer dp1(Memory::alloc(ti_int.size.data));
+	DataPointer dp1(PriLib::Memory::alloc(ti_int.size.data));
 	int &i = *dp1.get<int>();
 	i = 10;
-	println(add_int(i, i));
+	//println(add_int(i, i));
 
 	TypeInfo ti_Point;
 
-	ti_Point.index.data = 2;
-	ti_Point.name.data = "Point";
 	ti_Point.size.data = sizeof(Point);
 
-	DataPointer dp2(Memory::alloc(ti_Point.size.data));
+	DataPointer dp2(PriLib::Memory::alloc(ti_Point.size.data));
 	Point &p = *dp2.get<Point>();
 	p.x = 0x5;
 	p.y = 0x7;
-	//println(add_int(p, p));
 
-	print_data(dp2, CVM::MemorySize(8));
+	//print_data(dp2, CVM::MemorySize(8));
 
-	tim[TypeIndex(0)] = ti_nil;
-	tim[TypeIndex(1)] = ti_int;
-	tim[TypeIndex(2)] = ti_Point;
+	tim.insert("nil", TypeInfo());
+	tim.insert("int", ti_int);
+	tim.insert("Point", ti_Point);
+
+	return tim;
+}
+#include <map>
+
+int main(int argc, char *argv[])
+{
+	CVM::InstStruct::Function *func;
+
+	if (argc == 2) {
+		PriLib::TextFile cmsfile;
+
+		cmsfile.open(argv[1], PriLib::File::Read);
+
+		if (cmsfile.bad()) {
+			putError("Error in open file.");
+		}
+
+		auto tim = InitTypeInfoMap();
+
+		auto parseInfo = CVM::createParseInfo(tim);
+		parseFile(parseInfo, cmsfile);
+
+		func = createFunction(parseInfo, "main");
+	}
+	else {
+		func = new CVM::InstStruct::Function(CreateFunction_Main());
+	}
+
+	using namespace CVM;
+
+	VirtualMachine VM;
 
 	println("=========");
 
+	auto tim = InitTypeInfoMap();
+
 	VM.addGlobalEnvironment(Compile::CreateGlobalEnvironment(0xff, tim));
-	Runtime::LocalEnvironment *lenv = Compile::CreateLoaclEnvironment(CreateFunction_Main(), tim);
+	Runtime::LocalEnvironment *lenv = Compile::CreateLoaclEnvironment(*func, tim);
 
 	VM.Genv().addSubEnvironment(lenv);
 

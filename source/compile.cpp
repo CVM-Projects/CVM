@@ -1,9 +1,9 @@
+#include "basic.h"
 #include "compile.h"
 #include "inststruct/instpart.h"
 #include "inststruct/instdef.h"
 #include "runtime/environment.h"
 #include "runtime/datamanage.h"
-#include <algorithm>
 
 namespace CVM
 {
@@ -122,6 +122,7 @@ namespace CVM
 					PriLib::Output::println();
 				};
 			}
+			println(inst.instcode);
 			assert(false);
 			return nullptr;
 		}

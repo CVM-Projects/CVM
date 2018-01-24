@@ -1,7 +1,5 @@
+#include "basic.h"
 #include "runtime/datamanage.h"
-#include "charptr.h"
-#include "range.h"
-#include "prints.h"
 
 namespace CVM
 {

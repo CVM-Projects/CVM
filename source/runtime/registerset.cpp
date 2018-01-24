@@ -1,3 +1,4 @@
+#include "basic.h"
 #include "runtime/registerset.h"
 
 namespace CVM
@@ -23,7 +24,9 @@ namespace CVM
 				++diter;
 				++siter;
 			}
-			_memsize = MemorySize(address.get<byte>() - start.get<byte>());
+			auto offset = address.get<byte>() - start.get<byte>();
+			assert(offset <= UINT32_MAX);
+			_memsize = MemorySize(static_cast<uint32_t>(offset));
 		}
 	}
 }

@@ -3,7 +3,7 @@
 #include <cassert>
 #include <string>
 #include <bitset>
-#include "prints.h"
+#include "../prilib/include/prints.h"
 
 namespace CVM
 {
@@ -29,6 +29,19 @@ namespace CVM
 		public:
 			explicit Register()
 				: _value(0) {}
+
+			explicit Register(RegisterType type)
+				: _type(type) {
+				if (type == r_0) {
+					_value = 0;
+				}
+				else if (type == r_res) {
+					_value = UINT32_MAX;
+				}
+				else {
+					assert(false);
+				}
+			}
 
 			explicit Register(RegisterType type, EnvType etype, uint16_t index)
 				: _type(type), _etype(etype), _index(index) {

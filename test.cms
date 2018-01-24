@@ -1,0 +1,28 @@
+;; test.cms
+
+.program
+    .mode  automatic
+    .entry main
+
+.exports
+    .func  main
+
+; .func Math#add
+;     .stvarb 2, int
+;     .arg %1 %2
+;     call %res, cms#int#+, %1 %2
+;     ret
+
+.func main
+    .dyvarb 2
+    .stvarb 4, int
+    db_opreg
+    load %1, 5, int
+    db_opreg
+    mov  %2, %1
+    mov  %3, %1
+    mov  %4, %1
+    db_opreg
+    load %5, 6, int
+    db_opreg
+    ret

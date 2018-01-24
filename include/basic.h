@@ -33,4 +33,8 @@ using std::list;
 using std::bitset;
 using std::to_string;
 
+using PriLib::Output::print;
+using PriLib::Output::println;
+using PriLib::Output::putError;
+
 #endif
