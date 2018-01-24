@@ -13,5 +13,5 @@ make
 ## Run
 
 ```
-./cvm
+./cvm ../test.cms
 ```

@@ -126,35 +126,39 @@ CVM::TypeInfoMap InitTypeInfoMap()
 
 int main(int argc, char *argv[])
 {
-	CVM::InstStruct::Function *func;
-
-	if (argc == 2) {
-		PriLib::TextFile cmsfile;
-
-		cmsfile.open(argv[1], PriLib::File::Read);
-
-		if (cmsfile.bad()) {
-			putError("Error in open file.");
-		}
-
-		auto tim = InitTypeInfoMap();
-
-		auto parseInfo = CVM::createParseInfo(tim);
-		parseFile(parseInfo, cmsfile);
-
-		func = createFunction(parseInfo, "main");
+	if (argc != 2) {
+		println("No file to open.");
+		return 0;
 	}
-	else {
-		func = new CVM::InstStruct::Function(CreateFunction_Main());
+
+	// Open File
+
+	PriLib::TextFile cmsfile;
+
+	cmsfile.open(argv[1], PriLib::File::Read);
+
+	if (cmsfile.bad()) {
+		putError("Error in open file.");
 	}
+
+	// Init TypeInfoMap
+
+	auto tim = InitTypeInfoMap();
+
+	// Parse File
 
 	using namespace CVM;
 
+	auto parseInfo = createParseInfo(tim);
+	parseFile(parseInfo, cmsfile);
+
+	// Get func 'main'
+
+	InstStruct::Function *func = createFunction(parseInfo, "main");
+
+	// Run 'main'
+
 	VirtualMachine VM;
-
-	println("=========");
-
-	auto tim = InitTypeInfoMap();
 
 	VM.addGlobalEnvironment(Compile::CreateGlobalEnvironment(0xff, tim));
 	Runtime::LocalEnvironment *lenv = Compile::CreateLoaclEnvironment(*func, tim);
