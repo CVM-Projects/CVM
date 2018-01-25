@@ -47,43 +47,6 @@ namespace CVM
 	}
 }
 
-CVM::InstStruct::Function CreateFunction_Main() {
-	using namespace CVM::InstStruct;
-	using namespace Insts;
-
-	InstList instlist;
-
-	// main:
-	//     .arg    0
-	//     .dyvarb 2
-	//     .stvarb %3 %4 %5 %6, int
-	//     db_opreg
-	//     load %1, 5, int
-	//     db_opreg
-	//     mov  %2, %1
-	//     mov  %3, %1
-	//     mov  %4, %1
-	//     db_opreg
-	//     load %5, 6, int
-	//     db_opreg
-	//     ret
-
-	instlist.push_back(new Debug_OutputRegister());
-	instlist.push_back(new Load1(Register(r_n, e_current, 1), Data(5), CVM::TypeIndex(1)));
-	instlist.push_back(new Debug_OutputRegister());
-	instlist.push_back(new Move(Register(r_n, e_current, 2), Register(r_n, e_current, 1)));
-	instlist.push_back(new Move(Register(r_n, e_current, 3), Register(r_n, e_current, 1)));
-	instlist.push_back(new Move(Register(r_n, e_current, 4), Register(r_n, e_current, 1)));
-	instlist.push_back(new Debug_OutputRegister());
-	instlist.push_back(new Load1(Register(r_n, e_current, 5), Data(6), CVM::TypeIndex(1)));
-	instlist.push_back(new Debug_OutputRegister());
-	instlist.push_back(new Return());
-
-	TypeList typelist { CVM::TypeIndex(1), CVM::TypeIndex(1), CVM::TypeIndex(1), CVM::TypeIndex(1) };
-
-	return Function(FunctionInfo(std::move(instlist), 2, std::move(typelist), ArgList {}));
-}
-
 CVM::TypeInfoMap InitTypeInfoMap()
 {
 	using namespace CVM;
@@ -154,7 +117,14 @@ int main(int argc, char *argv[])
 
 	// Get func 'main'
 
-	InstStruct::Function *func = createFunction(parseInfo, "main");
+	FunctionSet fset = createFunctionSet(parseInfo);
+	if (fset.find("main") == fset.end())
+	{
+		println("Not find 'main' function.");
+		return -1;
+	}
+
+	InstStruct::Function *func = fset.at("main");
 
 	// Run 'main'
 

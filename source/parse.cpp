@@ -349,8 +349,11 @@ namespace CVM
 		}
 	}
 
-
-	InstStruct::Function* createFunction(ParseInfo &parseinfo, const std::string &name) {
-		return new InstStruct::Function(std::move(*parseinfo.functable.at(name)));
+	FunctionSet createFunctionSet(ParseInfo &parseinfo) {
+		FunctionSet fset;
+		for (auto &val : parseinfo.functable) {
+			fset[val.first] = new InstStruct::Function(std::move(*parseinfo.functable.at(val.first)));
+		}
+		return fset;
 	}
 }

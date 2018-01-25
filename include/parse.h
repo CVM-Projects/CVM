@@ -11,5 +11,7 @@ namespace CVM
 
 	PriLib::StorePtr<ParseInfo> createParseInfo(TypeInfoMap &tim);
 	void parseFile(ParseInfo &parseinfo, PriLib::TextFile &file);
-	InstStruct::Function* createFunction(ParseInfo &parseinfo, const std::string &name);
+
+	using FunctionSet = std::map<std::string, InstStruct::Function*>;
+	FunctionSet createFunctionSet(ParseInfo &parseinfo);
 }
