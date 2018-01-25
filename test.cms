@@ -1,11 +1,7 @@
 ;; test.cms
 
 .program
-    .mode  automatic
     .entry main
-
-.exports
-    .func  main
 
 ; .func Math#add
 ;     .stvarb 2, int

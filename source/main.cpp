@@ -115,16 +115,21 @@ int main(int argc, char *argv[])
 	auto parseInfo = createParseInfo(tim);
 	parseFile(parseInfo, cmsfile);
 
-	// Get func 'main'
+	// Get entry func
 
+	auto entry = getEntry(parseInfo);
+	if (entry.empty()) {
+		println("Undeclared entry function.");
+		return -1;
+	}
 	FunctionSet fset = createFunctionSet(parseInfo);
-	if (fset.find("main") == fset.end())
+	if (fset.find(entry) == fset.end())
 	{
-		println("Not find 'main' function.");
+		println("Not find '" + entry + "' function.");
 		return -1;
 	}
 
-	InstStruct::Function *func = fset.at("main");
+	InstStruct::Function *func = fset.at(entry);
 
 	// Run 'main'
 

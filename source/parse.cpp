@@ -18,9 +18,12 @@ namespace CVM
 		InstStruct::FunctionInfo *currfunc;
 		TypeInfoMap &tim;
 		size_t lcount = 0;
+		std::string entry;
+		int currsection = 0;
 	};
 
 	enum KeySection : int {
+		ks_nil = 0,
 		ks_program,
 		ks_imports,
 		ks_exports,
@@ -199,33 +202,53 @@ namespace CVM
 	}
 
 	void parseFuncInside(ParseInfo &parseinfo, int code, const std::vector<std::string> &list) {
-		// KeyInside
-		switch (code) {
-		case ki_arg:
-			//parseinfo.currfunc->arglist
-			break;
-		case ki_dyvarb:
-			if (list.size() == 1) {
-				parseinfo.currfunc->dyvarb_count = PriLib::Convert::to_integer<size_t>(list[0], [&]() { putErrorLine("Error Num", parseinfo.lcount); });
+		if (parseinfo.currsection == ks_func) {
+			switch (code) {
+			case ki_arg:
+				//parseinfo.currfunc->arglist
+				break;
+			case ki_dyvarb:
+				if (list.size() == 1) {
+					parseinfo.currfunc->dyvarb_count = PriLib::Convert::to_integer<size_t>(list[0], [&]() { putErrorLine("Error Num", parseinfo.lcount); });
+				}
+				else {
+					putErrorLine(parseinfo.lcount);
+				}
+				break;
+			case ki_stvarb:
+				if (list.size() == 2) {
+					auto &type = list[list.size() - 1];
+					size_t count = PriLib::Convert::to_integer<size_t>(list[0], [&]() { putErrorLine("Error Num", parseinfo.lcount); });
+					TypeIndex index = parseType(parseinfo, type);
+					for (size_t i = 0; i < count; ++i)
+						parseinfo.currfunc->stvarb_typelist.push_back(index);
+				}
+				else {
+					putErrorLine(parseinfo.lcount);
+				}
+				break;
+			case ki_data:
+				break;
+			default:
+				putErrorLine("Unrecognized command", parseinfo.lcount);
 			}
-			else {
-				putErrorLine(parseinfo.lcount);
+		}
+		else if (parseinfo.currsection == ks_program) {
+			switch (code) {
+			case ki_entry:
+				if (list.size() == 1) {
+					parseinfo.entry = parseIdentifier(parseinfo, list[0]);
+				}
+				else {
+					putErrorLine(parseinfo.lcount);
+				}
+				break;
+			default:
+				putErrorLine("Unrecognized command", parseinfo.lcount);
 			}
-			break;
-		case ki_stvarb:
-			if (list.size() == 2) {
-				auto &type = list[list.size() - 1];
-				size_t count = PriLib::Convert::to_integer<size_t>(list[0], [&]() { putErrorLine("Error Num", parseinfo.lcount); });
-				TypeIndex index = parseType(parseinfo, type);
-				for (size_t i = 0; i < count; ++i)
-					parseinfo.currfunc->stvarb_typelist.push_back(index);
-			}
-			else {
-				putErrorLine(parseinfo.lcount);
-			}
-			break;
-		case ki_data:
-			break;
+		}
+		else {
+			putErrorLine("Unrecognized command", parseinfo.lcount);
 		}
 	}
 
@@ -280,14 +303,18 @@ namespace CVM
 						{ "func", ks_func },
 					};
 					auto iter = map.find(code + 1);
-					if (iter != map.end())
+					if (iter != map.end()) {
+						parseinfo.currsection = iter->second;
 						return iter->second;
+					}
 					else
 						putErrorLine(parseinfo.lcount);
 					return 0;
 				},
 				[&](ParseInfo &parseinfo, int code, const std::vector<std::string> &list) {
 					switch (code) {
+					case ks_program:
+						break;
 					case ks_func:
 						if (list.size() != 1) {
 							putErrorLine(parseinfo.lcount);
@@ -355,5 +382,9 @@ namespace CVM
 			fset[val.first] = new InstStruct::Function(std::move(*parseinfo.functable.at(val.first)));
 		}
 		return fset;
+	}
+
+	std::string getEntry(ParseInfo &parseinfo) {
+		return parseinfo.entry;
 	}
 }

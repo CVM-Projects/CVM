@@ -14,4 +14,6 @@ namespace CVM
 
 	using FunctionSet = std::map<std::string, InstStruct::Function*>;
 	FunctionSet createFunctionSet(ParseInfo &parseinfo);
+
+	std::string getEntry(ParseInfo &parseinfo);
 }
