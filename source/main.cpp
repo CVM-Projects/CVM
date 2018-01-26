@@ -47,46 +47,6 @@ namespace CVM
 	}
 }
 
-CVM::TypeInfoMap InitTypeInfoMap()
-{
-	using namespace CVM;
-
-	TypeInfoMap tim;
-
-	TypeInfo ti_nil;
-
-	ti_nil.index.data = 0;
-	ti_nil.name.data = "nil";
-	ti_nil.size.data = 0;
-
-	TypeInfo ti_int;
-
-	ti_int.size.data = sizeof(int);
-
-	DataPointer dp1(PriLib::Memory::alloc(ti_int.size.data));
-	int &i = *dp1.get<int>();
-	i = 10;
-	//println(add_int(i, i));
-
-	TypeInfo ti_Point;
-
-	ti_Point.size.data = sizeof(Point);
-
-	DataPointer dp2(PriLib::Memory::alloc(ti_Point.size.data));
-	Point &p = *dp2.get<Point>();
-	p.x = 0x5;
-	p.y = 0x7;
-
-	//print_data(dp2, CVM::MemorySize(8));
-
-	tim.insert("nil", TypeInfo());
-	tim.insert("int", ti_int);
-	tim.insert("Point", ti_Point);
-
-	return tim;
-}
-#include <map>
-
 int main(int argc, char *argv[])
 {
 	if (argc != 2) {
@@ -106,7 +66,7 @@ int main(int argc, char *argv[])
 
 	// Init TypeInfoMap
 
-	auto tim = InitTypeInfoMap();
+	CVM::TypeInfoMap tim;
 
 	// Parse File
 

@@ -25,10 +25,12 @@ namespace CVM
 	class TypeInfoMap
 	{
 	public:
-		explicit TypeInfoMap() = default;
+		explicit TypeInfoMap() {
+			insert("nil", TypeInfo());
+		}
 
 		bool insert(const std::string &name, const TypeInfo &info);
-		bool find(const std::string &name, TypeIndex &id) {
+		bool find(const std::string &name, TypeIndex &id) const {
 			auto iter = _keymap.find(name);
 			if (iter != _keymap.end()) {
 				id.data = iter->second;
@@ -38,6 +40,15 @@ namespace CVM
 		}
 		const TypeInfo& at(TypeIndex id) const {
 			return _data.at(id.data);
+		}
+		const TypeInfo& at(const std::string &name) const {
+			TypeIndex id;
+			bool result = find(name, id);
+			assert(result);
+			return _data.at(id.data);
+		}
+		TypeInfo& at(const std::string &name) {
+			return const_cast<TypeInfo&>(const_cast<const TypeInfoMap*>(this)->at(name));
 		}
 
 	private:

@@ -19,6 +19,7 @@ namespace CVM
 		TypeInfoMap &tim;
 		size_t lcount = 0;
 		std::string entry;
+		std::string currtype;
 		int currsection = 0;
 	};
 
@@ -30,6 +31,7 @@ namespace CVM
 		ks_datas,
 		ks_module,
 		ks_func,
+		ks_type,
 	};
 
 	enum KeyInside : int {
@@ -41,6 +43,7 @@ namespace CVM
 		ki_string,
 		ki_func,
 		ki_entry,
+		ki_size,
 	};
 
 	using ParseKeyMap = std::map<std::string, int>;
@@ -175,6 +178,7 @@ namespace CVM
 
 	static const ParseKeyMap& GetParseKeyInsideMap() {
 		static ParseKeyMap map {
+			// exports
 			{ "func", ki_func },
 			{ "mode", ki_mode },
 			// func
@@ -186,6 +190,8 @@ namespace CVM
 			{ "string", ki_string },
 			// program
 			{ "entry", ki_entry },
+			// type
+			{ "size", ki_size },
 		};
 		return map;
 	}
@@ -238,6 +244,24 @@ namespace CVM
 			case ki_entry:
 				if (list.size() == 1) {
 					parseinfo.entry = parseIdentifier(parseinfo, list[0]);
+				}
+				else {
+					putErrorLine(parseinfo.lcount);
+				}
+				break;
+			default:
+				putErrorLine("Unrecognized command", parseinfo.lcount);
+			}
+		}
+		else if (parseinfo.currsection == ks_type) {
+			const std::string &name = parseinfo.currtype;
+			auto &typeinfo = parseinfo.tim.at(name);
+			switch (code) {
+			case ki_size:
+				if (list.size() == 1) {
+					bool success = PriLib::Convert::to_integer(list[0], typeinfo.size.data);
+					if (!success)
+						putErrorLine(parseinfo.lcount);
 				}
 				else {
 					putErrorLine(parseinfo.lcount);
@@ -301,6 +325,7 @@ namespace CVM
 						{ "datas", ks_datas },
 						{ "module", ks_module },
 						{ "func", ks_func },
+						{ "type", ks_type },
 					};
 					auto iter = map.find(code + 1);
 					if (iter != map.end()) {
@@ -315,7 +340,7 @@ namespace CVM
 					switch (code) {
 					case ks_program:
 						break;
-					case ks_func:
+					case ks_func: {
 						if (list.size() != 1) {
 							putErrorLine(parseinfo.lcount);
 						}
@@ -329,6 +354,22 @@ namespace CVM
 							putErrorLine("func name duplicate", parseinfo.lcount);
 						}
 						break;
+					}
+					case ks_type: {
+						if (list.size() != 1) {
+							putErrorLine(parseinfo.lcount);
+						}
+						const auto &name = parseIdentifier(parseinfo, list.at(0));
+						TypeIndex tid;
+						if (parseinfo.tim.find(name, tid)) {
+							putErrorLine("type name duplicate", parseinfo.lcount);
+						}
+						else {
+							parseinfo.currtype = name;
+							parseinfo.tim.insert(name, TypeInfo());
+						}
+						break;
+					}
 					}
 				});
 		}

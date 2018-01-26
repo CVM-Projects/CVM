@@ -1,5 +1,8 @@
 ;; test.cms
 
+.type int
+    .size 4
+
 .program
     .entry main
 
