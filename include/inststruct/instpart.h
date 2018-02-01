@@ -138,10 +138,12 @@ namespace CVM
 		struct Data
 		{
 		public:
-			explicit Data(uint32_t data)
+			using Type = uint32_t;
+
+			explicit Data(Type data)
 				: _data(data) {}
 
-			uint32_t data() const {
+			Type data() const {
 				return _data;
 			}
 
@@ -150,7 +152,7 @@ namespace CVM
 			}
 
 		private:
-			uint32_t _data;
+			Type _data;
 		};
 	}
 }

@@ -72,14 +72,14 @@ namespace CVM
 						return [=](Runtime::Environment &env) {
 							auto &dst = env.get_dyvarb(dst_id, dst_e);
 							auto newdata = data;
-							Runtime::DataManage::LoadData(env, dst, Runtime::DataPointer(&newdata), type);
+							Runtime::DataManage::LoadData(env, dst, Runtime::DataPointer(&newdata), type, MemorySize(sizeof(InstStruct::Data::Type)));
 						};
 					}
 					else if (func.is_stvarb(dst_id)) {
 						return [=](Runtime::Environment &env) {
 							auto &dst = env.get_stvarb(dst_id, dst_e);
 							auto newdata = data;
-							Runtime::DataManage::LoadData(env, dst, Runtime::DataPointer(&newdata), type);
+							Runtime::DataManage::LoadData(env, dst, Runtime::DataPointer(&newdata), type, MemorySize(sizeof(InstStruct::Data::Type)));
 						};
 					}
 				}

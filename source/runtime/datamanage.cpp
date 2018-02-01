@@ -13,9 +13,15 @@ namespace CVM
 			static MemorySize GetSize(Environment &env, const TypeIndex &type) {
 				return env.getType(type).size;
 			}
+			static void Clear(DataPointer dst, MemorySize size) {
+				PriLib::Memory::clear(dst.get(), size.data);
+			}
 
 			DataPointer Alloc(MemorySize size) {
 				return DataPointer(malloc(size.data));
+			}
+			DataPointer AllocClear(MemorySize size) {
+				return DataPointer(calloc(size.data, 1));
 			}
 
 			static std::string ToStringData(byte *bp, size_t size) {
@@ -62,13 +68,14 @@ namespace CVM
 				CopyTo(dst.data, src.data, GetSize(env, srctype));
 			}
 
-			void LoadData(Environment &env, DataRegisterDynamic &dst, DataPointer src, TypeIndex srctype) {
-				dst.data = Alloc(GetSize(env, srctype));
-				CopyTo(dst.data, src, GetSize(env, srctype));
-				dst.type = srctype;
+			void LoadData(Environment &env, DataRegisterDynamic &dst, DataPointer src, TypeIndex dsttype, MemorySize srcsize) {
+				dst.data = AllocClear(GetSize(env, dsttype));
+				CopyTo(dst.data, src, srcsize);
+				dst.type = dsttype;
 			}
-			void LoadData(Environment &env, DataRegisterStatic &dst, DataPointer src, TypeIndex srctype) {
-				CopyTo(dst.data, src, GetSize(env, srctype));
+			void LoadData(Environment &env, DataRegisterStatic &dst, DataPointer src, TypeIndex dsttype, MemorySize srcsize) {
+				Clear(dst.data, GetSize(env, dsttype));
+				CopyTo(dst.data, src, srcsize);
 			}
 
 			void Debug_PrintRegister(Environment &env, const DataRegisterDynamic &src) {

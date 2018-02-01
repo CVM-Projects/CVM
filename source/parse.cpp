@@ -3,11 +3,26 @@
 #include "inststruct/instcode.h"
 #include "inststruct/function.h"
 #include "inststruct/instpart.h"
-#include "inststruct/instdef.h"
 #include <regex>
 
 namespace CVM
 {
+	using ParsedIdentifier = PriLib::ExplicitType<std::string>;
+
+	enum ParseErrorCode
+	{
+		PEC_NumTooLarge,
+		PEC_URNum,
+		PEC_URCmd,
+		PEC_UREnv,
+		PEC_URReg,
+		PEC_UREscape,
+		PEC_UFType,
+		PEC_UFFunc,
+		PEC_DUType,
+		PEC_DUFunc,
+	};
+
 	class ParseInfo
 	{
 	public:
@@ -17,10 +32,39 @@ namespace CVM
 		std::map<std::string, InstStruct::FunctionInfo*> functable;
 		InstStruct::FunctionInfo *currfunc;
 		TypeInfoMap &tim;
-		size_t lcount = 0;
-		std::string entry;
-		std::string currtype;
+		uint64_t lcount = 0;
+		ParsedIdentifier entry;
+		ParsedIdentifier currtype;
 		int currsection = 0;
+
+		void putErrorLine() const {
+			fprintf(stderr, "Parse Error in line(%zu).\n", lcount);
+		}
+		void putErrorLine(ParseErrorCode pec) const {
+			fprintf(stderr, "Parse Error for '%s' in line(%zu).\n", geterrmsg(pec), lcount);
+		}
+		void putErrorLine(ParseErrorCode pec, const std::string &msg) const {
+			fprintf(stderr, "Parse Error for '%s' at '%s' in line(%zu).\n", geterrmsg(pec), msg.c_str(), lcount);
+		}
+		void putError(const std::string &msg) const {
+			fprintf(stderr, "%s\n", msg.c_str());
+		}
+
+		const char* geterrmsg(ParseErrorCode pec) const {
+			static std::map<ParseErrorCode, const char*> pecmap = {
+				{ PEC_NumTooLarge, "Number too large" },
+				{ PEC_URNum, "Unrecognized Number" },
+				{ PEC_URCmd, "Unrecognized command" },
+				{ PEC_UREnv, "Unrecognized environment" },
+				{ PEC_URReg, "Unrecognized register" },
+				{ PEC_UREscape, "Unrecognized escape" },
+				{ PEC_UFType, "Unfind type" },
+				{ PEC_UFFunc, "Unfind function" },
+				{ PEC_DUType, "type name duplicate" },
+				{ PEC_DUFunc, "func name duplicate" },
+			};
+			return pecmap.at(pec);
+		}
 	};
 
 	enum KeySection : int {
@@ -52,16 +96,9 @@ namespace CVM
 		return PriLib::StorePtr<ParseInfo>(new ParseInfo(tim));
 	}
 
-	void putErrorLine(size_t lcount) {
-		fprintf(stderr, "Parse Error in line(%s).\n", std::to_string(lcount).c_str());
-	}
-	void putErrorLine(const std::string &msg, size_t lcount) {
-		fprintf(stderr, "Parse Error for '%s' in line(%s).\n", msg.c_str(), std::to_string(lcount).c_str());
-	}
-
 	InstStruct::Register parseRegister(ParseInfo &parseinfo, const std::string &word) {
 		if (word[0] != '%') {
-			putErrorLine(parseinfo.lcount);
+			parseinfo.putErrorLine();
 			return InstStruct::Register();
 		}
 		if (word == "%res")
@@ -90,22 +127,21 @@ namespace CVM
 				break;
 			}
 			else {
-				putErrorLine(parseinfo.lcount);
+				parseinfo.putErrorLine();
 				break;
 			}
 		}
-
 
 		std::regex rc("(\\d+)");
 		std::regex re("(\\d+)\\(\\%(\\w+)\\)");
 
 		std::cmatch cm;
 		if (std::regex_match(mword, cm, rc)) {
-			index = PriLib::Convert::to_integer<uint16_t>(cm[1].str(), [&]() { putErrorLine("Number to large", parseinfo.lcount); });
+			index = PriLib::Convert::to_integer<uint16_t>(cm[1].str(), [&]() { parseinfo.putErrorLine(PEC_NumTooLarge); });
 			etype = InstStruct::e_current;
 		}
 		else if ((std::regex_match(mword, cm, re))) {
-			index = PriLib::Convert::to_integer<uint16_t>(cm[1].str(), [&]() { putErrorLine("Number to large", parseinfo.lcount); });
+			index = PriLib::Convert::to_integer<uint16_t>(cm[1].str(), [&]() { parseinfo.putErrorLine(PEC_NumTooLarge); });
 			auto estr = cm[2].str();
 			if (estr == "env") {
 				etype = InstStruct::e_current;
@@ -117,17 +153,34 @@ namespace CVM
 				etype = InstStruct::e_parent;
 			}
 			else {
-				putErrorLine("Unrecognized environment", parseinfo.lcount);
+				parseinfo.putErrorLine(PEC_UREnv);
 			}
 		}
 		else {
-			putErrorLine("Unrecognized register", parseinfo.lcount);
+			parseinfo.putErrorLine(PEC_URReg);
 		}
 
 		return InstStruct::Register(rtype, etype, index);
 	}
 
-	std::string parseIdentifier(ParseInfo &parseinfo, const std::string &word) {
+	InstStruct::Data parseDataInst(ParseInfo &parseinfo, const std::string &word) {
+		auto errfunc = [&]() {
+			parseinfo.putErrorLine(PEC_URNum, word);
+			parseinfo.putError("The number must be unsigned integer and below " + std::to_string(8 * sizeof(InstStruct::Data::Type)) + "bits.");
+		};
+
+		std::string nword = word;
+		int base = 10;
+
+		if (word.length() > 2 && word[0] == '0' && word[1] == 'x') {
+			base = 16;
+			nword = word.substr(2);
+		}
+
+		return InstStruct::Data(PriLib::Convert::to_integer<InstStruct::Data::Type>(nword, errfunc, base));
+	}
+
+	ParsedIdentifier parseIdentifier(ParseInfo &parseinfo, const std::string &word) {
 		std::string mword;
 		bool escape = false; // Use '%' in identifier.
 		for (auto &c : word) {
@@ -136,7 +189,7 @@ namespace CVM
 				if (c == '%' || c == '#')
 					mword.push_back(c);
 				else
-					putErrorLine("Unrecognized escape", parseinfo.lcount);
+					parseinfo.putErrorLine(PEC_UREscape);
 			}
 			else {
 				if (c == '%')
@@ -146,12 +199,12 @@ namespace CVM
 			}
 		}
 		if (escape) {
-			putErrorLine("Unrecognized escape", parseinfo.lcount);
+			parseinfo.putErrorLine(PEC_UREscape);
 		}
 		PriLib::Convert::split(mword, "#", [&](const char *w) {
 			//println(w);
 			});
-		return mword;
+		return ParsedIdentifier(mword);
 	}
 
 	void parseLineBase(
@@ -198,11 +251,11 @@ namespace CVM
 
 	TypeIndex parseType(ParseInfo &parseinfo, const std::string &word) {
 		TypeIndex index;
-		if (parseinfo.tim.find(parseIdentifier(parseinfo, word), index)) {
+		if (parseinfo.tim.find(parseIdentifier(parseinfo, word).data, index)) {
 			return index;
 		}
 		else {
-			putErrorLine("Unfind type", parseinfo.lcount);
+			parseinfo.putErrorLine(PEC_UFType);
 			return TypeIndex(0);
 		}
 	}
@@ -215,28 +268,28 @@ namespace CVM
 				break;
 			case ki_dyvarb:
 				if (list.size() == 1) {
-					parseinfo.currfunc->dyvarb_count = PriLib::Convert::to_integer<size_t>(list[0], [&]() { putErrorLine("Error Num", parseinfo.lcount); });
+					parseinfo.currfunc->dyvarb_count = PriLib::Convert::to_integer<size_t>(list[0], [&]() { parseinfo.putErrorLine(PEC_URNum); });
 				}
 				else {
-					putErrorLine(parseinfo.lcount);
+					parseinfo.putErrorLine();
 				}
 				break;
 			case ki_stvarb:
 				if (list.size() == 2) {
 					auto &type = list[list.size() - 1];
-					size_t count = PriLib::Convert::to_integer<size_t>(list[0], [&]() { putErrorLine("Error Num", parseinfo.lcount); });
+					size_t count = PriLib::Convert::to_integer<size_t>(list[0], [&]() { parseinfo.putErrorLine(PEC_URNum); });
 					TypeIndex index = parseType(parseinfo, type);
 					for (size_t i = 0; i < count; ++i)
 						parseinfo.currfunc->stvarb_typelist.push_back(index);
 				}
 				else {
-					putErrorLine(parseinfo.lcount);
+					parseinfo.putErrorLine();
 				}
 				break;
 			case ki_data:
 				break;
 			default:
-				putErrorLine("Unrecognized command", parseinfo.lcount);
+				parseinfo.putErrorLine(PEC_URCmd);
 			}
 		}
 		else if (parseinfo.currsection == ks_program) {
@@ -246,69 +299,43 @@ namespace CVM
 					parseinfo.entry = parseIdentifier(parseinfo, list[0]);
 				}
 				else {
-					putErrorLine(parseinfo.lcount);
+					parseinfo.putErrorLine();
 				}
 				break;
 			default:
-				putErrorLine("Unrecognized command", parseinfo.lcount);
+				parseinfo.putErrorLine(PEC_URCmd);
 			}
 		}
 		else if (parseinfo.currsection == ks_type) {
-			const std::string &name = parseinfo.currtype;
-			auto &typeinfo = parseinfo.tim.at(name);
+			const auto &name = parseinfo.currtype;
+			auto &typeinfo = parseinfo.tim.at(name.data);
 			switch (code) {
 			case ki_size:
 				if (list.size() == 1) {
 					bool success = PriLib::Convert::to_integer(list[0], typeinfo.size.data);
 					if (!success)
-						putErrorLine(parseinfo.lcount);
+						parseinfo.putErrorLine();
 				}
 				else {
-					putErrorLine(parseinfo.lcount);
+					parseinfo.putErrorLine();
 				}
 				break;
 			default:
-				putErrorLine("Unrecognized command", parseinfo.lcount);
+				parseinfo.putErrorLine(PEC_URCmd);
 			}
 		}
 		else {
-			putErrorLine("Unrecognized command", parseinfo.lcount);
+			parseinfo.putErrorLine(PEC_URCmd);
 		}
 	}
 
-	static const ParseKeyMap& GetPaseKeyInstMap() {
-		// TODO
-		static ParseKeyMap map {
-			{ "mov", InstStruct::InstCode::i_mov },
-			{ "load", InstStruct::InstCode::i_load },
-			{ "db_opreg", InstStruct::InstCode::id_opreg },
-			{ "ret", InstStruct::InstCode::i_ret },
-		};
-		return map;
-	}
+	static const ParseKeyMap& GetPaseKeyInstMap();
+
+	InstStruct::Instruction* parseFuncInstBase(ParseInfo& parseinfo, int code, const std::vector<std::string> &list);
 
 	void parseFuncInst(ParseInfo &parseinfo, int code, const std::vector<std::string> &list)
 	{
-		using namespace InstStruct;
-		auto &func = parseinfo.currfunc;
-		switch (code) {
-		case i_mov:
-			//PriLib::Output::println("Move");
-			func->instdata.push_back(new Insts::Move(parseRegister(parseinfo, list[0]), parseRegister(parseinfo, list[1])));
-			break;
-		case i_load:
-			//PriLib::Output::println("Load");
-			func->instdata.push_back(new Insts::Load1(parseRegister(parseinfo, list[0]), Data(PriLib::Convert::to_integer<uint32_t>(list[1], [&]() { putErrorLine("Error Num", parseinfo.lcount); })), parseType(parseinfo, list[2])));
-			break;
-		case id_opreg:
-			//PriLib::Output::println("Debug_OutputRegister");
-			func->instdata.push_back(new Insts::Debug_OutputRegister());
-			break;
-		case i_ret:
-			//PriLib::Output::println("Return");
-			func->instdata.push_back(new Insts::Return());
-			break;
-		}
+		return parseinfo.currfunc->instdata.push_back(parseFuncInstBase(parseinfo, code, list));
 	}
 
 	void parseLine(ParseInfo &parseinfo, const std::string &line)
@@ -333,7 +360,7 @@ namespace CVM
 						return iter->second;
 					}
 					else
-						putErrorLine(parseinfo.lcount);
+						parseinfo.putErrorLine();
 					return 0;
 				},
 				[&](ParseInfo &parseinfo, int code, const std::vector<std::string> &list) {
@@ -342,31 +369,31 @@ namespace CVM
 						break;
 					case ks_func: {
 						if (list.size() != 1) {
-							putErrorLine(parseinfo.lcount);
+							parseinfo.putErrorLine();
 						}
 						const auto &name = parseIdentifier(parseinfo, list.at(0));
-						if (parseinfo.functable.find(name) == parseinfo.functable.end()) {
+						if (parseinfo.functable.find(name.data) == parseinfo.functable.end()) {
 							auto fp = new InstStruct::FunctionInfo();
 							parseinfo.functable[list[0]] = fp;
 							parseinfo.currfunc = fp;
 						}
 						else {
-							putErrorLine("func name duplicate", parseinfo.lcount);
+							parseinfo.putErrorLine(PEC_DUFunc);
 						}
 						break;
 					}
 					case ks_type: {
 						if (list.size() != 1) {
-							putErrorLine(parseinfo.lcount);
+							parseinfo.putErrorLine();
 						}
 						const auto &name = parseIdentifier(parseinfo, list.at(0));
 						TypeIndex tid;
-						if (parseinfo.tim.find(name, tid)) {
-							putErrorLine("type name duplicate", parseinfo.lcount);
+						if (parseinfo.tim.find(name.data, tid)) {
+							parseinfo.putErrorLine(PEC_DUType);
 						}
 						else {
 							parseinfo.currtype = name;
-							parseinfo.tim.insert(name, TypeInfo());
+							parseinfo.tim.insert(name.data, TypeInfo());
 						}
 						break;
 					}
@@ -383,7 +410,7 @@ namespace CVM
 					if (iter != map.end())
 						return iter->second;
 					else
-						putErrorLine(parseinfo.lcount);
+						parseinfo.putErrorLine();
 					return 0;
 				},
 				[&](ParseInfo &parseinfo, int code, const std::vector<std::string> &list) {
@@ -391,7 +418,7 @@ namespace CVM
 				});
 		}
 		else {
-			putErrorLine(parseinfo.lcount);
+			parseinfo.putErrorLine();
 		}
 	}
 
@@ -426,6 +453,47 @@ namespace CVM
 	}
 
 	std::string getEntry(ParseInfo &parseinfo) {
-		return parseinfo.entry;
+		return parseinfo.entry.data;
+	}
+}
+
+#include "inststruct/instdef.h"
+
+namespace CVM
+{
+	static const ParseKeyMap& GetPaseKeyInstMap() {
+		// TODO
+		static ParseKeyMap map {
+			{ "mov", InstStruct::InstCode::i_mov },
+			{ "load", InstStruct::InstCode::i_load },
+			{ "db_opreg", InstStruct::InstCode::id_opreg },
+			{ "ret", InstStruct::InstCode::i_ret },
+		};
+		return map;
+	}
+
+	InstStruct::Instruction* parseFuncInstBase(ParseInfo& parseinfo, int code, const std::vector<std::string> &list)
+	{
+		using namespace InstStruct;
+		switch (code) {
+		case i_mov:
+			return new Insts::Move(parseRegister(parseinfo, list[0]), parseRegister(parseinfo, list[1]));
+			break;
+		case i_load:
+			return new Insts::Load1(
+				parseRegister(parseinfo, list[0]),
+				parseDataInst(parseinfo, list[1]),
+				parseType(parseinfo, list[2]));
+			break;
+		case id_opreg:
+			return new Insts::Debug_OutputRegister();
+			break;
+		case i_ret:
+			return new Insts::Return();
+			break;
+		}
+
+		parseinfo.putErrorLine();
+		return nullptr;
 	}
 }
