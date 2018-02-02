@@ -44,17 +44,19 @@ namespace CVM
 					};
 				}
 				else if (func.is_dyvarb(dst_id) && func.is_stvarb(src_id)) {
-					return [=, &func](Runtime::Environment &env) {
+					TypeIndex type = func.get_stvarb_type(src_id);
+					return [=](Runtime::Environment &env) {
 						auto &dst = env.get_dyvarb(dst_id, dst_e);
 						auto &src = env.get_stvarb(src_id, src_e);
-						Runtime::DataManage::MoveRegister(env, dst, src, func.get_stvarb_type(src_id));
+						Runtime::DataManage::MoveRegister(env, dst, src, type);
 					};
 				}
 				else if (func.is_stvarb(dst_id) && func.is_stvarb(src_id)) {
-					return [=, &func](Runtime::Environment &env) {
+					TypeIndex type = func.get_stvarb_type(src_id);
+					return [=](Runtime::Environment &env) {
 						auto &dst = env.get_stvarb(dst_id, dst_e);
 						auto &src = env.get_stvarb(src_id, src_e);
-						Runtime::DataManage::MoveRegister(env, dst, src, func.get_stvarb_type(src_id));
+						Runtime::DataManage::MoveRegister(env, dst, src, type);
 					};
 				}
 			}

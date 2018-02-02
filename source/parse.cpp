@@ -13,6 +13,7 @@ namespace CVM
 	{
 		PEC_NumTooLarge,
 		PEC_URNum,
+		PEC_URIns,
 		PEC_URCmd,
 		PEC_UREnv,
 		PEC_URReg,
@@ -32,7 +33,7 @@ namespace CVM
 		std::map<std::string, InstStruct::FunctionInfo*> functable;
 		InstStruct::FunctionInfo *currfunc;
 		TypeInfoMap &tim;
-		uint64_t lcount = 0;
+		size_t lcount = 0;
 		ParsedIdentifier entry;
 		ParsedIdentifier currtype;
 		int currsection = 0;
@@ -55,6 +56,7 @@ namespace CVM
 				{ PEC_NumTooLarge, "Number too large" },
 				{ PEC_URNum, "Unrecognized Number" },
 				{ PEC_URCmd, "Unrecognized command" },
+				{ PEC_URIns, "Unrecognized instruction" },
 				{ PEC_UREnv, "Unrecognized environment" },
 				{ PEC_URReg, "Unrecognized register" },
 				{ PEC_UREscape, "Unrecognized escape" },
@@ -66,31 +68,6 @@ namespace CVM
 			return pecmap.at(pec);
 		}
 	};
-
-	enum KeySection : int {
-		ks_nil = 0,
-		ks_program,
-		ks_imports,
-		ks_exports,
-		ks_datas,
-		ks_module,
-		ks_func,
-		ks_type,
-	};
-
-	enum KeyInside : int {
-		ki_mode,
-		ki_arg,
-		ki_dyvarb,
-		ki_stvarb,
-		ki_data,
-		ki_string,
-		ki_func,
-		ki_entry,
-		ki_size,
-	};
-
-	using ParseKeyMap = std::map<std::string, int>;
 
 	PriLib::StorePtr<ParseInfo> createParseInfo(TypeInfoMap &tim) {
 		return PriLib::StorePtr<ParseInfo>(new ParseInfo(tim));
@@ -229,26 +206,6 @@ namespace CVM
 		f2(parseinfo, code, list);
 	}
 
-	static const ParseKeyMap& GetParseKeyInsideMap() {
-		static ParseKeyMap map {
-			// exports
-			{ "func", ki_func },
-			{ "mode", ki_mode },
-			// func
-			{ "arg", ki_arg },
-			{ "dyvarb", ki_dyvarb },
-			{ "stvarb", ki_stvarb },
-			// datas
-			{ "data", ki_data },
-			{ "string", ki_string },
-			// program
-			{ "entry", ki_entry },
-			// type
-			{ "size", ki_size },
-		};
-		return map;
-	}
-
 	TypeIndex parseType(ParseInfo &parseinfo, const std::string &word) {
 		TypeIndex index;
 		if (parseinfo.tim.find(parseIdentifier(parseinfo, word).data, index)) {
@@ -259,68 +216,162 @@ namespace CVM
 			return TypeIndex(0);
 		}
 	}
+}
 
-	void parseFuncInside(ParseInfo &parseinfo, int code, const std::vector<std::string> &list) {
-		if (parseinfo.currsection == ks_func) {
-			switch (code) {
-			case ki_arg:
-				//parseinfo.currfunc->arglist
-				break;
-			case ki_dyvarb:
-				if (list.size() == 1) {
-					parseinfo.currfunc->dyvarb_count = PriLib::Convert::to_integer<size_t>(list[0], [&]() { parseinfo.putErrorLine(PEC_URNum); });
-				}
-				else {
-					parseinfo.putErrorLine();
-				}
-				break;
-			case ki_stvarb:
-				if (list.size() == 2) {
-					auto &type = list[list.size() - 1];
-					size_t count = PriLib::Convert::to_integer<size_t>(list[0], [&]() { parseinfo.putErrorLine(PEC_URNum); });
-					TypeIndex index = parseType(parseinfo, type);
-					for (size_t i = 0; i < count; ++i)
-						parseinfo.currfunc->stvarb_typelist.push_back(index);
-				}
-				else {
-					parseinfo.putErrorLine();
-				}
-				break;
-			case ki_data:
-				break;
-			default:
-				parseinfo.putErrorLine(PEC_URCmd);
+namespace CVM
+{
+	enum KeySection : int {
+		ks_nil = 0,
+		ks_program,
+		ks_imports,
+		ks_exports,
+		ks_datas,
+		ks_module,
+		ks_func,
+		ks_type,
+	};
+
+	const auto& getSectionKeyMap() {
+		static std::map<std::string, int> map {
+			{ "program", ks_program },
+			{ "imports", ks_imports },
+			{ "exports", ks_exports },
+			{ "datas", ks_datas },
+			{ "module", ks_module },
+			{ "func", ks_func },
+			{ "type", ks_type },
+		};
+		return map;
+	}
+	void parseSection(ParseInfo &parseinfo, int code, const std::vector<std::string> &list) {
+		switch (code) {
+		case ks_program:
+			break;
+		case ks_func:
+		{
+			if (list.size() != 1) {
+				parseinfo.putErrorLine();
 			}
-		}
-		else if (parseinfo.currsection == ks_program) {
-			switch (code) {
-			case ki_entry:
-				if (list.size() == 1) {
-					parseinfo.entry = parseIdentifier(parseinfo, list[0]);
-				}
-				else {
-					parseinfo.putErrorLine();
-				}
-				break;
-			default:
-				parseinfo.putErrorLine(PEC_URCmd);
+			const auto &name = parseIdentifier(parseinfo, list.at(0));
+			if (parseinfo.functable.find(name.data) == parseinfo.functable.end()) {
+				auto fp = new InstStruct::FunctionInfo();
+				parseinfo.functable[list[0]] = fp;
+				parseinfo.currfunc = fp;
 			}
+			else {
+				parseinfo.putErrorLine(PEC_DUFunc);
+			}
+			break;
 		}
-		else if (parseinfo.currsection == ks_type) {
-			const auto &name = parseinfo.currtype;
-			auto &typeinfo = parseinfo.tim.at(name.data);
-			switch (code) {
-			case ki_size:
-				if (list.size() == 1) {
-					bool success = PriLib::Convert::to_integer(list[0], typeinfo.size.data);
-					if (!success)
-						parseinfo.putErrorLine();
+		case ks_type:
+		{
+			if (list.size() != 1) {
+				parseinfo.putErrorLine();
+			}
+			const auto &name = parseIdentifier(parseinfo, list.at(0));
+			TypeIndex tid;
+			if (parseinfo.tim.find(name.data, tid)) {
+				parseinfo.putErrorLine(PEC_DUType);
+			}
+			else {
+				parseinfo.currtype = name;
+				parseinfo.tim.insert(name.data, TypeInfo());
+			}
+			break;
+		}
+		}
+	}
+
+	void parseSectionInside(ParseInfo &parseinfo, const std::string &code, const std::vector<std::string> &list) {
+		using ParseInsideProcess = std::function<void(ParseInfo &, const std::vector<std::string> &)>;
+		using ParseInsideMap = std::map<std::string, ParseInsideProcess>;
+		static std::map<int, ParseInsideMap> parsemap {
+			{
+				ks_func,
+				ParseInsideMap {
+					{
+						"arg",
+						[](ParseInfo &parseinfo, const std::vector<std::string> &list) {
+						}
+					},
+					{
+						"dyvarb",
+						[](ParseInfo &parseinfo, const std::vector<std::string> &list) {
+							if (list.size() == 1) {
+								parseinfo.currfunc->dyvarb_count = PriLib::Convert::to_integer<size_t>(list[0], [&]() { parseinfo.putErrorLine(PEC_URNum); });
+							}
+							else {
+								parseinfo.putErrorLine();
+							}
+						}
+					},
+					{
+						"stvarb",
+						[](ParseInfo &parseinfo, const std::vector<std::string> &list) {
+							if (list.size() == 2) {
+								auto &type = list[list.size() - 1];
+								size_t count = PriLib::Convert::to_integer<size_t>(list[0], [&]() { parseinfo.putErrorLine(PEC_URNum); });
+								TypeIndex index = parseType(parseinfo, type);
+								for (size_t i = 0; i < count; ++i)
+									parseinfo.currfunc->stvarb_typelist.push_back(index);
+							}
+							else {
+								parseinfo.putErrorLine();
+							}
+						}
+					},
+					{
+						"data",
+						[](ParseInfo &parseinfo, const std::vector<std::string> &list) {
+						}
+					},
 				}
-				else {
-					parseinfo.putErrorLine();
-				}
-				break;
-			default:
+			},
+			{
+				ks_program,
+				ParseInsideMap {
+					{
+						"entry",
+						[](ParseInfo &parseinfo, const std::vector<std::string> &list) {
+							if (list.size() == 1) {
+								parseinfo.entry = parseIdentifier(parseinfo, list[0]);
+							}
+							else {
+								parseinfo.putErrorLine();
+							}
+						}
+					},
+				},
+			},
+			{
+				ks_type,
+				ParseInsideMap {
+					{
+						"size",
+						[](ParseInfo &parseinfo, const std::vector<std::string> &list) {
+							const auto &name = parseinfo.currtype;
+							auto &typeinfo = parseinfo.tim.at(name.data);
+							if (list.size() == 1) {
+								bool success = PriLib::Convert::to_integer(list[0], typeinfo.size.data);
+								if (!success)
+									parseinfo.putErrorLine();
+							}
+							else {
+								parseinfo.putErrorLine();
+							}
+						}
+					},
+				},
+			},
+		};
+
+		auto iter = parsemap.find(parseinfo.currsection);
+		if (iter != parsemap.end()) {
+			auto iiter = iter->second.find(code);
+			if (iiter != iter->second.end()) {
+				iiter->second(parseinfo, list);
+			}
+			else {
 				parseinfo.putErrorLine(PEC_URCmd);
 			}
 		}
@@ -329,11 +380,9 @@ namespace CVM
 		}
 	}
 
-	static const ParseKeyMap& GetPaseKeyInstMap();
+	InstStruct::Instruction* parseFuncInstBase(ParseInfo& parseinfo, const std::string &code, const std::vector<std::string> &list);
 
-	InstStruct::Instruction* parseFuncInstBase(ParseInfo& parseinfo, int code, const std::vector<std::string> &list);
-
-	void parseFuncInst(ParseInfo &parseinfo, int code, const std::vector<std::string> &list)
+	void parseFuncInst(ParseInfo &parseinfo, const std::string &code, const std::vector<std::string> &list)
 	{
 		return parseinfo.currfunc->instdata.push_back(parseFuncInstBase(parseinfo, code, list));
 	}
@@ -345,15 +394,7 @@ namespace CVM
 		if (fc == '.') {
 			parseLineBase(parseinfo, line,
 				[&](const char *code) {
-					static ParseKeyMap map {
-						{ "program", ks_program },
-						{ "imports", ks_imports },
-						{ "exports", ks_exports },
-						{ "datas", ks_datas },
-						{ "module", ks_module },
-						{ "func", ks_func },
-						{ "type", ks_type },
-					};
+					auto &map = getSectionKeyMap();
 					auto iter = map.find(code + 1);
 					if (iter != map.end()) {
 						parseinfo.currsection = iter->second;
@@ -363,58 +404,18 @@ namespace CVM
 						parseinfo.putErrorLine();
 					return 0;
 				},
-				[&](ParseInfo &parseinfo, int code, const std::vector<std::string> &list) {
-					switch (code) {
-					case ks_program:
-						break;
-					case ks_func: {
-						if (list.size() != 1) {
-							parseinfo.putErrorLine();
-						}
-						const auto &name = parseIdentifier(parseinfo, list.at(0));
-						if (parseinfo.functable.find(name.data) == parseinfo.functable.end()) {
-							auto fp = new InstStruct::FunctionInfo();
-							parseinfo.functable[list[0]] = fp;
-							parseinfo.currfunc = fp;
-						}
-						else {
-							parseinfo.putErrorLine(PEC_DUFunc);
-						}
-						break;
-					}
-					case ks_type: {
-						if (list.size() != 1) {
-							parseinfo.putErrorLine();
-						}
-						const auto &name = parseIdentifier(parseinfo, list.at(0));
-						TypeIndex tid;
-						if (parseinfo.tim.find(name.data, tid)) {
-							parseinfo.putErrorLine(PEC_DUType);
-						}
-						else {
-							parseinfo.currtype = name;
-							parseinfo.tim.insert(name.data, TypeInfo());
-						}
-						break;
-					}
-					}
-				});
+				parseSection);
 		}
 		else if (std::isblank(fc)) {
-			bool isinst;
+			std::string cmd;
 			parseLineBase(parseinfo, line,
 				[&](const char *code) {
-					isinst = code[0] != '.';
-					auto &map = isinst ? GetPaseKeyInstMap() : GetParseKeyInsideMap();
-					auto iter = map.find(code + (isinst ? 0 : 1));
-					if (iter != map.end())
-						return iter->second;
-					else
-						parseinfo.putErrorLine();
-					return 0;
+					int isinst = code[0] != '.';
+					cmd = isinst ? code : code + 1;
+					return isinst;
 				},
-				[&](ParseInfo &parseinfo, int code, const std::vector<std::string> &list) {
-					(isinst ? parseFuncInst : parseFuncInside)(parseinfo, code, list);
+				[&](ParseInfo &parseinfo, int isinst, const std::vector<std::string> &list) {
+					(isinst ? parseFuncInst : parseSectionInside)(parseinfo, cmd, list);
 				});
 		}
 		else {
@@ -461,39 +462,50 @@ namespace CVM
 
 namespace CVM
 {
-	static const ParseKeyMap& GetPaseKeyInstMap() {
-		// TODO
-		static ParseKeyMap map {
-			{ "mov", InstStruct::InstCode::i_mov },
-			{ "load", InstStruct::InstCode::i_load },
-			{ "db_opreg", InstStruct::InstCode::id_opreg },
-			{ "ret", InstStruct::InstCode::i_ret },
-		};
-		return map;
-	}
-
-	InstStruct::Instruction* parseFuncInstBase(ParseInfo& parseinfo, int code, const std::vector<std::string> &list)
+	InstStruct::Instruction* parseFuncInstBase(ParseInfo& parseinfo, const std::string &code, const std::vector<std::string> &list)
 	{
-		using namespace InstStruct;
-		switch (code) {
-		case i_mov:
-			return new Insts::Move(parseRegister(parseinfo, list[0]), parseRegister(parseinfo, list[1]));
-			break;
-		case i_load:
-			return new Insts::Load1(
-				parseRegister(parseinfo, list[0]),
-				parseDataInst(parseinfo, list[1]),
-				parseType(parseinfo, list[2]));
-			break;
-		case id_opreg:
-			return new Insts::Debug_OutputRegister();
-			break;
-		case i_ret:
-			return new Insts::Return();
-			break;
-		}
+		using ParseInstProcess = std::function<InstStruct::Instruction*(ParseInfo &, const std::vector<std::string> &)>;
+		using ParseInstMap = std::map<std::string, ParseInstProcess>;
 
-		parseinfo.putErrorLine();
-		return nullptr;
+		using namespace InstStruct;
+
+		static ParseInstMap parsemap {
+			{
+				"mov",
+				[](ParseInfo &parseinfo, const std::vector<std::string> &list) {
+					return new Insts::Move(parseRegister(parseinfo, list[0]), parseRegister(parseinfo, list[1]));
+				}
+			},
+			{
+				"load",
+				[](ParseInfo &parseinfo, const std::vector<std::string> &list) {
+					return new Insts::Load1(
+						parseRegister(parseinfo, list[0]),
+						parseDataInst(parseinfo, list[1]),
+						parseType(parseinfo, list[2]));
+				}
+			},
+			{
+				"ret",
+				[](ParseInfo &parseinfo, const std::vector<std::string> &list) {
+					return new Insts::Return();
+				}
+			},
+			{
+				"db_opreg",
+				[](ParseInfo &parseinfo, const std::vector<std::string> &list) {
+					return new Insts::Debug_OutputRegister();
+				}
+			},
+		};
+
+		auto iter = parsemap.find(code);
+		if (iter != parsemap.end()) {
+			return iter->second(parseinfo, list);
+		}
+		else {
+			parseinfo.putErrorLine(PEC_URIns, code);
+			return nullptr;
+		}
 	}
 }

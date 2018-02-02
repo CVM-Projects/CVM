@@ -1,27 +1,27 @@
 ;; test.cms
 
-.type int
-    .size 4
+.type cms#int64
+    .size 8
 
 .program
     .entry main
 
-; .func Math#add
-;     .stvarb 2, int
-;     .arg %1 %2
-;     call %res, cms#int#+, %1 %2
-;     ret
+;.func Math#add
+;    .stvarb 2, cms#int64
+;    .arg %1 %2
+;    call %res, cms#int64#+, %1 %2
+;    ret
 
 .func main
     .dyvarb 2
-    .stvarb 4, int
+    .stvarb 4, cms#int64
     db_opreg
-    load %1, 5, int
+    load %1, 5, cms#int64
     db_opreg
     mov  %2, %1
     mov  %3, %1
     mov  %4, %1
     db_opreg
-    load %5, 6, int
+    load %5, 6, cms#int64
     db_opreg
     ret
