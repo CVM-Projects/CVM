@@ -6,6 +6,10 @@
 .program
     .entry main
 
+.datas
+    .data #1, 0x5, 8
+    .data #2, 0x6, 8
+
 ;.func Math#add
 ;    .stvarb 2, cms#int64
 ;    .arg %1 %2
@@ -16,12 +20,12 @@
     .dyvarb 2
     .stvarb 4, cms#int64
     db_opreg
-    load %1, 5, cms#int64
+    load %1, #1, cms#int64
     db_opreg
     mov  %2, %1
     mov  %3, %1
     mov  %4, %1
     db_opreg
-    load %5, 6, cms#int64
+    load %5, #2, cms#int64
     db_opreg
     ret

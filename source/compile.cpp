@@ -33,14 +33,14 @@ namespace CVM
 					return [=](Runtime::Environment &env) {
 						auto &dst = env.get_dyvarb(dst_id, dst_e);
 						auto &src = env.get_dyvarb(src_id, src_e);
-						Runtime::DataManage::MoveRegister(env, dst, src);
+						Runtime::DataManage::MoveRegisterDD(env, dst, src);
 					};
 				}
 				else if (func.is_stvarb(dst_id) && func.is_dyvarb(src_id)) {
 					return [=](Runtime::Environment &env) {
 						auto &dst = env.get_stvarb(dst_id, dst_e);
 						auto &src = env.get_dyvarb(src_id, src_e);
-						Runtime::DataManage::MoveRegister(env, dst, src);
+						Runtime::DataManage::MoveRegisterSD(env, dst, src);
 					};
 				}
 				else if (func.is_dyvarb(dst_id) && func.is_stvarb(src_id)) {
@@ -48,7 +48,7 @@ namespace CVM
 					return [=](Runtime::Environment &env) {
 						auto &dst = env.get_dyvarb(dst_id, dst_e);
 						auto &src = env.get_stvarb(src_id, src_e);
-						Runtime::DataManage::MoveRegister(env, dst, src, type);
+						Runtime::DataManage::MoveRegisterDS(env, dst, src, type);
 					};
 				}
 				else if (func.is_stvarb(dst_id) && func.is_stvarb(src_id)) {
@@ -56,7 +56,7 @@ namespace CVM
 					return [=](Runtime::Environment &env) {
 						auto &dst = env.get_stvarb(dst_id, dst_e);
 						auto &src = env.get_stvarb(src_id, src_e);
-						Runtime::DataManage::MoveRegister(env, dst, src, type);
+						Runtime::DataManage::MoveRegisterSS(env, dst, src, type);
 					};
 				}
 			}
@@ -74,19 +74,39 @@ namespace CVM
 						return [=](Runtime::Environment &env) {
 							auto &dst = env.get_dyvarb(dst_id, dst_e);
 							auto newdata = data;
-							Runtime::DataManage::LoadData(env, dst, Runtime::DataPointer(&newdata), type, MemorySize(sizeof(InstStruct::Data::Type)));
+							Runtime::DataManage::LoadDataD(env, dst, Runtime::DataPointer(&newdata), type, MemorySize(sizeof(InstStruct::Data::Type)));
 						};
 					}
 					else if (func.is_stvarb(dst_id)) {
 						return [=](Runtime::Environment &env) {
 							auto &dst = env.get_stvarb(dst_id, dst_e);
 							auto newdata = data;
-							Runtime::DataManage::LoadData(env, dst, Runtime::DataPointer(&newdata), type, MemorySize(sizeof(InstStruct::Data::Type)));
+							Runtime::DataManage::LoadDataS(env, dst, Runtime::DataPointer(&newdata), type, MemorySize(sizeof(InstStruct::Data::Type)));
 						};
 					}
 				}
 				else if (inst._subid == 2) {
 					auto &Inst = static_cast<const InstStruct::Insts::Load2&>(inst);
+					auto dst_e = Convert(Inst.dst.etype());
+					auto dst_id = Inst.dst.index();
+
+					auto index = Inst.src.index();
+					TypeIndex type = Inst.type;
+
+					if (func.is_dyvarb(dst_id)) {
+						return [=](Runtime::Environment &env) {
+							auto &dst = env.get_dyvarb(dst_id, dst_e);
+							auto ptr = env.GEnv().getDataSectionMap().at(index);
+							Runtime::DataManage::LoadDataD(env, dst, Runtime::DataPointer(ptr), type, MemorySize(sizeof(InstStruct::Data::Type)));
+						};
+					}
+					else if (func.is_stvarb(dst_id)) {
+						return [=](Runtime::Environment &env) {
+							auto &dst = env.get_stvarb(dst_id, dst_e);
+							auto ptr = env.GEnv().getDataSectionMap().at(index);
+							Runtime::DataManage::LoadDataS(env, dst, Runtime::DataPointer(ptr), type, MemorySize(sizeof(InstStruct::Data::Type)));
+						};
+					}
 				}
 			}
 			else if (inst.instcode == InstStruct::i_ret) {
@@ -104,7 +124,7 @@ namespace CVM
 					PriLib::Output::println("dyvarb:");
 					for (size_t i = 1; i <= regset.dysize(); i++) {
 						PriLib::Output::print("  %", ++regcount, ": type(", regset.get_dynamic(i).type.data, "), ");
-						Runtime::DataManage::Debug_PrintRegister(env, regset.get_dynamic(i));
+						Runtime::DataManage::Debug_PrintRegisterD(env, regset.get_dynamic(i));
 					}
 					if (regset.stsize() != 0) {
 						PriLib::Output::print("stvarb:");
@@ -167,12 +187,12 @@ namespace CVM
 			return new Runtime::LocalEnvironment(drs, new_func);
 		}
 
-		Runtime::GlobalEnvironment* CreateGlobalEnvironment(size_t dysize, const TypeInfoMap &tim) {
+		Runtime::GlobalEnvironment* CreateGlobalEnvironment(size_t dysize, const TypeInfoMap &tim, const std::map<uint32_t, uint8_t*> &datasmap) {
 			Runtime::DataRegisterSet::DyDatRegSize _dysize(dysize);
 			Runtime::DataRegisterSet drs(_dysize);
 
 			// Return Environment
-			return new Runtime::GlobalEnvironment(drs, tim);
+			return new Runtime::GlobalEnvironment(drs, tim, datasmap);
 		}
 	}
 }

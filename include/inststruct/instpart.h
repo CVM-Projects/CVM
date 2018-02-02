@@ -102,10 +102,12 @@ namespace CVM
 		struct Identifier
 		{
 		public:
-			explicit Identifier(uint32_t index)
+			using Type = uint32_t;
+
+			explicit Identifier(Type index)
 				: _index(index) {}
 
-			uint32_t index() const {
+			Type index() const {
 				return _index;
 			}
 
@@ -114,25 +116,27 @@ namespace CVM
 			}
 
 		private:
-			uint32_t _index;
+			Type _index;
 		};
 
 		struct DataIndex
 		{
 		public:
-			explicit DataIndex(uint32_t index)
+			using Type = uint32_t;
+
+			explicit DataIndex(Type index)
 				: _index(index) {}
 
-			uint32_t index() const {
+			Type index() const {
 				return _index;
 			}
 
 			std::string toString() const {
-				return "d" + std::to_string(_index);
+				return "#" + std::to_string(_index);
 			}
 
 		private:
-			uint32_t _index;
+			Type _index;
 		};
 
 		struct Data

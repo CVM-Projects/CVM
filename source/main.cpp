@@ -74,6 +74,7 @@ int main(int argc, char *argv[])
 
 	auto parseInfo = createParseInfo(tim);
 	parseFile(parseInfo, cmsfile);
+	auto datasmap = getDataSectionMap(parseInfo);
 
 	// Get entry func
 
@@ -95,7 +96,7 @@ int main(int argc, char *argv[])
 
 	VirtualMachine VM;
 
-	VM.addGlobalEnvironment(Compile::CreateGlobalEnvironment(0xff, tim));
+	VM.addGlobalEnvironment(Compile::CreateGlobalEnvironment(0xff, tim, datasmap));
 	Runtime::LocalEnvironment *lenv = Compile::CreateLoaclEnvironment(*func, tim);
 
 	VM.Genv().addSubEnvironment(lenv);

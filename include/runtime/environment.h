@@ -32,6 +32,8 @@ namespace CVM
 			std::list<std::shared_ptr<Environment>> _data;
 		};
 
+		class GlobalEnvironment;
+
 		class Environment
 		{
 		public:
@@ -39,7 +41,7 @@ namespace CVM
 				: _dataRegisterSet(drs) {}
 
 			virtual ~Environment() {}
-			
+
 			virtual void addSubEnvironment(Environment *envp) {
 				envp->SetPEnv(this);
 				std::shared_ptr<Environment> env(envp);
@@ -78,6 +80,9 @@ namespace CVM
 				return _dataRegisterSet;
 			}
 
+			GlobalEnvironment& GEnv() const {
+				return *_genv;
+			}
 			Environment& PEnv() const {
 				return *_penv;
 			}
@@ -85,11 +90,16 @@ namespace CVM
 				assert(_penv == nullptr);
 				_penv = penv;
 			}
+			void SetGEnv(GlobalEnvironment *genv) {
+				assert(_genv == nullptr);
+				_genv = genv;
+			}
 			void SetTypeInfoMap(TypeInfoMap *timp) {
 				_timp = timp;
 			}
 
 		protected:
+			GlobalEnvironment *_genv = nullptr;
 			Environment *_penv = nullptr;
 			Environment *_tenv = nullptr;
 			TypeInfoMap *_timp = nullptr;
@@ -100,20 +110,26 @@ namespace CVM
 		class GlobalEnvironment : public Environment
 		{
 		public:
-			explicit GlobalEnvironment(const DataRegisterSet &drs, const TypeInfoMap &tim)
-				: Environment(drs), _tim(tim) {
+			using DataSectionMap = std::map<uint32_t, uint8_t*>;
+			explicit GlobalEnvironment(const DataRegisterSet &drs, const TypeInfoMap &tim, const DataSectionMap &datasmap)
+				: Environment(drs), _tim(tim), _datasmap(datasmap) {
 				_timp = &_tim;
-			}
-
-			virtual void addSubEnvironment(Environment *envp) {
-				Environment::addSubEnvironment(envp);
-				envp->SetTypeInfoMap(this->_timp);
 			}
 
 			GlobalEnvironment(const GlobalEnvironment &) = delete;
 
+			virtual void addSubEnvironment(Environment *envp) {
+				Environment::addSubEnvironment(envp);
+				envp->SetTypeInfoMap(this->_timp);
+				envp->SetGEnv(this);
+			}
+			const DataSectionMap& getDataSectionMap() const {
+				return _datasmap;
+			}
+
 		private:
 			TypeInfoMap _tim;
+			DataSectionMap _datasmap;
 		};
 
 		class ThreadEnvironment : public Environment
@@ -132,7 +148,7 @@ namespace CVM
 			ControlFlow& Controlflow() {
 				return _controlflow;
 			}
-			
+
 			bool isLocal() const {
 				return true;
 			}

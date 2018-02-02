@@ -13,16 +13,16 @@ namespace CVM
 			DataPointer Alloc(MemorySize size);
 			DataPointer AllocClear(MemorySize size);
 
-			void MoveRegister(Environment &env, DataRegisterDynamic &dst, const DataRegisterDynamic &src);
-			void MoveRegister(Environment &env, DataRegisterStatic &dst, const DataRegisterDynamic &src);
-			void MoveRegister(Environment &env, DataRegisterDynamic &dst, const DataRegisterStatic &src, TypeIndex srctype);
-			void MoveRegister(Environment &env, DataRegisterStatic &dst, const DataRegisterStatic &src, TypeIndex srctype);
+			void MoveRegisterDD(Environment &env, DataRegisterDynamic &dst, const DataRegisterDynamic &src);
+			void MoveRegisterSD(Environment &env, DataRegisterStatic &dst, const DataRegisterDynamic &src);
+			void MoveRegisterDS(Environment &env, DataRegisterDynamic &dst, const DataRegisterStatic &src, TypeIndex srctype);
+			void MoveRegisterSS(Environment &env, DataRegisterStatic &dst, const DataRegisterStatic &src, TypeIndex srctype);
 
-			void LoadData(Environment &env, DataRegisterDynamic &dst, DataPointer src, TypeIndex dsttype, MemorySize srcsize);
-			void LoadData(Environment &env, DataRegisterStatic &dst, DataPointer src, TypeIndex dsttype, MemorySize srcsize);
+			void LoadDataD(Environment &env, DataRegisterDynamic &dst, DataPointer src, TypeIndex dsttype, MemorySize srcsize);
+			void LoadDataS(Environment &env, DataRegisterStatic &dst, DataPointer src, TypeIndex dsttype, MemorySize srcsize);
 
-			void Debug_PrintRegister(Environment &env, const DataRegisterDynamic &src);
-			void Debug_PrintRegister(Environment &env, const DataRegisterStatic &src, TypeIndex type);
+			void Debug_PrintRegisterD(Environment &env, const DataRegisterDynamic &src);
+			void Debug_PrintRegisterS(Environment &env, const DataRegisterStatic &src, TypeIndex type);
 		}
 	}
 }
