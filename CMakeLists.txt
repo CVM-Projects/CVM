@@ -15,6 +15,7 @@ aux_source_directory(source/runtime SOURCE_RUNTIME_FILES)
 add_executable(cvm ${SOURCE_FILES} ${SOURCE_RUNTIME_FILES} ${PRILIB_SOURCE_FILES})
 
 target_link_libraries(cvm prilib)
+target_link_libraries(cvm gmp gmpxx)
 
 set_target_properties(cvm PROPERTIES COTIRE_CXX_PREFIX_HEADER_INIT "include/basic.h")
 cotire(cvm)
