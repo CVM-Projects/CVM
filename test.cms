@@ -7,8 +7,8 @@
     .entry main
 
 .datas
-    .data #1, 5
-    .data #2, 6
+    .array #1, 0x12 0x34 0x56
+    .data  #2, 6
 
 ;.func Math#add
 ;    .stvarb 2, cms#int64

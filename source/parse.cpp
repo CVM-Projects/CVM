@@ -448,6 +448,57 @@ namespace CVM
 									parseinfo.putErrorLine(PEC_DUDataId);
 								}
 							}
+							else {
+								parseinfo.putErrorLine();
+							}
+						}
+					},
+					{
+						"array",
+						[](ParseInfo &parseinfo, const std::vector<std::string> &list) {
+							if (list.size() >= 2) {
+								InstStruct::DataIndex di = parseDataIndex(parseinfo, list[0]);
+								auto iter = parseinfo.datamap.find(di.index());
+								if (iter == parseinfo.datamap.end()) {
+									std::vector<uint8_t> vec;
+									for (auto &word : PriLib::rangei(list.begin() + 1, list.end())) {
+										BigInteger bi;
+										if (bi.parse(word)) {
+											bool is_large;
+											uint8_t v;
+											if (bi.toBuffer(&v, 1, is_large)) {
+												vec.push_back(v);
+											}
+											else {
+												if (is_large) {
+													parseinfo.putErrorLine(PEC_NumTooLarge, word);
+													parseinfo.putError("Only accept 1 byte for each data.");
+													return;
+												}
+												else {
+													parseinfo.putErrorLine(PEC_URNum, word);
+													return;
+												}
+											}
+										}
+										else {
+											parseinfo.putErrorLine(PEC_URNum, word);
+											return;
+										}
+									}
+
+									uint8_t *buffer = new uint8_t[vec.size()]();
+									PriLib::Memory::copyTo(buffer, vec.data(), vec.size());
+									parseinfo.datamap[di.index()] = std::make_pair(buffer, static_cast<uint32_t>(vec.size()));
+								}
+								else {
+									parseinfo.putErrorLine(PEC_DUDataId);
+									return;
+								}
+							}
+							else {
+								parseinfo.putErrorLine();
+							}
 						}
 					},
 				},
