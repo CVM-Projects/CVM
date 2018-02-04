@@ -14,6 +14,6 @@ namespace CVM
 		Runtime::Function Compile(const InstStruct::Function &func);
 
 		Runtime::LocalEnvironment* CreateLoaclEnvironment(const InstStruct::Function &func, const TypeInfoMap &tim);
-		Runtime::GlobalEnvironment* CreateGlobalEnvironment(size_t dysize, const TypeInfoMap &tim, const DataPool &datasmap);
+		Runtime::GlobalEnvironment* CreateGlobalEnvironment(size_t dysize, const TypeInfoMap &tim, const LiteralDataPool &datasmap);
 	}
 }

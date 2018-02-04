@@ -95,8 +95,10 @@ int main(int argc, char *argv[])
 	// Run 'main'
 
 	VirtualMachine VM;
-
-	VM.addGlobalEnvironment(Compile::CreateGlobalEnvironment(0xff, tim, datasmap));
+	
+	LiteralDataPool ldp(datasmap);
+	println(ldp.toString());
+	VM.addGlobalEnvironment(Compile::CreateGlobalEnvironment(0xff, tim, ldp));
 	Runtime::LocalEnvironment *lenv = Compile::CreateLoaclEnvironment(*func, tim);
 
 	VM.Genv().addSubEnvironment(lenv);

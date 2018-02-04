@@ -9,7 +9,7 @@ namespace CVM
 	{
 		namespace DataManage
 		{
-			std::string ToStringData(Runtime::DataPointer dp, MemorySize size);
+			std::string ToStringData(Runtime::ConstDataPointer dp, MemorySize size);
 			DataPointer Alloc(MemorySize size);
 			DataPointer AllocClear(MemorySize size);
 
@@ -18,8 +18,8 @@ namespace CVM
 			void MoveRegisterDS(Environment &env, DataRegisterDynamic &dst, const DataRegisterStatic &src, TypeIndex srctype);
 			void MoveRegisterSS(Environment &env, DataRegisterStatic &dst, const DataRegisterStatic &src, TypeIndex srctype);
 
-			void LoadDataD(Environment &env, DataRegisterDynamic &dst, DataPointer src, TypeIndex dsttype, MemorySize srcsize);
-			void LoadDataS(Environment &env, DataRegisterStatic &dst, DataPointer src, TypeIndex dsttype, MemorySize srcsize);
+			void LoadDataD(Environment &env, DataRegisterDynamic &dst, ConstDataPointer src, TypeIndex dsttype, MemorySize srcsize);
+			void LoadDataS(Environment &env, DataRegisterStatic &dst, ConstDataPointer src, TypeIndex dsttype, MemorySize srcsize);
 
 			void Debug_PrintRegisterD(Environment &env, const DataRegisterDynamic &src);
 			void Debug_PrintRegisterS(Environment &env, const DataRegisterStatic &src, TypeIndex type);

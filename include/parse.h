@@ -18,5 +18,5 @@ namespace CVM
 	FunctionSet createFunctionSet(ParseInfo &parseinfo);
 
 	std::string getEntry(ParseInfo &parseinfo);
-	DataPool getDataSectionMap(ParseInfo &parseinfo);
+	LiteralDataPoolCreater& getDataSectionMap(ParseInfo &parseinfo);
 }

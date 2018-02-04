@@ -7,7 +7,7 @@ namespace CVM
 	{
 		namespace DataManage
 		{
-			static void CopyTo(DataPointer dst, DataPointer src, MemorySize size) {
+			static void CopyTo(DataPointer dst, ConstDataPointer src, MemorySize size) {
 				PriLib::Memory::copyTo(dst.get(), src.get(), size.data);
 			}
 			static MemorySize GetSize(Environment &env, const TypeIndex &type) {
@@ -24,11 +24,11 @@ namespace CVM
 				return DataPointer(calloc(size.data, 1));
 			}
 
-			static std::string ToStringData(byte *bp, size_t size) {
+			static std::string ToStringData(const byte *bp, size_t size) {
 				return "[data: " + PriLib::Convert::to_hex(bp, size) + "]";
 			}
 
-			std::string ToStringData(CVM::Runtime::DataPointer dp, CVM::MemorySize size) {
+			std::string ToStringData(CVM::Runtime::ConstDataPointer dp, CVM::MemorySize size) {
 				return ToStringData(dp.get<byte>(), size.data);
 			}
 
@@ -46,14 +46,14 @@ namespace CVM
 				CopyTo(dst.data, src.data, GetSize(env, srctype));
 			}
 
-			void LoadDataD(Environment &env, DataRegisterDynamic &dst, DataPointer src, TypeIndex dsttype, MemorySize srcsize) {
+			void LoadDataD(Environment &env, DataRegisterDynamic &dst, ConstDataPointer src, TypeIndex dsttype, MemorySize srcsize) {
 				dst.data = AllocClear(GetSize(env, dsttype));
-				CopyTo(dst.data, src, srcsize);
+				CopyTo(dst.data, src, MemorySize(std::min(GetSize(env, dsttype).data, srcsize.data)));
 				dst.type = dsttype;
 			}
-			void LoadDataS(Environment &env, DataRegisterStatic &dst, DataPointer src, TypeIndex dsttype, MemorySize srcsize) {
+			void LoadDataS(Environment &env, DataRegisterStatic &dst, ConstDataPointer src, TypeIndex dsttype, MemorySize srcsize) {
 				Clear(dst.data, GetSize(env, dsttype));
-				CopyTo(dst.data, src, srcsize);
+				CopyTo(dst.data, src, MemorySize(std::min(GetSize(env, dsttype).data, srcsize.data)));
 			}
 
 			void Debug_PrintRegisterD(Environment &env, const DataRegisterDynamic &src) {

@@ -97,19 +97,19 @@ namespace CVM
 					if (func.is_dyvarb(dst_id)) {
 						return [=](Runtime::Environment &env) {
 							auto &dst = env.get_dyvarb(dst_id, dst_e);
-							auto &pair = env.GEnv().getDataSectionMap().at(index);
+							const auto &pair = env.GEnv().getDataSectionMap().at(index);
 							auto &ptr = pair.first;
 							auto &size = pair.second;
-							Runtime::DataManage::LoadDataD(env, dst, Runtime::DataPointer(ptr), type, MemorySize(size));
+							Runtime::DataManage::LoadDataD(env, dst, Runtime::ConstDataPointer(ptr), type, MemorySize(size));
 						};
 					}
 					else if (func.is_stvarb(dst_id)) {
 						return [=](Runtime::Environment &env) {
 							auto &dst = env.get_stvarb(dst_id, dst_e);
-							auto &pair = env.GEnv().getDataSectionMap().at(index);
+							const auto &pair = env.GEnv().getDataSectionMap().at(index);
 							auto &ptr = pair.first;
 							auto &size = pair.second;
-							Runtime::DataManage::LoadDataS(env, dst, Runtime::DataPointer(ptr), type, MemorySize(size));
+							Runtime::DataManage::LoadDataS(env, dst, Runtime::ConstDataPointer(ptr), type, MemorySize(size));
 						};
 					}
 				}
@@ -192,7 +192,7 @@ namespace CVM
 			return new Runtime::LocalEnvironment(drs, new_func);
 		}
 
-		Runtime::GlobalEnvironment* CreateGlobalEnvironment(size_t dysize, const TypeInfoMap &tim, const DataPool &datasmap) {
+		Runtime::GlobalEnvironment* CreateGlobalEnvironment(size_t dysize, const TypeInfoMap &tim, const LiteralDataPool &datasmap) {
 			Runtime::DataRegisterSet::DyDatRegSize _dysize(dysize);
 			Runtime::DataRegisterSet drs(_dysize);
 

@@ -36,7 +36,7 @@ namespace CVM
 		std::map<std::string, InstStruct::FunctionInfo*> functable;
 		InstStruct::FunctionInfo *currfunc;
 		TypeInfoMap &tim;
-		DataPool datamap;
+		LiteralDataPoolCreater datamap;
 		size_t lcount = 0;
 		ParsedIdentifier entry;
 		ParsedIdentifier currtype;
@@ -442,7 +442,7 @@ namespace CVM
 										}))
 											delete[] buffer;
 									}
-									parseinfo.datamap[di.index()] = std::make_pair(buffer, msize);
+									parseinfo.datamap[di.index()] = std::make_pair(buffer, static_cast<uint32_t>(msize));
 								}
 								else {
 									parseinfo.putErrorLine(PEC_DUDataId);
@@ -545,7 +545,7 @@ namespace CVM
 	std::string getEntry(ParseInfo &parseinfo) {
 		return parseinfo.entry.data;
 	}
-	DataPool getDataSectionMap(ParseInfo & parseinfo)
+	LiteralDataPoolCreater& getDataSectionMap(ParseInfo & parseinfo)
 	{
 		return parseinfo.datamap;
 	}
