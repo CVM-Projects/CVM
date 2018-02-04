@@ -4,6 +4,7 @@
 #include "inststruct/instdef.h"
 #include "runtime/environment.h"
 #include "runtime/datamanage.h"
+#include "datapool.h"
 
 namespace CVM
 {
@@ -96,15 +97,19 @@ namespace CVM
 					if (func.is_dyvarb(dst_id)) {
 						return [=](Runtime::Environment &env) {
 							auto &dst = env.get_dyvarb(dst_id, dst_e);
-							auto ptr = env.GEnv().getDataSectionMap().at(index);
-							Runtime::DataManage::LoadDataD(env, dst, Runtime::DataPointer(ptr), type, MemorySize(sizeof(InstStruct::Data::Type)));
+							auto &pair = env.GEnv().getDataSectionMap().at(index);
+							auto &ptr = pair.first;
+							auto &size = pair.second;
+							Runtime::DataManage::LoadDataD(env, dst, Runtime::DataPointer(ptr), type, MemorySize(size));
 						};
 					}
 					else if (func.is_stvarb(dst_id)) {
 						return [=](Runtime::Environment &env) {
 							auto &dst = env.get_stvarb(dst_id, dst_e);
-							auto ptr = env.GEnv().getDataSectionMap().at(index);
-							Runtime::DataManage::LoadDataS(env, dst, Runtime::DataPointer(ptr), type, MemorySize(sizeof(InstStruct::Data::Type)));
+							auto &pair = env.GEnv().getDataSectionMap().at(index);
+							auto &ptr = pair.first;
+							auto &size = pair.second;
+							Runtime::DataManage::LoadDataS(env, dst, Runtime::DataPointer(ptr), type, MemorySize(size));
 						};
 					}
 				}
@@ -187,7 +192,7 @@ namespace CVM
 			return new Runtime::LocalEnvironment(drs, new_func);
 		}
 
-		Runtime::GlobalEnvironment* CreateGlobalEnvironment(size_t dysize, const TypeInfoMap &tim, const std::map<uint32_t, uint8_t*> &datasmap) {
+		Runtime::GlobalEnvironment* CreateGlobalEnvironment(size_t dysize, const TypeInfoMap &tim, const DataPool &datasmap) {
 			Runtime::DataRegisterSet::DyDatRegSize _dysize(dysize);
 			Runtime::DataRegisterSet drs(_dysize);
 

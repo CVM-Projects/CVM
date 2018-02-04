@@ -5,6 +5,7 @@
 #include "typeinfo.h"
 #include "inststruct/function.h"
 #include "inststruct/instpart.h"
+#include "datapool.h"
 
 namespace CVM
 {
@@ -17,5 +18,5 @@ namespace CVM
 	FunctionSet createFunctionSet(ParseInfo &parseinfo);
 
 	std::string getEntry(ParseInfo &parseinfo);
-	std::map<InstStruct::DataIndex::Type, uint8_t*> getDataSectionMap(ParseInfo &parseinfo);
+	DataPool getDataSectionMap(ParseInfo &parseinfo);
 }

@@ -3,6 +3,7 @@
 #include "inststruct/instcode.h"
 #include "inststruct/function.h"
 #include "inststruct/instpart.h"
+#include "bignumber.h"
 #include <regex>
 
 namespace CVM
@@ -35,7 +36,7 @@ namespace CVM
 		std::map<std::string, InstStruct::FunctionInfo*> functable;
 		InstStruct::FunctionInfo *currfunc;
 		TypeInfoMap &tim;
-		std::map<InstStruct::DataIndex::Type, uint8_t*> datamap;
+		DataPool datamap;
 		size_t lcount = 0;
 		ParsedIdentifier entry;
 		ParsedIdentifier currtype;
@@ -184,15 +185,40 @@ namespace CVM
 		return InstStruct::DataIndex(parseNumber<InstStruct::DataIndex::Type>(parseinfo, word.substr(1)));
 	}
 
-	void parseDataLarge(ParseInfo &parseinfo, uint8_t *buffer, const std::string &word) {
-		if (PriLib::Convert::is_integer(word, 16)) {
-			if (!PriLib::Convert::to_base16(word, buffer)) {
-				parseinfo.putErrorLine(PEC_URNum);
+	void parseDataLarge(ParseInfo &parseinfo, const std::string &word, uint8_t *buffer, size_t size) {
+		BigInteger bi;
+		if (bi.parse(word)) {
+			bool is_large;
+			if (!bi.toBufferLSB(buffer, size, is_large)) {
+				if (is_large) {
+					parseinfo.putErrorLine(PEC_NumTooLarge, word);
+					parseinfo.putError("The accepted size is " + std::to_string(size) + " byte(s).");
+				}
+				else {
+					parseinfo.putErrorLine(PEC_URNum, word);
+				}
 			}
 		}
 		else {
-			parseinfo.putErrorLine(PEC_URNum);
+			parseinfo.putErrorLine(PEC_URNum, word);
 		}
+	}
+	bool parseDataLarge(ParseInfo &parseinfo, const std::string &word, std::function<uint8_t*(size_t)> creater) {
+		BigInteger bi;
+		if (bi.parse(word)) {
+			size_t size = bi.size();
+			uint8_t *buffer = creater(size);
+			if (bi.toBufferLSB(buffer, size)) {
+				return true;
+			}
+			else {
+				parseinfo.putErrorLine(PEC_URNum, word);
+			}
+		}
+		else {
+			parseinfo.putErrorLine(PEC_URNum, word);
+		}
+		return false;
 	}
 
 	ParsedIdentifier parseIdentifier(ParseInfo &parseinfo, const std::string &word) {
@@ -398,24 +424,25 @@ namespace CVM
 					{
 						"data",
 						[](ParseInfo &parseinfo, const std::vector<std::string> &list) {
-							if (list.size() == 3) {
+							if (list.size() == 2 || list.size() == 3) {
 								InstStruct::DataIndex di = parseDataIndex(parseinfo, list[0]);
 								auto iter = parseinfo.datamap.find(di.index());
 								if (iter == parseinfo.datamap.end()) {
-									size_t size = parseNumber<size_t>(parseinfo, list[2]);
-									if (list[1].size() <= 2 || list[1][0] != '0' || list[1][1] != 'x') {
-										parseinfo.putErrorLine(PEC_URNum, list[1]);
-										parseinfo.putError("Only hex unsigned integer is supported in data section.");
-										return;
-									}
-									if ((list[1].size() - 2) / 2 <= size) {
-										uint8_t *buffer = new uint8_t[size]();
-										parseDataLarge(parseinfo, buffer, list[1].substr(2));
-										parseinfo.datamap[di.index()] = buffer;
+									uint8_t *buffer = nullptr;
+									size_t msize = 0;
+									if (list.size() == 3) {
+										msize = parseNumber<size_t>(parseinfo, list[2]);
+										buffer = new uint8_t[msize]();
+										parseDataLarge(parseinfo, list[1], buffer, msize);
 									}
 									else {
-										parseinfo.putErrorLine(PEC_NumTooLarge, list[1]);
+										if (!parseDataLarge(parseinfo, list[1], [&](size_t size) {
+											msize = size;
+											return buffer = new uint8_t[size]();
+										}))
+											delete[] buffer;
 									}
+									parseinfo.datamap[di.index()] = std::make_pair(buffer, msize);
 								}
 								else {
 									parseinfo.putErrorLine(PEC_DUDataId);
@@ -518,7 +545,7 @@ namespace CVM
 	std::string getEntry(ParseInfo &parseinfo) {
 		return parseinfo.entry.data;
 	}
-	std::map<InstStruct::DataIndex::Type, uint8_t*> getDataSectionMap(ParseInfo & parseinfo)
+	DataPool getDataSectionMap(ParseInfo & parseinfo)
 	{
 		return parseinfo.datamap;
 	}

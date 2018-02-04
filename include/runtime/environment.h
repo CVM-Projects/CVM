@@ -2,6 +2,7 @@
 #include "typeinfo.h"
 #include "registerset.h"
 #include "controlflow.h"
+#include "datapool.h"
 #include <set>
 #include <list>
 #include <memory>
@@ -110,7 +111,7 @@ namespace CVM
 		class GlobalEnvironment : public Environment
 		{
 		public:
-			using DataSectionMap = std::map<uint32_t, uint8_t*>;
+			using DataSectionMap = DataPool;
 			explicit GlobalEnvironment(const DataRegisterSet &drs, const TypeInfoMap &tim, const DataSectionMap &datasmap)
 				: Environment(drs), _tim(tim), _datasmap(datasmap) {
 				_timp = &_tim;
