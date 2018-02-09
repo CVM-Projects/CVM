@@ -10,13 +10,16 @@ namespace CVM
 		mpz_class data;
 	};
 
-	static bool parseBigInteger(const std::string &word, mpz_class &result, int base);
+	static bool parseBigInteger(const std::string &word, mpz_class &result, int base, bool isunsigned);
 
 	BigInteger::BigInteger()
 		: data(new Data()) {}
 
 	bool BigInteger::parse(const std::string &word, int base) {
-		return parseBigInteger(word, data->data, base);
+		return parseBigInteger(word, data->data, base, false);
+	}
+	bool BigInteger::parseu(const std::string &word, int base) {
+		return parseBigInteger(word, data->data, base, true);
 	}
 	std::string BigInteger::toString(int base) const {
 		if (base > 1 && base <= 36)
@@ -95,7 +98,7 @@ namespace CVM
 		return d[0] == 0;
 	}
 
-	static bool parseBigInteger(const std::string &word, mpz_class &result, int base) {
+	static bool parseBigInteger(const std::string &word, mpz_class &result, int base, bool isunsigned) {
 		if (word.empty()) {
 			return false;
 		}
@@ -103,12 +106,14 @@ namespace CVM
 		size_t size = word.size();
 		bool ispositive = true;
 
-		if (pword[0] == '+' || pword[0] == '-') {
-			if (pword[0] == '-') {
-				ispositive = false;
+		if (!isunsigned) {
+			if (pword[0] == '+' || pword[0] == '-') {
+				if (pword[0] == '-') {
+					ispositive = false;
+				}
+				pword++;
+				size--;
 			}
-			pword++;
-			size--;
 		}
 
 		if (base == 0) {

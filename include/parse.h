@@ -19,4 +19,5 @@ namespace CVM
 
 	std::string getEntry(ParseInfo &parseinfo);
 	LiteralDataPoolCreater& getDataSectionMap(ParseInfo &parseinfo);
+	bool haveError(const ParseInfo &parseinfo);
 }

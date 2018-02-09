@@ -3,6 +3,7 @@
 #include <memory>
 #include "typeinfo.h"
 #include "instruction.h"
+#include "instpart.h"
 
 namespace CVM
 {
@@ -10,7 +11,7 @@ namespace CVM
 	{
 		using InstList = std::vector<Instruction*>; // TODO
 		using TypeList = std::vector<TypeIndex>;
-		using ArgList = std::vector<bool>; // true : dyvarb, false : stvarb
+		using ArgList = std::vector<InstStruct::Register::IndexType>;
 
 		struct FunctionInfo
 		{

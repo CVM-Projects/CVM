@@ -11,6 +11,7 @@ namespace CVM
 		explicit BigInteger();
 
 		bool parse(const std::string &word, int base = 0);
+		bool parseu(const std::string &word, int base = 0);
 		std::string toString(int base = 10) const;
 		size_t size() const;
 

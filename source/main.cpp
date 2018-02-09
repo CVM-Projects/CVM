@@ -74,6 +74,11 @@ int main(int argc, char *argv[])
 
 	auto parseInfo = createParseInfo(tim);
 	parseFile(parseInfo, cmsfile);
+
+	if (haveError(parseInfo)) {
+		return 1;
+	}
+
 	auto datasmap = getDataSectionMap(parseInfo);
 
 	// Get entry func

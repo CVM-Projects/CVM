@@ -27,6 +27,9 @@ namespace CVM
 		struct Register
 		{
 		public:
+			using IndexType = uint16_t;
+
+		public:
 			explicit Register()
 				: _value(0) {}
 
@@ -43,7 +46,7 @@ namespace CVM
 				}
 			}
 
-			explicit Register(RegisterType type, EnvType etype, uint16_t index)
+			explicit Register(RegisterType type, EnvType etype, IndexType index)
 				: _type(type), _etype(etype), _index(index) {
 				assert(index <= UINT16_MAX);
 				if (type == r_0) {
@@ -60,7 +63,7 @@ namespace CVM
 			EnvType etype() const {
 				return EnvType(_etype);
 			}
-			uint16_t index() const {
+			IndexType index() const {
 				return _index;
 			}
 
@@ -69,6 +72,9 @@ namespace CVM
 			}
 			bool isZeroRegister() const {
 				return _value == 0;
+			}
+			bool isFuncRegister() const {
+				return _index > 0 && _type == r_n && _etype == e_current;
 			}
 
 			std::string toString() const {
@@ -93,7 +99,7 @@ namespace CVM
 				struct {
 					RegisterType _type;
 					EnvType _etype;
-					uint16_t _index;
+					IndexType _index;
 				};
 				uint32_t _value;
 			};

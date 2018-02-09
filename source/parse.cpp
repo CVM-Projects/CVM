@@ -13,6 +13,7 @@ namespace CVM
 	enum ParseErrorCode
 	{
 		PEC_NumTooLarge,
+		PEC_NumIsSigned,
 		PEC_URDid,
 		PEC_URNum,
 		PEC_URIns,
@@ -25,6 +26,7 @@ namespace CVM
 		PEC_DUType,
 		PEC_DUFunc,
 		PEC_DUDataId,
+		PEC_NotFuncReg,
 	};
 
 	class ParseInfo
@@ -41,23 +43,29 @@ namespace CVM
 		ParsedIdentifier entry;
 		ParsedIdentifier currtype;
 		int currsection = 0;
+		mutable bool haveerror = false;
 
 		void putErrorLine() const {
 			fprintf(stderr, "Parse Error in line(%zu).\n", lcount);
+			haveerror = true;
 		}
 		void putErrorLine(ParseErrorCode pec) const {
 			fprintf(stderr, "Parse Error for '%s' in line(%zu).\n", geterrmsg(pec), lcount);
+			haveerror = true;
 		}
 		void putErrorLine(ParseErrorCode pec, const std::string &msg) const {
 			fprintf(stderr, "Parse Error for '%s' at '%s' in line(%zu).\n", geterrmsg(pec), msg.c_str(), lcount);
+			haveerror = true;
 		}
 		void putError(const std::string &msg) const {
 			fprintf(stderr, "%s\n", msg.c_str());
+			haveerror = true;
 		}
 
 		const char* geterrmsg(ParseErrorCode pec) const {
 			static std::map<ParseErrorCode, const char*> pecmap = {
 				{ PEC_NumTooLarge, "Number too large" },
+				{ PEC_NumIsSigned, "Number is signed" },
 				{ PEC_URDid, "Unrecognized data index" },
 				{ PEC_URNum, "Unrecognized number" },
 				{ PEC_URCmd, "Unrecognized command" },
@@ -70,6 +78,7 @@ namespace CVM
 				{ PEC_DUType, "type name duplicate" },
 				{ PEC_DUFunc, "func name duplicate" },
 				{ PEC_DUDataId, "data index duplicate" },
+				{ PEC_NotFuncReg, "not function's register" },
 			};
 			return pecmap.at(pec);
 		}
@@ -79,8 +88,18 @@ namespace CVM
 		return PriLib::StorePtr<ParseInfo>(new ParseInfo(tim));
 	}
 
+	bool haveError(const ParseInfo &parseinfo) {
+		return parseinfo.haveerror;
+	}
+
 	template <typename T>
 	T parseNumber(ParseInfo &parseinfo, const std::string &word) {
+		if (!std::numeric_limits<T>::is_signed) {
+			if (word[0] == '-') {
+				parseinfo.putErrorLine(PEC_NumIsSigned, word);
+				return 0;
+			}
+		}
 		return PriLib::Convert::to_integer<T>(word, [&]() {
 			if (PriLib::Convert::is_integer(word))
 				parseinfo.putErrorLine(PEC_NumTooLarge);
@@ -187,7 +206,7 @@ namespace CVM
 
 	void parseDataLarge(ParseInfo &parseinfo, const std::string &word, uint8_t *buffer, size_t size) {
 		BigInteger bi;
-		if (bi.parse(word)) {
+		if (bi.parseu(word)) {
 			bool is_large;
 			if (!bi.toBufferLSB(buffer, size, is_large)) {
 				if (is_large) {
@@ -200,12 +219,15 @@ namespace CVM
 			}
 		}
 		else {
-			parseinfo.putErrorLine(PEC_URNum, word);
+			if (word[0] == '-')
+				parseinfo.putErrorLine(PEC_NumIsSigned, word);
+			else
+				parseinfo.putErrorLine(PEC_URNum, word);
 		}
 	}
 	bool parseDataLarge(ParseInfo &parseinfo, const std::string &word, std::function<uint8_t*(size_t)> creater) {
 		BigInteger bi;
-		if (bi.parse(word)) {
+		if (bi.parseu(word)) {
 			size_t size = bi.size();
 			uint8_t *buffer = creater(size);
 			if (bi.toBufferLSB(buffer, size)) {
@@ -216,7 +238,10 @@ namespace CVM
 			}
 		}
 		else {
-			parseinfo.putErrorLine(PEC_URNum, word);
+			if (word[0] == '-')
+				parseinfo.putErrorLine(PEC_NumIsSigned, word);
+			else
+				parseinfo.putErrorLine(PEC_URNum, word);
 		}
 		return false;
 	}
@@ -345,6 +370,8 @@ namespace CVM
 	}
 
 	void parseSectionInside(ParseInfo &parseinfo, const std::string &code, const std::vector<std::string> &list) {
+		if (code == "")
+			return;
 		using ParseInsideProcess = std::function<void(ParseInfo &, const std::vector<std::string> &)>;
 		using ParseInsideMap = std::map<std::string, ParseInsideProcess>;
 		static std::map<int, ParseInsideMap> parsemap {
@@ -354,6 +381,20 @@ namespace CVM
 					{
 						"arg",
 						[](ParseInfo &parseinfo, const std::vector<std::string> &list) {
+							if (!list.empty()) {
+								if (list[0][0] == '%') {
+									for (const auto &word : list) {
+										InstStruct::Register reg = parseRegister(parseinfo, word);
+										if (reg.isFuncRegister())
+											parseinfo.currfunc->arglist.push_back(reg.index());
+										else
+											parseinfo.putErrorLine(PEC_NotFuncReg, word);
+									}
+								}
+								else {
+
+								}
+							}
 						}
 					},
 					{
@@ -463,7 +504,7 @@ namespace CVM
 									std::vector<uint8_t> vec;
 									for (auto &word : PriLib::rangei(list.begin() + 1, list.end())) {
 										BigInteger bi;
-										if (bi.parse(word)) {
+										if (bi.parseu(word)) {
 											bool is_large;
 											uint8_t v;
 											if (bi.toBuffer(&v, 1, is_large)) {
@@ -482,7 +523,10 @@ namespace CVM
 											}
 										}
 										else {
-											parseinfo.putErrorLine(PEC_URNum, word);
+											if (word[0] == '-')
+												parseinfo.putErrorLine(PEC_NumIsSigned, word);
+											else
+												parseinfo.putErrorLine(PEC_URNum, word);
 											return;
 										}
 									}

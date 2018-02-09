@@ -10,11 +10,11 @@
     .array #1, 0x12 0x34 0x56
     .data  #2, 6
 
-;.func Math#add
-;    .stvarb 2, cms#int64
-;    .arg %1 %2
-;    call %res, cms#int64#+, %1 %2
-;    ret
+.func Math#add
+    .stvarb 2, cms#int64
+    .arg %1 %2
+    ;; call %res, cms#int64#+, %1 %2
+    ret
 
 .func main
     .dyvarb 2
