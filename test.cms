@@ -12,7 +12,7 @@
 
 .func Math#add
     .stvarb 2, cms#int64
-    .arg %1 %2
+    .arg 2
     ;; call %res, cms#int64#+, %1 %2
     ret
 

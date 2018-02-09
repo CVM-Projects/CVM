@@ -4,6 +4,7 @@
 #include <string>
 #include <bitset>
 #include "../prilib/include/prints.h"
+#include "config.h"
 
 namespace CVM
 {
@@ -11,79 +12,121 @@ namespace CVM
 	{
 		enum RegisterType : uint8_t {
 			r_n = 0,   // %_
-			r_t = 1,   // %t_
-			r_g = 2,   // %g_
-			r_x = 3,   // %res(-1)
-			r_0,       // %0   = %_(0)
-			r_res,     // %res = %x(-1)
+			r_t,       // %t_
+			r_g,       // %g_
+			r_res,     // %res
+			r_sp,      // %sp
+			r_spt,     // %sp[x](Type)  %sp(Type) = %sp[0](Type)
+			r_spn,     // %sp[x](n)     %sp(n)    = %sp[0](n)
+			r_sptd,    // %sp(Type)!
+			r_spnd,    // %sp(n)!
 		};
 
 		enum EnvType : uint8_t {
 			e_current = 0,  // %env
-			e_parent = 1,   // %penv
-			e_temp = 2,     // %tenv
+			e_parent,       // %penv
+			e_temp,         // %tenv
 		};
 
 		struct Register
 		{
 		public:
-			using IndexType = uint16_t;
+			using RegisterIndexType = Config::RegisterIndexType;
 
 		public:
-			explicit Register()
-				: _value(0) {}
-
-			explicit Register(RegisterType type)
-				: _type(type) {
-				if (type == r_0) {
-					_value = 0;
-				}
-				else if (type == r_res) {
-					_value = UINT32_MAX;
-				}
-				else {
-					assert(false);
-				}
+			static Register ZeroRegister() {
+				return Register(r_n);
+			}
+			static Register ResultRegister() {
+				return Register(r_res);
+			}
+			static Register PrivateDataRegister(Config::RegisterIndexType rindex, EnvType etype) {
+				Register r(r_n);
+				r._etype = etype;
+				r._rindex = rindex;
+				return r;
+			}
+			static Register ThreadDataRegister(Config::RegisterIndexType rindex) {
+				Register r(r_t);
+				r._rindex = rindex;
+				return r;
+			}
+			static Register GlobalDataRegister(Config::RegisterIndexType rindex) {
+				Register r(r_g);
+				r._rindex = rindex;
+				return r;
+			}
+			static Register StackPointerRegister() {
+				return Register(r_sp);
+			}
+			static Register StackRegisterType(TypeIndex typeindex, Config::StackOffsetType offset) {
+				Register r(r_spt);
+				r._tindex = typeindex.data;
+				r._spoff = offset;
+				return r;
+			}
+			static Register StackRegisterSize(MemorySize memsize, Config::StackOffsetType offset) {
+				Register r(r_spn);
+				r._msize = memsize.data;
+				r._spoff = offset;
+				return r;
+			}
+			static Register StackRegisterTypeDecrease(TypeIndex typeindex) {
+				Register r(r_sptd);
+				r._tindex = typeindex.data;
+				return r;
+			}
+			static Register StackRegisterSizeDecrease(MemorySize memsize) {
+				Register r(r_spnd);
+				r._msize = memsize.data;
+				return r;
 			}
 
-			explicit Register(RegisterType type, EnvType etype, IndexType index)
-				: _type(type), _etype(etype), _index(index) {
-				assert(index <= UINT16_MAX);
-				if (type == r_0) {
-					_value = 0;
-				}
-				else if (type == r_res) {
-					_value = UINT32_MAX;
-				}
-			}
+		public:
+			explicit Register(RegisterType type = r_n)
+				: _type(type), _etype(e_current), _rindex(0) {}
 
 			RegisterType type() const {
-				return RegisterType(_type);
+				return _type;
 			}
 			EnvType etype() const {
+				assert(_type == r_n && _rindex != 0);
 				return EnvType(_etype);
 			}
-			IndexType index() const {
-				return _index;
+			RegisterIndexType index() const {
+				assert(_type == r_n);
+				return _rindex;
 			}
 
-			bool isResRegister() const {
-				return _value == UINT32_MAX;
+			bool check() const {
+				if (_type == r_spt || _type == r_spn || _type == r_sptd || _type == r_spnd) {
+
+				}
+				// Only %n (n > 0) support env.
+				else if ((_type != r_n || isZeroRegister()) && _etype != e_current)
+					return false;
+				return true;
+			}
+
+			bool isResultRegister() const {
+				return _type == r_res;
 			}
 			bool isZeroRegister() const {
-				return _value == 0;
+				return _type == r_n && _rindex == 0;
 			}
-			bool isFuncRegister() const {
-				return _index > 0 && _type == r_n && _etype == e_current;
+			bool isPrivateDataRegister() const {
+				return _type == r_n && _etype == e_current && _rindex > 0;
 			}
 
 			std::string toString() const {
+				assert(check());
 				std::string result;
 				switch (_type) {
-				case r_n: result += "%" + std::to_string(_index); break;
-				case r_t: result += "%t" + std::to_string(_index); break;
-				case r_g: result += "%g" + std::to_string(_index); break;
-				default:  result += isResRegister() ? "%res" : "%?"; break;
+				case r_n: result += "%" + std::to_string(_rindex); break;
+				case r_t: result += "%t" + std::to_string(_rindex); break;
+				case r_g: result += "%g" + std::to_string(_rindex); break;
+				case r_res: result += "%res"; break;
+				default:  result += "%?"; break;
 				}
 				switch (_etype) {
 				case e_current: break;
@@ -95,15 +138,23 @@ namespace CVM
 			}
 
 		private:
+			RegisterType _type = r_n;
 			union {
 				struct {
-					RegisterType _type;
 					EnvType _etype;
-					IndexType _index;
+					RegisterIndexType _rindex;
 				};
-				uint32_t _value;
+				struct {
+					Config::StackOffsetType _spoff;
+					union {
+						Config::TypeIndexType _tindex; // r_spt
+						Config::MemorySizeType _msize; // r_spn
+					};
+				};
 			};
 		};
+
+		constexpr int i = sizeof(Register);
 
 		struct Identifier
 		{

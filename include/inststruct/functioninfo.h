@@ -11,7 +11,7 @@ namespace CVM
 	{
 		using InstList = std::vector<Instruction*>; // TODO
 		using TypeList = std::vector<TypeIndex>;
-		using ArgList = std::vector<InstStruct::Register::IndexType>;
+		using ArgList = std::vector<InstStruct::Register::RegisterIndexType>;
 
 		struct FunctionInfo
 		{
