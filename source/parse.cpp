@@ -23,6 +23,7 @@ namespace CVM
 		PEC_UREscape,
 		PEC_UFType,
 		PEC_UFFunc,
+		PEC_UMArgs,
 		PEC_DUType,
 		PEC_DUFunc,
 		PEC_DUDataId,
@@ -44,6 +45,20 @@ namespace CVM
 		ParsedIdentifier currtype;
 		int currsection = 0;
 		mutable bool haveerror = false;
+
+		bool check() const {
+			if (haveerror)
+				return false;
+			for (auto &pfunc : functable) {
+				for (auto &arg : pfunc.second->arglist) {
+					if (arg > pfunc.second->regsize()) {
+						putError("Parse Error for '" + std::string(geterrmsg(PEC_UMArgs)) + "' of function '" + pfunc.first +"'.");
+						break;
+					}
+				}
+			}
+			return true;
+		}
 
 		void putErrorLine() const {
 			fprintf(stderr, "Parse Error in line(%zu).\n", lcount);
@@ -75,6 +90,7 @@ namespace CVM
 				{ PEC_UREscape, "Unrecognized escape" },
 				{ PEC_UFType, "Unfind type" },
 				{ PEC_UFFunc, "Unfind function" },
+				{ PEC_UMArgs, "Unmatch arguments" },
 				{ PEC_DUType, "type name duplicate" },
 				{ PEC_DUFunc, "func name duplicate" },
 				{ PEC_DUDataId, "data index duplicate" },
@@ -89,7 +105,7 @@ namespace CVM
 	}
 
 	bool haveError(const ParseInfo &parseinfo) {
-		return parseinfo.haveerror;
+		return !parseinfo.check();
 	}
 
 	template <typename T>

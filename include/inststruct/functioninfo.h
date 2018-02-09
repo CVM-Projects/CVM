@@ -28,6 +28,10 @@ namespace CVM
 				dyvarb_count(std::move(dysize)),
 				stvarb_typelist(std::move(stvarb_typelist)),
 				arglist(std::move(arglist)) {}
+			
+			size_t regsize() const {
+				return dyvarb_count + stvarb_typelist.size();
+			}
 
 			InstList instdata;
 			TypeList stvarb_typelist;
