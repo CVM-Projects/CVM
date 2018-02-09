@@ -123,11 +123,11 @@ namespace CVM
 			else if (inst.instcode == InstStruct::id_opreg) {
 				const auto &typelist = func.stvarb_typelist();
 				return [=](Runtime::Environment &env) {
-					size_t regcount = 0;
+					Config::RegisterIndexType regcount = 0;
 					auto &regset = env.getDataRegisterSet();
 					PriLib::Output::println("=======================");
 					PriLib::Output::println("dyvarb:");
-					for (size_t i = 1; i <= regset.dysize(); i++) {
+					for (Config::RegisterIndexType i = 1; i <= regset.dysize(); i++) {
 						PriLib::Output::print("  %", ++regcount, ": type(", regset.get_dynamic(i).type.data, "), ");
 						Runtime::DataManage::Debug_PrintRegisterD(env, regset.get_dynamic(i));
 					}
@@ -137,7 +137,7 @@ namespace CVM
 						//env.getType()
 						Runtime::DataPointer address = regset.get_static(regset.dysize() + 1).data;
 						printf(" [address : 0x%p]\n", address.get());
-						for (size_t i = 0; i < typelist.size(); ++i) {
+						for (Config::RegisterIndexType i = 0; i < typelist.size(); ++i) {
 							MemorySize size = env.getType(typelist[i]).size;
 							PriLib::Output::print("  %", ++regcount, ": type(", typelist[i].data, "), ");
 							const auto &str = Runtime::DataManage::ToStringData(address, size);
@@ -192,7 +192,7 @@ namespace CVM
 			return new Runtime::LocalEnvironment(drs, new_func);
 		}
 
-		Runtime::GlobalEnvironment* CreateGlobalEnvironment(size_t dysize, const TypeInfoMap &tim, const LiteralDataPool &datasmap) {
+		Runtime::GlobalEnvironment* CreateGlobalEnvironment(Config::RegisterIndexType dysize, const TypeInfoMap &tim, const LiteralDataPool &datasmap) {
 			Runtime::DataRegisterSet::DyDatRegSize _dysize(dysize);
 			Runtime::DataRegisterSet drs(_dysize);
 

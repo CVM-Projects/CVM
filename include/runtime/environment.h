@@ -71,10 +71,10 @@ namespace CVM
 					return getDataRegisterSet();
 				}
 			}
-			DataRegisterDynamic& get_dyvarb(size_t index, EnvType etype) {
+			DataRegisterDynamic& get_dyvarb(Config::RegisterIndexType index, EnvType etype) {
 				return getDataRegisterSet(etype).get_dynamic(index);
 			}
-			DataRegisterStatic& get_stvarb(size_t index, EnvType etype) {
+			DataRegisterStatic& get_stvarb(Config::RegisterIndexType index, EnvType etype) {
 				return getDataRegisterSet(etype).get_static(index);
 			}
 			DataRegisterSet& getDataRegisterSet() {

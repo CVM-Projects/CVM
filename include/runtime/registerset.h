@@ -4,6 +4,7 @@
 #include "../prilib/include/lightlist.h"
 #include "register.h"
 #include "typeinfo.h"
+#include "config.h"
 
 namespace CVM
 {
@@ -17,22 +18,22 @@ namespace CVM
 			explicit DataRegisterSetBase()
 				: _size(0) {}
 
-			explicit DataRegisterSetBase(size_t size)
+			explicit DataRegisterSetBase(Config::RegisterIndexType size)
 				: _size(size), _data(size) {}
 
-			DataRegister& get(size_t id) {
+			DataRegister& get(Config::RegisterIndexType id) {
 				return _data.at(id);
 			}
-			const DataRegister& get(size_t id) const {
+			const DataRegister& get(Config::RegisterIndexType id) const {
 				return _data.at(id);
 			}
 
-			size_t size() const {
+			Config::RegisterIndexType size() const {
 				return _size;
 			}
 
 		protected:
-			size_t _size;
+			Config::RegisterIndexType _size;
 			PriLib::lightlist<DataRegister> _data;
 		};
 
@@ -43,7 +44,7 @@ namespace CVM
 			explicit DataRegisterSetDynamic()
 				: DataRegisterSetBase() {}
 
-			explicit DataRegisterSetDynamic(size_t size)
+			explicit DataRegisterSetDynamic(Config::RegisterIndexType size)
 				: DataRegisterSetBase(size) {
 				initialize();
 			}
@@ -62,7 +63,7 @@ namespace CVM
 			explicit DataRegisterSetStatic()
 				: DataRegisterSetBase() {}
 
-			explicit DataRegisterSetStatic(size_t size, DataPointer address, const SizeList &sizelist)
+			explicit DataRegisterSetStatic(Config::RegisterIndexType size, DataPointer address, const SizeList &sizelist)
 				: DataRegisterSetBase(size) {
 				initialize(address, sizelist);
 			}
@@ -79,8 +80,8 @@ namespace CVM
 		class DataRegisterSet
 		{
 		public:
-			using DyDatRegSize = PriLib::ExplicitType<size_t>;
-			using StDatRegSize = PriLib::ExplicitType<size_t>;
+			using DyDatRegSize = PriLib::ExplicitType<Config::RegisterIndexType>;
+			using StDatRegSize = PriLib::ExplicitType<Config::RegisterIndexType>;
 
 		public:
 			explicit DataRegisterSet(DyDatRegSize dy_size)
@@ -92,19 +93,19 @@ namespace CVM
 			explicit DataRegisterSet(DyDatRegSize dy_size, StDatRegSize st_size, DataPointer address, const DataRegisterSetStatic::SizeList &sizelist)
 				: _dynamic(dy_size.data), _static(st_size.data, address, sizelist) {}
 
-			DataRegisterDynamic& get_dynamic(size_t id) {
-				assert(0 < id && id <= _dynamic.size());
-				return _dynamic.get(id - 1);
+			DataRegisterDynamic& get_dynamic(Config::RegisterIndexType id) {
+				assert(Config::is_dynamic(id, dysize(), stsize()));
+				return _dynamic.get(Config::get_dynamic_id(id, dysize(), stsize()));
 			}
-			DataRegisterStatic& get_static(size_t id) {
-				assert(_dynamic.size() < id && id <= _dynamic.size() + _static.size());
-				return _static.get(id - _dynamic.size() - 1);
+			DataRegisterStatic& get_static(Config::RegisterIndexType id) {
+				assert(Config::is_static(id, dysize(), stsize()));
+				return _static.get(Config::get_static_id(id, dysize(), stsize()));
 			}
 
-			size_t dysize() const {
+			Config::RegisterIndexType dysize() const {
 				return _dynamic.size();
 			}
-			size_t stsize() const {
+			Config::RegisterIndexType stsize() const {
 				return _static.size();
 			}
 

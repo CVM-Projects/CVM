@@ -567,7 +567,7 @@ namespace CVM
 
 									uint8_t *buffer = new uint8_t[vec.size()]();
 									PriLib::Memory::copyTo(buffer, vec.data(), vec.size());
-									parseinfo.datamap[di.index()] = std::make_pair(buffer, static_cast<uint32_t>(vec.size()));
+									parseinfo.datamap[di.index()] = std::make_pair(buffer, static_cast<uint32_t>(vec.size())); // TODO
 								}
 								else {
 									parseinfo.putErrorLine(PEC_DUDataId);

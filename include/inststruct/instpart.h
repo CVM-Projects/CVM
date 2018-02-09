@@ -154,8 +154,6 @@ namespace CVM
 			};
 		};
 
-		constexpr int i = sizeof(Register);
-
 		struct Identifier
 		{
 		public:
@@ -179,7 +177,7 @@ namespace CVM
 		struct DataIndex
 		{
 		public:
-			using Type = uint32_t;
+			using Type = Config::DataIndexType;
 
 			explicit DataIndex(Type index)
 				: _index(index) {}

@@ -2,6 +2,7 @@
 #include <map>
 #include "../prilib/include/lightlist.h"
 #include "../prilib/include/memory.h"
+#include "config.h"
 
 namespace CVM
 {

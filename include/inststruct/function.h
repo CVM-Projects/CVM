@@ -1,5 +1,6 @@
 #pragma once
 #include "functioninfo.h"
+#include "config.h"
 
 namespace CVM
 {
@@ -15,24 +16,24 @@ namespace CVM
 				return _info.instdata;
 			}
 
-			bool is_dyvarb(size_t index) const {
-				return index <= dyvarb_count();
+			bool is_dyvarb(Config::RegisterIndexType index) const {
+				return Config::is_dynamic(index, dyvarb_count(), stvarb_count());
 			}
-			bool is_stvarb(size_t index) const {
-				return dyvarb_count() < index && index <= dyvarb_count() + stvarb_count();
+			bool is_stvarb(Config::RegisterIndexType index) const {
+				return Config::is_static(index, dyvarb_count(), stvarb_count());
 			}
-			TypeIndex get_stvarb_type(size_t index) const {
-				return _info.stvarb_typelist.at(index - _info.dyvarb_count - 1);
+			TypeIndex get_stvarb_type(Config::RegisterIndexType index) const {
+				return _info.stvarb_typelist.at(Config::get_static_id(index, dyvarb_count(), stvarb_count()));
 			}
 			const TypeList& stvarb_typelist() const {
 				return _info.stvarb_typelist;
 			}
 
-			size_t dyvarb_count() const {
+			Config::RegisterIndexType dyvarb_count() const {
 				return _info.dyvarb_count;
 			}
-			size_t stvarb_count() const {
-				return _info.stvarb_typelist.size();
+			Config::RegisterIndexType stvarb_count() const {
+				return Config::convertToRegisterIndexType(_info.stvarb_typelist.size());
 			}
 
 		private:
