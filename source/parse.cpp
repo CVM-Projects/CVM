@@ -47,8 +47,6 @@ namespace CVM
 		mutable bool haveerror = false;
 
 		bool check() const {
-			if (haveerror)
-				return false;
 			for (auto &pfunc : functable) {
 				for (auto &arg : pfunc.second->arglist) {
 					if (arg > pfunc.second->regsize()) {
@@ -57,6 +55,8 @@ namespace CVM
 					}
 				}
 			}
+			if (haveerror)
+				return false;
 			return true;
 		}
 
@@ -308,7 +308,8 @@ namespace CVM
 				list.push_back(s);
 			}
 			});
-		f2(parseinfo, code, list);
+		if (!start)
+			f2(parseinfo, code, list);
 	}
 
 	TypeIndex parseType(ParseInfo &parseinfo, const std::string &word) {
@@ -386,8 +387,6 @@ namespace CVM
 	}
 
 	void parseSectionInside(ParseInfo &parseinfo, const std::string &code, const std::vector<std::string> &list) {
-		if (code == "")
-			return;
 		using ParseInsideProcess = std::function<void(ParseInfo &, const std::vector<std::string> &)>;
 		using ParseInsideMap = std::map<std::string, ParseInsideProcess>;
 		static std::map<int, ParseInsideMap> parsemap {
