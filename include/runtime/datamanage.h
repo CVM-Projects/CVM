@@ -13,10 +13,27 @@ namespace CVM
 			DataPointer Alloc(MemorySize size);
 			DataPointer AllocClear(MemorySize size);
 
-			void MoveRegisterDD(Environment &env, DataRegisterDynamic &dst, const DataRegisterDynamic &src);
-			void MoveRegisterSD(Environment &env, DataRegisterStatic &dst, const DataRegisterDynamic &src);
-			void MoveRegisterDS(Environment &env, DataRegisterDynamic &dst, const DataRegisterStatic &src, TypeIndex srctype);
-			void MoveRegisterSS(Environment &env, DataRegisterStatic &dst, const DataRegisterStatic &src, TypeIndex srctype);
+
+			enum MoveRegisterMode
+			{
+				mr_copy_ptr,
+				mr_copy_memory,
+			};
+			struct DstData {
+				MoveRegisterMode mode;
+				DataPointer *datap = nullptr;
+				TypeIndex *typep = nullptr;
+			};
+			struct SrcData {
+				DataPointer data;
+				TypeIndex type;
+			};
+			void MoveRegister(Environment &env, const DstData &dst, const SrcData &src);
+
+			DstData GetDstDataD(DataRegisterDynamic &dst);
+			DstData GetDstDataS(DataRegisterStatic &dst);
+			SrcData GetSrcDataD(const DataRegisterDynamic &src);
+			SrcData GetSrcDataS(const DataRegisterStatic &src, TypeIndex type);
 
 			void LoadDataD(Environment &env, DataRegisterDynamic &dst, ConstDataPointer src, TypeIndex dsttype, MemorySize srcsize);
 			void LoadDataS(Environment &env, DataRegisterStatic &dst, ConstDataPointer src, TypeIndex dsttype, MemorySize srcsize);

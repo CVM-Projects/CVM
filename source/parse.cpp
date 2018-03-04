@@ -158,10 +158,9 @@ namespace CVM
 				return InstStruct::Register::GlobalDataRegister(index);
 			}
 		}
-		else if (std::regex_match(word, sm, std::regex(R"S(%(\d+)\(\%(\w+)\))S"))) {
+		else if (std::regex_match(word, sm, std::regex(R"S(%(\d+)\(\%(\w+)(?:\((.+)\))?\))S"))) {
 			auto index = parseNumber<Config::RegisterIndexType>(parseinfo, sm[1].str());
 			InstStruct::EnvType etype;
-			
 			auto estr = sm[2].str();
 			if (estr == "env")
 				etype = InstStruct::e_current;
@@ -172,7 +171,14 @@ namespace CVM
 			else {
 				parseinfo.putErrorLine(PEC_UREnv);
 			}
-			return InstStruct::Register::PrivateDataRegister(index, etype);
+
+			if (sm[3].matched) {
+				TypeIndex tindex = parseType(parseinfo, sm[3].str());\
+				return InstStruct::Register::PrivateDataRegister(index, etype, tindex);
+			}
+			else {
+				return InstStruct::Register::PrivateDataRegister(index, etype);
+			}
 		}
 		else if (std::regex_match(word, sm, std::regex(R"S(%sp\((\d+)\)(!)?)S"))) {
 			auto size = parseNumber<Config::MemorySizeType>(parseinfo, sm[1].str());
@@ -272,30 +278,19 @@ namespace CVM
 	}
 
 	ParsedIdentifier parseIdentifier(ParseInfo &parseinfo, const std::string &word) {
-		std::string mword;
-		bool escape = false; // Use '%' in identifier.
-		for (auto &c : word) {
+		if (!word.empty()) {
+			bool escape = false;
+			if (word[0] == '%' || word[0] == '#') {
+				escape = true;
+			}
 			if (escape) {
-				escape = false;
-				if (c == '%' || c == '#')
-					mword.push_back(c);
-				else
-					parseinfo.putErrorLine(PEC_UREscape);
-			}
-			else {
-				if (c == '%')
-					escape = true;
-				else
-					mword.push_back(c);
+				if (word.size() == 1 || word[1] != word[0])  {
+					parseinfo.putErrorLine(PEC_UREscape, word);
+				}
+				return ParsedIdentifier(word.substr(1));
 			}
 		}
-		if (escape) {
-			parseinfo.putErrorLine(PEC_UREscape);
-		}
-		//PriLib::Convert::split(mword, "#", [&](const char *w) {
-			//println(w);
-		//	});
-		return ParsedIdentifier(mword);
+		return ParsedIdentifier(word);
 	}
 
 	void parseLineBase(
@@ -327,7 +322,7 @@ namespace CVM
 			return index;
 		}
 		else {
-			parseinfo.putErrorLine(PEC_UFType);
+			parseinfo.putErrorLine(PEC_UFType, word);
 			return TypeIndex(0);
 		}
 	}

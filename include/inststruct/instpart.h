@@ -46,6 +46,13 @@ namespace CVM
 				r._rindex = rindex;
 				return r;
 			}
+			static Register PrivateDataRegister(Config::RegisterIndexType rindex, EnvType etype, TypeIndex typeindex) {
+				Register r(r_n);
+				r._etype = etype;
+				r._rindex = rindex;
+				r._tindex = typeindex.data;
+				return r;
+			}
 			static Register ThreadDataRegister(Config::RegisterIndexType rindex) {
 				Register r(r_t);
 				r._rindex = rindex;
@@ -97,6 +104,13 @@ namespace CVM
 				assert(_type == r_n);
 				return _rindex;
 			}
+			TypeIndex tindex() const {
+				assert(have_tindex());
+				return TypeIndex(_tindex);
+			}
+			bool have_tindex() const {
+				return _type == r_n || _type == r_spt || _type == r_sptd;
+			}
 
 			bool check() const {
 				if (_type == r_spt || _type == r_spn || _type == r_sptd || _type == r_spnd) {
@@ -128,28 +142,27 @@ namespace CVM
 				case r_res: result += "%res"; break;
 				default:  result += "%?"; break;
 				}
+				std::string tstr = _tindex ? "(Type:" + std::to_string(_tindex) + ")" : "";
 				switch (_etype) {
-				case e_current: break;
-				case e_parent: result += "(%penv)"; break;
-				case e_temp: result += "(%tenv)"; break;
-				default: result += "(%?)"; break;
+				case e_current: result += tstr; break;
+				case e_parent: result += "(%penv" + tstr + ")"; break;
+				case e_temp: result += "(%tenv" + tstr + ")"; break;
+				default: result += "(%?" + tstr + ")"; break;
 				}
 				return result;
 			}
 
 		private:
 			RegisterType _type = r_n;
+			Config::TypeIndexType _tindex = 0; // r_n, r_spt
 			union {
 				struct {
 					EnvType _etype;
-					RegisterIndexType _rindex;
+					Config::RegisterIndexType _rindex;
 				};
 				struct {
 					Config::StackOffsetType _spoff;
-					union {
-						Config::TypeIndexType _tindex; // r_spt
-						Config::MemorySizeType _msize; // r_spn
-					};
+					Config::MemorySizeType _msize; // r_spn
 				};
 			};
 		};

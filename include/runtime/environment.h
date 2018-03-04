@@ -71,6 +71,12 @@ namespace CVM
 					return getDataRegisterSet();
 				}
 			}
+			bool is_dyvarb(Config::RegisterIndexType index, EnvType etype) {
+				return getDataRegisterSet(etype).is_dynamic(index);
+			}
+			bool is_stvarb(Config::RegisterIndexType index, EnvType etype) {
+				return getDataRegisterSet(etype).is_static(index);
+			}
 			DataRegisterDynamic& get_dyvarb(Config::RegisterIndexType index, EnvType etype) {
 				return getDataRegisterSet(etype).get_dynamic(index);
 			}

@@ -5,14 +5,15 @@ namespace CVM
 {
 	namespace Runtime
 	{
-		namespace DataManage
-		{
+		namespace DataManage {
 			static void CopyTo(DataPointer dst, ConstDataPointer src, MemorySize size) {
 				PriLib::Memory::copyTo(dst.get(), src.get(), size.data);
 			}
+
 			static MemorySize GetSize(Environment &env, const TypeIndex &type) {
 				return env.getType(type).size;
 			}
+
 			static void Clear(DataPointer dst, MemorySize size) {
 				PriLib::Memory::clear(dst.get(), size.data);
 			}
@@ -20,6 +21,7 @@ namespace CVM
 			DataPointer Alloc(MemorySize size) {
 				return DataPointer(malloc(size.data));
 			}
+
 			DataPointer AllocClear(MemorySize size) {
 				return DataPointer(calloc(size.data, 1));
 			}
@@ -32,18 +34,30 @@ namespace CVM
 				return ToStringData(dp.get<byte>(), size.data);
 			}
 
-			void MoveRegisterDD(Environment &env, DataRegisterDynamic &dst, const DataRegisterDynamic &src) {
-				dst = src;
+			void MoveRegister(Environment &env, const DstData &dst, const SrcData &src) {
+				switch (dst.mode) {
+				case mr_copy_ptr:
+					*dst.datap = src.data;
+					break;
+				case mr_copy_memory:
+					CopyTo(*dst.datap, src.data, GetSize(env, src.type));
+					break;
+				}
+				if (dst.typep) {
+					*dst.typep = src.type;
+				}
 			}
-			void MoveRegisterSD(Environment &env, DataRegisterStatic &dst, const DataRegisterDynamic &src) {
-				CopyTo(dst.data, src.data, GetSize(env, src.type));
+			DstData GetDstDataD(DataRegisterDynamic &dst) {
+				return DstData { mr_copy_ptr, &dst.data, &dst.type };
 			}
-			void MoveRegisterDS(Environment &env, DataRegisterDynamic &dst, const DataRegisterStatic &src, TypeIndex srctype) {
-				dst.data = src.data;
-				dst.type = srctype;
+			DstData GetDstDataS(DataRegisterStatic &dst) {
+				return DstData { mr_copy_memory, &dst.data, nullptr };
 			}
-			void MoveRegisterSS(Environment &env, DataRegisterStatic &dst, const DataRegisterStatic &src, TypeIndex srctype) {
-				CopyTo(dst.data, src.data, GetSize(env, srctype));
+			SrcData GetSrcDataD(const DataRegisterDynamic &src) {
+				return SrcData {src.data, src.type};
+			}
+			SrcData GetSrcDataS(const DataRegisterStatic &src, TypeIndex type) {
+				return SrcData {src.data, type};
 			}
 
 			void LoadDataD(Environment &env, DataRegisterDynamic &dst, ConstDataPointer src, TypeIndex dsttype, MemorySize srcsize) {

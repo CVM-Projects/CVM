@@ -93,12 +93,18 @@ namespace CVM
 			explicit DataRegisterSet(DyDatRegSize dy_size, StDatRegSize st_size, DataPointer address, const DataRegisterSetStatic::SizeList &sizelist)
 				: _dynamic(dy_size.data), _static(st_size.data, address, sizelist) {}
 
+			bool is_dynamic(Config::RegisterIndexType id) {
+				return Config::is_dynamic(id, dysize(), stsize());
+			}
+			bool is_static(Config::RegisterIndexType id) {
+				return Config::is_static(id, dysize(), stsize());
+			}
 			DataRegisterDynamic& get_dynamic(Config::RegisterIndexType id) {
-				assert(Config::is_dynamic(id, dysize(), stsize()));
+				assert(is_dynamic(id));
 				return _dynamic.get(Config::get_dynamic_id(id, dysize(), stsize()));
 			}
 			DataRegisterStatic& get_static(Config::RegisterIndexType id) {
-				assert(Config::is_static(id, dysize(), stsize()));
+				assert(is_static(id));
 				return _static.get(Config::get_static_id(id, dysize(), stsize()));
 			}
 

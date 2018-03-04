@@ -13,7 +13,68 @@ namespace CVM
 		}
 	};
 
-	using MemorySize = PriLib::ExplicitType<Config::MemorySizeType, 0>;
+	using MemoryCount = PriLib::ExplicitType<Config::MemoryCountType, 0>;
+
+	class MemorySize : public PriLib::ExplicitType<Config::MemorySizeType, 0>
+	{
+	public:
+		explicit MemorySize(Config::MemorySizeType value = 0)
+			: PriLib::ExplicitType<Config::MemorySizeType, 0>(value) {}
+
+		MemorySize& operator+=(const MemorySize &other) {
+			Config::MemorySizeType result;
+			Config::MemorySizeType lhs = this->data;
+			Config::MemorySizeType rhs = other.data;
+			result = lhs + rhs;
+			Config::CheckMemorySizeOverflow(result >= lhs && result >= rhs);
+			this->data = result;
+			return *this;
+		}
+		MemorySize& operator-=(const MemorySize &other) {
+			Config::MemorySizeType result;
+			Config::MemorySizeType lhs = this->data;
+			Config::MemorySizeType rhs = other.data;
+			result = lhs - rhs;
+			Config::CheckMemorySizeOverflow(lhs >= rhs);
+			this->data = result;
+			return *this;
+		}
+		MemorySize& operator*=(const MemoryCount &other) {
+			Config::MemorySizeType result;
+			Config::MemorySizeType lhs = this->data;
+			Config::MemoryCountType rhs = other.data;
+			result = lhs * rhs;
+			Config::CheckMemorySizeOverflow(rhs == 0 || result >= lhs);
+			this->data = result;
+			return *this;
+		}
+		MemorySize& operator/=(const MemoryCount &other) {
+			Config::MemorySizeType result;
+			Config::MemorySizeType lhs = this->data;
+			Config::MemoryCountType rhs = other.data;
+			result = lhs / rhs;
+			Config::CheckMemorySizeOverflow(result <= lhs);
+			this->data = result;
+			return *this;
+		}
+		MemorySize operator+(const MemorySize &other) const {
+			MemorySize result;
+			return result += other;
+		}
+		MemorySize operator-(const MemorySize &other) const {
+			MemorySize result;
+			return result -= other;
+		}
+		MemorySize operator*(const MemoryCount &other) const {
+			MemorySize result;
+			return result *= other;
+		}
+		MemorySize operator/(const MemoryCount &other) const {
+			MemorySize result;
+			return result /= other;
+		}
+	};
+
 	using TypeName = PriLib::ExplicitType<std::string>;
 
 	struct TypeInfo

@@ -12,7 +12,7 @@ include_directories(include)
 aux_source_directory(source SOURCE_FILES)
 aux_source_directory(source/runtime SOURCE_RUNTIME_FILES)
 
-add_executable(cvm ${SOURCE_FILES} ${SOURCE_RUNTIME_FILES} ${PRILIB_SOURCE_FILES})
+add_executable(cvm ${SOURCE_FILES} ${SOURCE_RUNTIME_FILES} ${PRILIB_SOURCE_FILES} include)
 
 target_link_libraries(cvm prilib)
 target_link_libraries(cvm gmp gmpxx)
