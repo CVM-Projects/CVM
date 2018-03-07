@@ -3,6 +3,7 @@
 #include <cstdint>
 #include <map>
 #include "config.h"
+#include "typebase.h"
 
 namespace CVM
 {
@@ -87,9 +88,7 @@ namespace CVM
 	class TypeInfoMap
 	{
 	public:
-		explicit TypeInfoMap() {
-			insert("nil", TypeInfo());
-		}
+		explicit TypeInfoMap();
 
 		bool insert(const std::string &name, const TypeInfo &info);
 		bool find(const std::string &name, TypeIndex &id) const {

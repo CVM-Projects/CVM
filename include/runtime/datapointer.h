@@ -17,6 +17,8 @@ namespace CVM
 			explicit DataPointer(void *ptr = nullptr)
 				: PriLib::ExplicitType<void*, nullptr>(ptr) {}
 
+			static const MemorySize Size;
+
 			template <typename T = void>
 			T* get() const {
 				return reinterpret_cast<T*>(data);

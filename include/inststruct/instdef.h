@@ -40,7 +40,6 @@ namespace CVM
 				Data src;
 				TypeIndex type;
 			};
-
 			struct Load2 : public Instx<i_load, 2>
 			{
 				explicit Load2(const Register &dst, const DataIndex &src, const TypeIndex &type)
@@ -49,6 +48,23 @@ namespace CVM
 				Register dst;
 				DataIndex src;
 				TypeIndex type;
+			};
+
+			struct LoadPointer1 : public Instx<i_loadp, 1>
+			{
+				explicit LoadPointer1(const Register &dst, const Data &src)
+					: dst(dst), src(src) {}
+
+				Register dst;
+				Data src;
+			};
+			struct LoadPointer2 : public Instx<i_loadp, 2>
+			{
+				explicit LoadPointer2(const Register &dst, const DataIndex &src)
+					: dst(dst), src(src) {}
+
+				Register dst;
+				DataIndex src;
 			};
 
 			struct Return : public Inst<i_ret> {};

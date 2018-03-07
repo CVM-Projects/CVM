@@ -9,9 +9,10 @@ namespace CVM
 			i_nop = 0,
 			i_mov,
 			i_load,
-			i_loadt,
+			i_loadp,
 			i_tset,
 			i_cpyn,
+			i_call,
 			i_ret,
 
 			id_opreg,

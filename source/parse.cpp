@@ -28,6 +28,7 @@ namespace CVM
 		PEC_DUFunc,
 		PEC_DUDataId,
 		PEC_NotFuncReg,
+		PEC_IllegalFormat,
 	};
 
 	class ParseInfo
@@ -61,19 +62,22 @@ namespace CVM
 		}
 
 		void putErrorLine() const {
-			fprintf(stderr, "Parse Error in line(%zu).\n", lcount);
-			haveerror = true;
+			_putError("Parse Error in line(%zu).\n", lcount);
 		}
 		void putErrorLine(ParseErrorCode pec) const {
-			fprintf(stderr, "Parse Error for '%s' in line(%zu).\n", geterrmsg(pec), lcount);
-			haveerror = true;
+			_putError("Parse Error for '%s' in line(%zu).\n", geterrmsg(pec), lcount);
 		}
 		void putErrorLine(ParseErrorCode pec, const std::string &msg) const {
-			fprintf(stderr, "Parse Error for '%s' at '%s' in line(%zu).\n", geterrmsg(pec), msg.c_str(), lcount);
-			haveerror = true;
+			_putError("Parse Error for '%s' at '%s' in line(%zu).\n", geterrmsg(pec), msg.c_str(), lcount);
 		}
 		void putError(const std::string &msg) const {
-			fprintf(stderr, "%s\n", msg.c_str());
+			_putError("%s\n", msg.c_str());
+		}
+
+	private:
+		template <typename... Args>
+		void _putError(const char *format, Args... args) const {
+			fprintf(stderr, format, args...);
 			haveerror = true;
 		}
 
@@ -95,6 +99,7 @@ namespace CVM
 				{ PEC_DUFunc, "func name duplicate" },
 				{ PEC_DUDataId, "data index duplicate" },
 				{ PEC_NotFuncReg, "not function's register" },
+				{ PEC_IllegalFormat, "Illegal format" }
 			};
 			return pecmap.at(pec);
 		}
@@ -448,7 +453,7 @@ namespace CVM
 									parseinfo.currfunc->stvarb_typelist.push_back(index);
 							}
 							else {
-								parseinfo.putErrorLine();
+								parseinfo.putErrorLine(PEC_IllegalFormat, "stvarb");
 							}
 						}
 					},
@@ -696,6 +701,10 @@ namespace CVM
 			{
 				"load",
 				[](ParseInfo &parseinfo, const std::vector<std::string> &list) -> InstStruct::Instruction* {
+					if (list.size() != 3) {
+						parseinfo.putErrorLine(PEC_IllegalFormat, "load");
+						return nullptr;
+					}
 					if (!list[1].empty() && list[1][0] != '#') {
 						return new Insts::Load1(
 							parseRegister(parseinfo, list[0]),
@@ -707,6 +716,25 @@ namespace CVM
 							parseRegister(parseinfo, list[0]),
 							parseDataIndex(parseinfo, list[1]),
 							parseType(parseinfo, list[2]));
+					}
+				}
+			},
+			{
+				"loadp",
+				[](ParseInfo &parseinfo, const std::vector<std::string> &list) -> InstStruct::Instruction* {
+					if (list.size() != 2) {
+						parseinfo.putErrorLine(PEC_IllegalFormat, "loadp");
+						return nullptr;
+					}
+					if (!list[1].empty() && list[1][0] != '#') {
+						return new Insts::LoadPointer1(
+							parseRegister(parseinfo, list[0]),
+							parseDataInst(parseinfo, list[1]));
+					}
+					else {
+						return new Insts::LoadPointer2(
+							parseRegister(parseinfo, list[0]),
+							parseDataIndex(parseinfo, list[1]));
 					}
 				}
 			},

@@ -1,14 +1,12 @@
 ;; test.cms
 
-.type cms#int64
-    .size 8
-
 .program
     .entry main
 
 .datas
     .array #1, 0x12 0x34 0x56
     .data  #2, 6
+	.array #3, 0x48 0x65 0x6C 0x6C 0x6F 0x20 0x57 0x6F 0x72 0x6C 0x64 0x21 0x00 ;; "Hello World!"
 
 .func Math#add
     .stvarb 2, cms#int64
@@ -16,9 +14,18 @@
     ;; call %res, cms#int64#+, %1 %2
     ret
 
+.func print-hello
+	.dyvarb 0
+	.stvarb 1, cms#pointer
+	.arg 0
+	loadp %1, #3
+	;;call %0, print_string, %1
+	ret
+
 .func main
     .dyvarb 2
-    .stvarb 4, cms#int64
+    .stvarb 3, cms#int64
+	.stvarb 1, cms#pointer
     db_opreg
     load %1, #1, cms#int64
     db_opreg
@@ -27,5 +34,7 @@
     mov  %4, %1
     db_opreg
     load %5, #2, cms#int64
+    db_opreg
+	loadp %6, #3
     db_opreg
     ret

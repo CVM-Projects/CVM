@@ -34,46 +34,84 @@ namespace CVM
 				return ToStringData(dp.get<byte>(), size.data);
 			}
 
+			DstData GetDstData(DataRegisterDynamic &dst) {
+				return DstData { drm_register_dynamic, &dst.data, &dst.type };
+			}
+			DstData GetDstData(DataRegisterStatic &dst) {
+				return DstData { drm_register_static, &dst.data, nullptr };
+			}
+			SrcData GetSrcData(const DataRegisterDynamic &src) {
+				return SrcData { src.data, src.type };
+			}
+			SrcData GetSrcData(const DataRegisterStatic &src, TypeIndex type) {
+				return SrcData { src.data, type };
+			}
+
 			void MoveRegister(Environment &env, const DstData &dst, const SrcData &src) {
 				switch (dst.mode) {
-				case mr_copy_ptr:
+				case drm_null:
+					break;
+				case drm_register_dynamic:
 					*dst.datap = src.data;
 					break;
-				case mr_copy_memory:
+				case drm_register_static:
 					CopyTo(*dst.datap, src.data, GetSize(env, src.type));
 					break;
+				default:
+					assert(false);
 				}
 				if (dst.typep) {
 					*dst.typep = src.type;
 				}
 			}
-			DstData GetDstDataD(DataRegisterDynamic &dst) {
-				return DstData { mr_copy_ptr, &dst.data, &dst.type };
-			}
-			DstData GetDstDataS(DataRegisterStatic &dst) {
-				return DstData { mr_copy_memory, &dst.data, nullptr };
-			}
-			SrcData GetSrcDataD(const DataRegisterDynamic &src) {
-				return SrcData {src.data, src.type};
-			}
-			SrcData GetSrcDataS(const DataRegisterStatic &src, TypeIndex type) {
-				return SrcData {src.data, type};
+
+			void LoadData(Environment &env, const DstData &dst, ConstDataPointer src, TypeIndex dsttype, MemorySize srcsize) {
+				switch (dst.mode) {
+				case drm_null:
+					break;
+				case drm_register_dynamic:
+					*dst.datap = AllocClear(GetSize(env, dsttype));
+					CopyTo(*dst.datap, src, MemorySize(std::min(GetSize(env, dsttype).data, srcsize.data)));
+					*dst.typep = dsttype;
+					break;
+				case drm_register_static:
+					Clear(*dst.datap, GetSize(env, dsttype));
+					CopyTo(*dst.datap, src, MemorySize(std::min(GetSize(env, dsttype).data, srcsize.data)));
+					break;
+				default:
+					assert(false);
+				}
 			}
 
-			void LoadDataD(Environment &env, DataRegisterDynamic &dst, ConstDataPointer src, TypeIndex dsttype, MemorySize srcsize) {
-				dst.data = AllocClear(GetSize(env, dsttype));
-				CopyTo(dst.data, src, MemorySize(std::min(GetSize(env, dsttype).data, srcsize.data)));
-				dst.type = dsttype;
-			}
-			void LoadDataS(Environment &env, DataRegisterStatic &dst, ConstDataPointer src, TypeIndex dsttype, MemorySize srcsize) {
-				Clear(dst.data, GetSize(env, dsttype));
-				CopyTo(dst.data, src, MemorySize(std::min(GetSize(env, dsttype).data, srcsize.data)));
+			void LoadDataPointer(Environment &env, const DstData &dst, ConstDataPointer src, MemorySize srcsize) {
+				switch (dst.mode) {
+				case drm_null:
+					break;
+				case drm_register_dynamic: {
+					DataPointer buffer = AllocClear(srcsize);
+					void *address = buffer.get();
+					CopyTo(buffer, src, srcsize);
+					*dst.datap = AllocClear(DataPointer::Size);
+					CopyTo(*dst.datap, DataPointer(&address), DataPointer::Size);
+					*dst.typep = TypeIndex(T_Pointer);
+					break;
+				}
+				case drm_register_static: {
+					DataPointer buffer = AllocClear(srcsize);
+					void *address = buffer.get();
+					CopyTo(buffer, src, srcsize);
+					CopyTo(*dst.datap, DataPointer(&address), DataPointer::Size);
+					break;
+				}
+				default:
+					assert(false);
+				}
 			}
 
-			void Debug_PrintRegisterD(Environment &env, const DataRegisterDynamic &src) {
+			void Debug_PrintRegister(Environment &env, const DataRegisterDynamic &src) {
 				PriLib::Output::println(ToStringData(src.data, GetSize(env, src.type)));
 			}
-			void Debug_PrintRegisterS(Environment &env, const DataRegisterStatic &src, TypeIndex type) {
+			void Debug_PrintRegister(Environment &env, const DataRegisterStatic &src, TypeIndex type) {
 				PriLib::Output::println(ToStringData(src.data, GetSize(env, type)));
 			}
 		}

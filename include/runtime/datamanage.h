@@ -14,13 +14,14 @@ namespace CVM
 			DataPointer AllocClear(MemorySize size);
 
 
-			enum MoveRegisterMode
+			enum DstRegisterMode
 			{
-				mr_copy_ptr,
-				mr_copy_memory,
+				drm_null,
+				drm_register_dynamic,
+				drm_register_static,
 			};
 			struct DstData {
-				MoveRegisterMode mode;
+				DstRegisterMode mode = drm_null;
 				DataPointer *datap = nullptr;
 				TypeIndex *typep = nullptr;
 			};
@@ -29,17 +30,16 @@ namespace CVM
 				TypeIndex type;
 			};
 			void MoveRegister(Environment &env, const DstData &dst, const SrcData &src);
+			void LoadData(Environment &env, const DstData &dst, ConstDataPointer src, TypeIndex dsttype, MemorySize srcsize);
+			void LoadDataPointer(Environment &env, const DstData &dst, ConstDataPointer src, MemorySize srcsize);
 
-			DstData GetDstDataD(DataRegisterDynamic &dst);
-			DstData GetDstDataS(DataRegisterStatic &dst);
-			SrcData GetSrcDataD(const DataRegisterDynamic &src);
-			SrcData GetSrcDataS(const DataRegisterStatic &src, TypeIndex type);
+			DstData GetDstData(DataRegisterDynamic &dst);
+			DstData GetDstData(DataRegisterStatic &dst);
+			SrcData GetSrcData(const DataRegisterDynamic &src);
+			SrcData GetSrcData(const DataRegisterStatic &src, TypeIndex type);
 
-			void LoadDataD(Environment &env, DataRegisterDynamic &dst, ConstDataPointer src, TypeIndex dsttype, MemorySize srcsize);
-			void LoadDataS(Environment &env, DataRegisterStatic &dst, ConstDataPointer src, TypeIndex dsttype, MemorySize srcsize);
-
-			void Debug_PrintRegisterD(Environment &env, const DataRegisterDynamic &src);
-			void Debug_PrintRegisterS(Environment &env, const DataRegisterStatic &src, TypeIndex type);
+			void Debug_PrintRegister(Environment &env, const DataRegisterDynamic &src);
+			void Debug_PrintRegister(Environment &env, const DataRegisterStatic &src, TypeIndex type);
 		}
 	}
 }
