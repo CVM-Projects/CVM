@@ -47,6 +47,19 @@ namespace CVM
 	}
 }
 
+void print_string(const char *msg)
+{
+	std::printf("%s", msg);
+}
+
+#include "runtime/function.h"
+
+void _print_string(CVM::Runtime::PointerFunction::Result &result, CVM::Runtime::PointerFunction::ArgumentList &arglist)
+{
+	auto x = arglist[0].get<const char *>();
+	print_string(*x);
+}
+
 int main(int argc, char *argv[])
 {
 	if (argc != 2) {
@@ -102,8 +115,12 @@ int main(int argc, char *argv[])
 	VirtualMachine VM;
 	
 	LiteralDataPool ldp(datasmap);
+	Runtime::FuncTable functable;
+
+	functable.insert("print_string", new Runtime::PointerFunction(&_print_string));
+
 	println(ldp.toString());
-	VM.addGlobalEnvironment(Compile::CreateGlobalEnvironment(0xff, tim, ldp));
+	VM.addGlobalEnvironment(Compile::CreateGlobalEnvironment(0xff, tim, ldp, functable));
 	Runtime::LocalEnvironment *lenv = Compile::CreateLoaclEnvironment(*func, tim);
 
 	VM.Genv().addSubEnvironment(lenv);

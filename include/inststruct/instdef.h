@@ -67,6 +67,16 @@ namespace CVM
 				DataIndex src;
 			};
 
+			struct Call : public Inst<i_call>
+			{
+				explicit Call(const Register &dst, const Identifier &func, const ArgumentList &arglist)
+					: dst(dst), func(func), arglist(arglist) {}
+
+				Register dst;
+				Identifier func;
+				ArgumentList arglist;
+			};
+
 			struct Return : public Inst<i_ret> {};
 			struct Nope : public Inst<i_nop> {};
 

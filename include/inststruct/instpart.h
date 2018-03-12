@@ -170,21 +170,22 @@ namespace CVM
 		struct Identifier
 		{
 		public:
-			using Type = uint32_t;
+			using Type = std::string;
 
 			explicit Identifier(Type index)
-				: _index(index) {}
+				: _data(index) {}
 
-			Type index() const {
-				return _index;
+			Type data() const {
+				return _data;
 			}
 
 			std::string toString() const {
-				return "i" + std::to_string(_index);
+				return _data;
+				//return "i" + std::to_string(_index);
 			}
 
 		private:
-			Type _index;
+			Type _data;
 		};
 
 		struct DataIndex
@@ -221,6 +222,34 @@ namespace CVM
 
 			std::string toString() const {
 				return "0x" + PriLib::Convert::to_hex(_data);
+			}
+
+		private:
+			Type _data;
+		};
+
+		struct ArgumentList
+		{
+		public:
+			using Type = PriLib::lightlist<Register>;
+			using Creater = PriLib::lightlist_creater<Register>;
+
+			ArgumentList(const Type &data)
+				: _data(data) {}
+
+			const Type& data() const {
+				return _data;
+			}
+
+			std::string toString() const {
+				std::string result;
+				result += "[";
+				for (auto &dat : _data) {
+					result += dat.toString() + ", ";
+				}
+				result.pop_back();
+				result.pop_back();
+				result += "]";
 			}
 
 		private:

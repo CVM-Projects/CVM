@@ -3,6 +3,7 @@
 #include "registerset.h"
 #include "controlflow.h"
 #include "datapool.h"
+#include "functable.h"
 #include <set>
 #include <list>
 #include <memory>
@@ -118,8 +119,13 @@ namespace CVM
 		{
 		public:
 			using DataSectionMap = LiteralDataPool;
-			explicit GlobalEnvironment(const DataRegisterSet &drs, const TypeInfoMap &tim, const DataSectionMap &datasmap)
-				: Environment(drs), _tim(tim), _datasmap(datasmap) {
+			explicit GlobalEnvironment(
+				const DataRegisterSet &drs,
+				const TypeInfoMap &tim,
+				const DataSectionMap &datasmap,
+				const FuncTable &functable
+			)
+				: Environment(drs), _tim(tim), _datasmap(datasmap), _functable(functable) {
 				_timp = &_tim;
 			}
 
@@ -133,10 +139,14 @@ namespace CVM
 			const DataSectionMap& getDataSectionMap() const {
 				return _datasmap;
 			}
+			const FuncTable& getFuncTable() const {
+				return _functable;
+			}
 
 		private:
 			TypeInfoMap _tim;
 			DataSectionMap _datasmap;
+			FuncTable _functable;
 		};
 
 		class ThreadEnvironment : public Environment
@@ -149,7 +159,7 @@ namespace CVM
 		class LocalEnvironment : public Environment
 		{
 		public:
-			explicit LocalEnvironment(const DataRegisterSet &drs, const Function &func)
+			explicit LocalEnvironment(const DataRegisterSet &drs, const InstFunction &func)
 				: Environment(drs), _func(func), _controlflow(_func) {}
 
 			ControlFlow& Controlflow() {
@@ -160,7 +170,7 @@ namespace CVM
 				return true;
 			}
 
-			Function _func;
+			InstFunction _func;
 			ControlFlow _controlflow;
 		};
 	}

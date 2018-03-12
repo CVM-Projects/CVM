@@ -722,19 +722,39 @@ namespace CVM
 			{
 				"loadp",
 				[](ParseInfo &parseinfo, const std::vector<std::string> &list) -> InstStruct::Instruction* {
-					if (list.size() != 2) {
+					if (list.size() == 2) {
+						if (!list[1].empty() && list[1][0] != '#') {
+							return new Insts::LoadPointer1(
+								parseRegister(parseinfo, list[0]),
+								parseDataInst(parseinfo, list[1]));
+						}
+						else {
+							return new Insts::LoadPointer2(
+								parseRegister(parseinfo, list[0]),
+								parseDataIndex(parseinfo, list[1]));
+						}
+					}
+					else {
 						parseinfo.putErrorLine(PEC_IllegalFormat, "loadp");
 						return nullptr;
 					}
-					if (!list[1].empty() && list[1][0] != '#') {
-						return new Insts::LoadPointer1(
-							parseRegister(parseinfo, list[0]),
-							parseDataInst(parseinfo, list[1]));
+				}
+			},
+			{
+				"call",
+				[](ParseInfo &parseinfo, const std::vector<std::string> &list) -> InstStruct::Instruction* {
+					if (list.size() >= 2) {
+						auto res = parseRegister(parseinfo, list[0]);
+						Identifier func(parseIdentifier(parseinfo, list[1]).data);
+						ArgumentList::Creater arglist_creater(list.size() - 2);
+						for (auto e : PriLib::rangei(list.begin() + 2, list.end())) {
+							arglist_creater.push_back(parseRegister(parseinfo, e));
+						}
+						return new Insts::Call(res, func, arglist_creater.data());
 					}
 					else {
-						return new Insts::LoadPointer2(
-							parseRegister(parseinfo, list[0]),
-							parseDataIndex(parseinfo, list[1]));
+						parseinfo.putErrorLine(PEC_IllegalFormat, "call");
+						return nullptr;
 					}
 				}
 			},

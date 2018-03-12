@@ -8,7 +8,7 @@ namespace CVM
 		class ControlFlow
 		{
 		public:
-			ControlFlow(const Function &func)
+			ControlFlow(const InstFunction &func)
 				: Func(func) {}
 
 			void init() {
@@ -41,7 +41,7 @@ namespace CVM
 		private:
 			size_t ProgramCounter = 0;
 			bool isIncProgramCounter;
-			const Function &Func;
+			const InstFunction &Func;
 		};
 	}
 }

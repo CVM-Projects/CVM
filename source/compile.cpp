@@ -111,7 +111,7 @@ namespace CVM
 					}
 				}
 				else {
-					src_f = [=](Runtime::Environment &env) { return GetSrcData(env, src_id, src_e, src_tid); };
+					src_f = [=](Runtime::Environment &env) { return GetSrcData(env, src_id, src_e, src_tid); }; // TODO : src_tid
 				}
 
 				return [=](Runtime::Environment &env) {
@@ -224,6 +224,56 @@ namespace CVM
 					}
 				}
 			}
+			else if (inst.instcode == InstStruct::i_call) {
+				auto &Inst = static_cast<const InstStruct::Insts::Call&>(inst);
+				std::function<Runtime::DataManage::DstData(Runtime::Environment &env)> dst_f;
+				if (Inst.dst.isZeroRegister()) {
+					dst_f = [](Runtime::Environment &env) {
+						return Runtime::DataManage::DstData();
+					};
+				}
+				else if (Inst.dst.isPrivateDataRegister()) {
+					auto dst_e = Convert(Inst.dst.etype());
+					auto dst_id = Inst.dst.index();
+					dst_f = [=](Runtime::Environment &env) {
+						return GetDstData(env, dst_id, dst_e);
+					};
+				}
+				else {
+					assert(false);
+				}
+				std::function<Runtime::Function*(Runtime::Environment &env)> f;
+				const std::string &name = Inst.func.data();
+				f = [=](Runtime::Environment &env) -> Runtime::Function* {
+					auto &table = env.GEnv().getFuncTable();
+					return table.getValue(table.findKey(name));
+				};
+				std::vector<std::function<Runtime::DataManage::SrcData(Runtime::Environment &env)>> src_fs;
+				for (auto &arg : Inst.arglist.data()) {
+					if (arg.isPrivateDataRegister()) {
+						auto src_e = Convert(arg.etype());
+						auto src_id = arg.index();
+						TypeIndex type;
+						if (func.is_stvarb(src_id))
+							type = func.get_stvarb_type(src_id);
+						src_fs.push_back([=](Runtime::Environment &env) {
+							return GetSrcData(env, src_id, src_e, type);
+						});
+					}
+					else {
+						assert(false);
+					}
+				}
+				return [=](Runtime::Environment &env) {
+					const Runtime::Function &ff = *f(env);
+					PriLib::lightlist_creater<Runtime::DataManage::SrcData> arglist_creater(src_fs.size());
+					for (auto &src_f : src_fs) {
+						arglist_creater.push_back(src_f(env));
+					}
+
+					Runtime::DataManage::Call(env, ff, dst_f(env), arglist_creater.data());
+				};
+			}
 			else if (inst.instcode == InstStruct::i_ret) {
 				return [=](Runtime::Environment &env) {
 					CheckLocalEnv(env);
@@ -264,15 +314,15 @@ namespace CVM
 			return nullptr;
 		}
 
-		Runtime::Function Compile(const InstStruct::Function &func) {
+		Runtime::InstFunction Compile(const InstStruct::Function &func) {
 			const InstStruct::InstList &src = func.instlist();
-			Runtime::Function::InstList dst;
+			Runtime::InstFunction::InstList dst;
 
 			std::transform(src.begin(), src.end(), std::back_inserter(dst), [&](const InstStruct::Instruction *inst) {
 				return Compile(*inst, func);
 				});
 
-			return Runtime::Function(dst);
+			return Runtime::InstFunction(dst);
 		}
 
 		Runtime::LocalEnvironment* CreateLoaclEnvironment(const InstStruct::Function &func, const TypeInfoMap &tim) {
@@ -296,18 +346,18 @@ namespace CVM
 			Runtime::DataRegisterSet drs(dysize, stsize, address, sizelist);
 
 			// Compile Function
-			Runtime::Function new_func = Compile(func);
+			Runtime::InstFunction new_func = Compile(func);
 
 			// Return Environment
 			return new Runtime::LocalEnvironment(drs, new_func);
 		}
 
-		Runtime::GlobalEnvironment* CreateGlobalEnvironment(Config::RegisterIndexType dysize, const TypeInfoMap &tim, const LiteralDataPool &datasmap) {
+		Runtime::GlobalEnvironment* CreateGlobalEnvironment(Config::RegisterIndexType dysize, const TypeInfoMap &tim, const LiteralDataPool &datasmap, const Runtime::FuncTable &functable) {
 			Runtime::DataRegisterSet::DyDatRegSize _dysize(dysize);
 			Runtime::DataRegisterSet drs(_dysize);
 
 			// Return Environment
-			return new Runtime::GlobalEnvironment(drs, tim, datasmap);
+			return new Runtime::GlobalEnvironment(drs, tim, datasmap, functable);
 		}
 	}
 }

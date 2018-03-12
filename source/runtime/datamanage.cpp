@@ -46,6 +46,22 @@ namespace CVM
 			SrcData GetSrcData(const DataRegisterStatic &src, TypeIndex type) {
 				return SrcData { src.data, type };
 			}
+			DataPointer GetDataPointer(const DstData &dst) {
+				switch (dst.mode) {
+				case drm_null:
+					return DataPointer(nullptr);
+				case drm_register_dynamic:
+					return *dst.datap;
+				case drm_register_static:
+					return *dst.datap;
+				default:
+					assert(false);
+					return DataPointer(nullptr);
+				}
+			}
+			DataPointer GetDataPointer(const SrcData &src) {
+				return src.data;
+			}
 
 			void MoveRegister(Environment &env, const DstData &dst, const SrcData &src) {
 				switch (dst.mode) {
@@ -105,6 +121,25 @@ namespace CVM
 				}
 				default:
 					assert(false);
+				}
+			}
+
+			void Call(Environment &env, const Runtime::Function &func, const DstData &dst, const PriLib::lightlist<SrcData> &arglist) {
+				switch (func.type()) {
+				case ft_null:
+					break;
+				case ft_inst:
+					break;
+				case ft_ptr:
+					auto fp = static_cast<const Runtime::PointerFunction &>(func).data();
+					PointerFunction::ArgumentList::creater aplist_creater(arglist.size());
+					for (auto &arg : arglist) {
+						aplist_creater.push_back(GetDataPointer(arg));
+					}
+					PointerFunction::ArgumentList aplist = aplist_creater.data();
+					PointerFunction::Result xdst = GetDataPointer(dst);
+					fp(xdst, aplist);
+					break;
 				}
 			}
 
