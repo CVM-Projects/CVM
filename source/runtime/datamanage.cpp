@@ -1,5 +1,6 @@
 #include "basic.h"
 #include "runtime/datamanage.h"
+#include "compile.h"
 
 namespace CVM
 {
@@ -103,7 +104,8 @@ namespace CVM
 				switch (dst.mode) {
 				case drm_null:
 					break;
-				case drm_register_dynamic: {
+				case drm_register_dynamic:
+				{
 					DataPointer buffer = AllocClear(srcsize);
 					void *address = buffer.get();
 					CopyTo(buffer, src, srcsize);
@@ -112,7 +114,8 @@ namespace CVM
 					*dst.typep = TypeIndex(T_Pointer);
 					break;
 				}
-				case drm_register_static: {
+				case drm_register_static:
+				{
 					DataPointer buffer = AllocClear(srcsize);
 					void *address = buffer.get();
 					CopyTo(buffer, src, srcsize);
@@ -129,8 +132,15 @@ namespace CVM
 				case ft_null:
 					break;
 				case ft_inst:
+				{
+					auto instf = static_cast<const Runtime::InstFunction &>(func);
+					auto senv = Compile::CreateLoaclEnvironment(instf, env.GetTypeInfoMap());
+					env.addSubEnvironment(senv);
+					env.GEnv().getVM().Call(*senv);
 					break;
+				}
 				case ft_ptr:
+				{
 					auto fp = static_cast<const Runtime::PointerFunction &>(func).data();
 					PointerFunction::ArgumentList::creater aplist_creater(arglist.size());
 					for (auto &arg : arglist) {
@@ -140,6 +150,7 @@ namespace CVM
 					PointerFunction::Result xdst = GetDataPointer(dst);
 					fp(xdst, aplist);
 					break;
+				}
 				}
 			}
 

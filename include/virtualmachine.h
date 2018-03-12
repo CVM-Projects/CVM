@@ -10,6 +10,7 @@ namespace CVM
 
 		void addGlobalEnvironment(Runtime::GlobalEnvironment *genv) {
 			_genv = std::shared_ptr<Runtime::GlobalEnvironment>(genv);
+			_genv->setVM(this);
 		}
 
 		Runtime::GlobalEnvironment& Genv() {

@@ -10,6 +10,8 @@
 
 namespace CVM
 {
+	class VirtualMachine;
+
 	namespace Runtime
 	{
 		// This is different from Instruction::EnvType.
@@ -45,6 +47,7 @@ namespace CVM
 			virtual ~Environment() {}
 
 			virtual void addSubEnvironment(Environment *envp) {
+				envp->SetGEnv(_genv);
 				envp->SetPEnv(this);
 				std::shared_ptr<Environment> env(envp);
 				_subenv_set.add(env);
@@ -105,6 +108,9 @@ namespace CVM
 			void SetTypeInfoMap(TypeInfoMap *timp) {
 				_timp = timp;
 			}
+			TypeInfoMap& GetTypeInfoMap() {
+				return *_timp;
+			}
 
 		protected:
 			GlobalEnvironment *_genv = nullptr;
@@ -142,11 +148,18 @@ namespace CVM
 			const FuncTable& getFuncTable() const {
 				return _functable;
 			}
+			void setVM(VirtualMachine *vmp) {
+				_vmp = vmp;
+			}
+			VirtualMachine& getVM() {
+				return *_vmp;
+			}
 
 		private:
 			TypeInfoMap _tim;
 			DataSectionMap _datasmap;
 			FuncTable _functable;
+			VirtualMachine *_vmp;
 		};
 
 		class ThreadEnvironment : public Environment

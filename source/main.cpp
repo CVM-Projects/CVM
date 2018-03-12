@@ -108,8 +108,6 @@ int main(int argc, char *argv[])
 		return -1;
 	}
 
-	InstStruct::Function *func = fset.at(entry);
-
 	// Run 'main'
 
 	VirtualMachine VM;
@@ -117,11 +115,23 @@ int main(int argc, char *argv[])
 	LiteralDataPool ldp(datasmap);
 	Runtime::FuncTable functable;
 
+	for (auto &func : fset) {
+		if (functable.findKey(func.first) == functable.size()) {
+			Runtime::Function *f = new Runtime::InstFunction(Compile::Compile(*func.second));
+			functable.insert(func.first, f);
+		}
+		else {
+			assert(false);
+		}
+	}
+
+	Runtime::Function *func = functable.getValue(functable.findKey(entry));
+
 	functable.insert("print_string", new Runtime::PointerFunction(&_print_string));
 
 	println(ldp.toString());
 	VM.addGlobalEnvironment(Compile::CreateGlobalEnvironment(0xff, tim, ldp, functable));
-	Runtime::LocalEnvironment *lenv = Compile::CreateLoaclEnvironment(*func, tim);
+	Runtime::LocalEnvironment *lenv = Compile::CreateLoaclEnvironment(static_cast<Runtime::InstFunction&>(*func), tim);
 
 	VM.Genv().addSubEnvironment(lenv);
 

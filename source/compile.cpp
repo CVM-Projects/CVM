@@ -322,15 +322,17 @@ namespace CVM
 				return Compile(*inst, func);
 				});
 
-			return Runtime::InstFunction(dst);
+			return Runtime::InstFunction(dst, &func);
 		}
 
-		Runtime::LocalEnvironment* CreateLoaclEnvironment(const InstStruct::Function &func, const TypeInfoMap &tim) {
-			// Initialize DataRegisterSet
-			Runtime::DataRegisterSet::DyDatRegSize dysize(func.dyvarb_count());
-			Runtime::DataRegisterSet::StDatRegSize stsize(func.stvarb_count());
+		Runtime::LocalEnvironment* CreateLoaclEnvironment(const Runtime::InstFunction &func, const TypeInfoMap &tim) {
+			const auto &ifunc = func.instfunc();
 
-			const auto &typelist = func.stvarb_typelist();
+			// Initialize DataRegisterSet
+			Runtime::DataRegisterSet::DyDatRegSize dysize(ifunc.dyvarb_count());
+			Runtime::DataRegisterSet::StDatRegSize stsize(ifunc.stvarb_count());
+
+			const auto &typelist = ifunc.stvarb_typelist();
 			Runtime::DataRegisterSetStatic::SizeList sizelist(typelist.size());
 
 			size_t i = 0;
@@ -345,11 +347,8 @@ namespace CVM
 
 			Runtime::DataRegisterSet drs(dysize, stsize, address, sizelist);
 
-			// Compile Function
-			Runtime::InstFunction new_func = Compile(func);
-
 			// Return Environment
-			return new Runtime::LocalEnvironment(drs, new_func);
+			return new Runtime::LocalEnvironment(drs, func);
 		}
 
 		Runtime::GlobalEnvironment* CreateGlobalEnvironment(Config::RegisterIndexType dysize, const TypeInfoMap &tim, const LiteralDataPool &datasmap, const Runtime::FuncTable &functable) {

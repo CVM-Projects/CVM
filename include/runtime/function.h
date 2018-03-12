@@ -6,6 +6,8 @@
 
 namespace CVM
 {
+	namespace InstStruct { class Function; }
+
 	namespace Runtime
 	{
 		enum FunctionType
@@ -28,8 +30,8 @@ namespace CVM
 		public:
 			using InstList = std::vector<Instruction>;
 		public:
-			explicit InstFunction(const InstList &il)
-				: _data(il) {}
+			explicit InstFunction(const InstList &il, const InstStruct::Function *ifunc)
+				: _data(il), _instfunc(ifunc) {}
 
 			virtual FunctionType type() const {
 				return ft_inst;
@@ -51,8 +53,13 @@ namespace CVM
 				return _data;
 			}
 
+			const InstStruct::Function& instfunc() const {
+				return *_instfunc;
+			}
+
 		private:
 			InstList _data;
+			const InstStruct::Function *_instfunc;
 		};
 
 		class PointerFunction : public Function
