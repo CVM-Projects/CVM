@@ -70,34 +70,40 @@ namespace CVM
 					return NopeFunc;
 				}
 
-				auto dst_e = Convert(Inst.dst.etype());
+				using namespace Runtime::DataManage;
+				DstData dst;
+
+				std::function<DstData(Runtime::Environment &)> dst_f;
+
+				if (Inst.dst.isResultRegister()) {
+					dst_f = Runtime::DataManage::GetDstDataResult;
+				}
+				else {
+					auto dst_e = Convert(Inst.dst.etype());
+					auto dst_id = Inst.dst.index();;
+
+					if (Inst.dst.isPrivateDataRegister()) {
+						if (func.is_dyvarb(dst_id)) {
+							auto dst_df = compile_drd(Inst.dst);
+							dst_f = [=](Runtime::Environment &env) { return Runtime::DataManage::GetDstData(dst_df(env)); };
+						}
+						else if (func.is_stvarb(dst_id)) {
+							TypeIndex type = func.get_stvarb_type(dst_id);
+							auto dst_sf = compile_drs(Inst.dst);
+							dst_f = [=](Runtime::Environment &env) { return Runtime::DataManage::GetDstData(dst_sf(env)); };
+						}
+					}
+					else {
+						dst_f = [=](Runtime::Environment &env) { return GetDstData(env, dst_id, dst_e); };
+					}
+				}
+
 				auto src_e = Convert(Inst.src.etype());
-				auto dst_id = Inst.dst.index();
 				auto src_id = Inst.src.index();
 
 				TypeIndex src_tid = Inst.src.have_tindex() ? Inst.src.tindex() : TypeIndex(0);
-
-				using namespace Runtime::DataManage;
-				DstData dst;
 				SrcData src;
-
-				std::function<DstData(Runtime::Environment &)> dst_f;
 				std::function<SrcData(Runtime::Environment &)> src_f;
-
-				if (Inst.dst.isPrivateDataRegister()) {
-					if (func.is_dyvarb(dst_id)) {
-						auto dst_df = compile_drd(Inst.dst);
-						dst_f = [=](Runtime::Environment &env) { return Runtime::DataManage::GetDstData(dst_df(env)); };
-					}
-					else if (func.is_stvarb(dst_id)) {
-						TypeIndex type = func.get_stvarb_type(dst_id);
-						auto dst_sf = compile_drs(Inst.dst);
-						dst_f = [=](Runtime::Environment &env) { return Runtime::DataManage::GetDstData(dst_sf(env)); };
-					}
-				}
-				else {
-					dst_f = [=](Runtime::Environment &env) { return GetDstData(env, dst_id, dst_e); };
-				}
 
 				if (Inst.src.isPrivateDataRegister()) {
 					if (func.is_dyvarb(src_id)) {
@@ -127,16 +133,22 @@ namespace CVM
 						return NopeFunc;
 					}
 
-					auto dst_e = Convert(Inst.dst.etype());
-					auto dst_id = Inst.dst.index();
 					TypeIndex type = Inst.type;
 
 					auto data = Inst.src.data();
 
 					if (Inst.dst.isPrivateDataRegister()) {
+						auto dst_e = Convert(Inst.dst.etype());
+						auto dst_id = Inst.dst.index();
 						return [=](Runtime::Environment &env) {
 							auto newdata = data;
 							Runtime::DataManage::LoadData(env, GetDstData(env, dst_id, dst_e), Runtime::DataPointer(&newdata), type, MemorySize(sizeof(InstStruct::Data::Type)));
+						};
+					}
+					else if (Inst.dst.isResultRegister()) {
+						return [=](Runtime::Environment &env) {
+							auto newdata = data;
+							Runtime::DataManage::LoadData(env, Runtime::DataManage::GetDstDataResult(env), Runtime::DataPointer(&newdata), type, MemorySize(sizeof(InstStruct::Data::Type)));
 						};
 					}
 					else {
@@ -152,18 +164,26 @@ namespace CVM
 						return NopeFunc;
 					}
 
-					auto dst_e = Convert(Inst.dst.etype());
-					auto dst_id = Inst.dst.index();
 					TypeIndex type = Inst.type;
 
 					auto index = Inst.src.index();
 
 					if (Inst.dst.isPrivateDataRegister()) {
+						auto dst_e = Convert(Inst.dst.etype());
+						auto dst_id = Inst.dst.index();
 						return [=](Runtime::Environment &env) {
 							const auto &pair = env.GEnv().getDataSectionMap().at(index);
 							auto &ptr = pair.first;
 							auto &size = pair.second;
 							Runtime::DataManage::LoadData(env, GetDstData(env, dst_id, dst_e), Runtime::ConstDataPointer(ptr), type, MemorySize(size));
+						};
+					}
+					else if (Inst.dst.isResultRegister()) {
+						return [=](Runtime::Environment &env) {
+							const auto &pair = env.GEnv().getDataSectionMap().at(index);
+							auto &ptr = pair.first;
+							auto &size = pair.second;
+							Runtime::DataManage::LoadData(env, Runtime::DataManage::GetDstDataResult(env), Runtime::ConstDataPointer(ptr), type, MemorySize(size));
 						};
 					}
 					else {
@@ -266,7 +286,7 @@ namespace CVM
 							type = func.get_stvarb_type(src_id);
 						src_fs.push_back([=](Runtime::Environment &env) {
 							return GetSrcData(env, src_id, src_e, type);
-						});
+							});
 					}
 					else {
 						assert(false);
