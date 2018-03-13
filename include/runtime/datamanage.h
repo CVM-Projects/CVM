@@ -29,13 +29,20 @@ namespace CVM
 				DataPointer data;
 				TypeIndex type;
 			};
+			struct ResultData {
+				DataRegisterType rtype = rt_null;
+				DataRegister *drp = nullptr;
+			};
 			void MoveRegister(Environment &env, const DstData &dst, const SrcData &src);
 			void LoadData(Environment &env, const DstData &dst, ConstDataPointer src, TypeIndex dsttype, MemorySize srcsize);
 			void LoadDataPointer(Environment &env, const DstData &dst, ConstDataPointer src, MemorySize srcsize);
-			void Call(Environment &env, const Runtime::Function &func, const DstData &dst, const PriLib::lightlist<SrcData> &arglist);
-
+			void Call(Environment &env, const Runtime::Function &func, const ResultData &dst, const PriLib::lightlist<SrcData> &arglist);
+			
 			DstData GetDstData(DataRegisterDynamic &dst);
 			DstData GetDstData(DataRegisterStatic &dst);
+			DstData GetDstDataZero();
+			DstData GetDstDataResult(Environment &env);
+
 			SrcData GetSrcData(const DataRegisterDynamic &src);
 			SrcData GetSrcData(const DataRegisterStatic &src, TypeIndex type);
 

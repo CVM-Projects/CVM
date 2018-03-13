@@ -421,7 +421,7 @@ namespace CVM
 									if (list.size() == 1) {
 										auto count = parseNumber<InstStruct::Register::RegisterIndexType>(parseinfo, list[0]);
 										for (InstStruct::Register::RegisterIndexType i = 0; i != count; ++i) {
-											parseinfo.currfunc->arglist.push_back(i);
+											parseinfo.currfunc->arglist.push_back(i + 1);
 										}
 									}
 									else {

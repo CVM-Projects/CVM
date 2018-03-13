@@ -5,27 +5,30 @@
 
 .datas
     .array #1, 0x12 0x34 0x56
-    .data  #2, 6
-	.array #3, 0x48 0x65 0x6C 0x6C 0x6F 0x20 0x57 0x6F 0x72 0x6C 0x64 0x21 0x0A 0x00 ;; "Hello World!"
+    .array #2, 0x48 0x65 0x6C 0x6C 0x6F 0x20 0x57 0x6F 0x72 0x6C 0x64 0x21 0x0A 0x00 ;; "Hello World!"
+    .data  #3, 5
+    .data  #4, 6
 
 .func Math#add
     .stvarb 2, cms#int64
     .arg 2
-    ;; call %res, cms#int64#+, %1 %2
+    db_opreg
+    call %res, cms#int64#+, %1 %2
     ret
 
 .func print-hello
-	.dyvarb 0
-	.stvarb 1, cms#pointer
-	.arg 0
-	loadp %1, #3
-	call %0, print_string, %1
-	ret
+    .dyvarb 0
+    .stvarb 1, cms#pointer
+    .arg 0
+    loadp %1, #2
+    call %0, print_string, %1
+    ret
 
 .func main
     .dyvarb 2
-    .stvarb 3, cms#int64
-	.stvarb 1, cms#pointer
+    .stvarb 4, cms#int64
+    .stvarb 1, cms#pointer
+    .stvarb 1, cms#int64
     db_opreg
     load %1, #1, cms#int64
     db_opreg
@@ -33,9 +36,18 @@
     mov  %3, %1
     mov  %4, %1
     db_opreg
-    load %5, #2, cms#int64
+    load %5, #3, cms#int64
+    load %6, #4, cms#int64
+	load %8, 0, cms#int64
     db_opreg
-	loadp %6, #3
+    loadp %7, #2
     db_opreg
-	call %0, print-hello
+    call %0, print-hello
+    call %0, print_int64, %5
+    call %0, print_int64, %6
+    call %0, print_int64, %8
+    ;;call %8, Math#add, %5 %6
+    call %8, Math#add, %5 %6
+    call %0, print_int64, %8
     ret
+    

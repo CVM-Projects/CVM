@@ -226,17 +226,25 @@ namespace CVM
 			}
 			else if (inst.instcode == InstStruct::i_call) {
 				auto &Inst = static_cast<const InstStruct::Insts::Call&>(inst);
-				std::function<Runtime::DataManage::DstData(Runtime::Environment &env)> dst_f;
+				std::function<Runtime::DataManage::ResultData(Runtime::Environment &env)> dst_f;
 				if (Inst.dst.isZeroRegister()) {
 					dst_f = [](Runtime::Environment &env) {
-						return Runtime::DataManage::DstData();
+						return Runtime::DataManage::ResultData { Runtime::rt_null, nullptr };
 					};
 				}
 				else if (Inst.dst.isPrivateDataRegister()) {
 					auto dst_e = Convert(Inst.dst.etype());
 					auto dst_id = Inst.dst.index();
 					dst_f = [=](Runtime::Environment &env) {
-						return GetDstData(env, dst_id, dst_e);
+						if (env.is_dyvarb(dst_id, dst_e))
+							return Runtime::DataManage::ResultData { Runtime::rt_dynamic, &env.get_dyvarb(dst_id, dst_e) };
+						else
+							return Runtime::DataManage::ResultData { Runtime::rt_static, &env.get_stvarb(dst_id, dst_e) };
+					};
+				}
+				else if (Inst.dst.isResultRegister()) {
+					dst_f = [=](Runtime::Environment &env) {
+						return Runtime::DataManage::ResultData { env.get_result().rtype, env.get_result().drp };
 					};
 				}
 				else {

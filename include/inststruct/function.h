@@ -28,6 +28,9 @@ namespace CVM
 			const TypeList& stvarb_typelist() const {
 				return _info.stvarb_typelist;
 			}
+			const ArgList& arglist() const {
+				return _info.arglist;
+			}
 
 			Config::RegisterIndexType dyvarb_count() const {
 				return _info.dyvarb_count;

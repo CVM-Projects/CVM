@@ -52,12 +52,31 @@ void print_string(const char *msg)
 	std::printf("%s", msg);
 }
 
+void print_int64(int64_t v)
+{
+	println(v);
+}
+
 #include "runtime/function.h"
 
 void _print_string(CVM::Runtime::PointerFunction::Result &result, CVM::Runtime::PointerFunction::ArgumentList &arglist)
 {
 	auto x = arglist[0].get<const char *>();
 	print_string(*x);
+}
+
+void _print_int64(CVM::Runtime::PointerFunction::Result &result, CVM::Runtime::PointerFunction::ArgumentList &arglist)
+{
+	auto x = arglist[0].get<int64_t>();
+	print_int64(*x);
+}
+
+void _int64_add(CVM::Runtime::PointerFunction::Result &result, CVM::Runtime::PointerFunction::ArgumentList &arglist)
+{
+	auto x = *arglist[0].get<int64_t>();
+	auto y = *arglist[1].get<int64_t>();
+
+	*result.get<int64_t>() = x + y;
 }
 
 int main(int argc, char *argv[])
@@ -128,6 +147,8 @@ int main(int argc, char *argv[])
 	Runtime::Function *func = functable.getValue(functable.findKey(entry));
 
 	functable.insert("print_string", new Runtime::PointerFunction(&_print_string));
+	functable.insert("print_int64", new Runtime::PointerFunction(&_print_int64));
+	functable.insert("cms#int64#+", new Runtime::PointerFunction(&_int64_add));
 
 	println(ldp.toString());
 	VM.addGlobalEnvironment(Compile::CreateGlobalEnvironment(0xff, tim, ldp, functable));

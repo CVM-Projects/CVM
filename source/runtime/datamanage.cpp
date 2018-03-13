@@ -41,13 +41,40 @@ namespace CVM
 			DstData GetDstData(DataRegisterStatic &dst) {
 				return DstData { drm_register_static, &dst.data, nullptr };
 			}
+			DstData GetDstDataZero() {
+				return DstData { drm_null };
+			}
+			DstData GetDstDataResult(Environment &env) {
+				switch (env.get_result().rtype) {
+				case rt_dynamic:
+					return GetDstData(static_cast<DataRegisterDynamic&>(*env.get_result().drp));
+				case rt_static:
+					return GetDstData(static_cast<DataRegisterStatic&>(*env.get_result().drp));
+				default:
+					assert(false);
+					return DstData();
+				}
+			}
+			DstData GetDstData(const ResultData &rdata) {
+				switch (rdata.rtype) {
+				case rt_null:
+					return GetDstDataZero();
+				case rt_dynamic:
+					return GetDstData(static_cast<DataRegisterDynamic&>(*rdata.drp));
+				case rt_static:
+					return GetDstData(static_cast<DataRegisterStatic&>(*rdata.drp));
+				default:
+					assert(false);
+					return DstData();
+				}
+			}
 			SrcData GetSrcData(const DataRegisterDynamic &src) {
 				return SrcData { src.data, src.type };
 			}
 			SrcData GetSrcData(const DataRegisterStatic &src, TypeIndex type) {
 				return SrcData { src.data, type };
 			}
-			DataPointer GetDataPointer(const DstData &dst) {
+			DataPointer GetDataPointer(Environment &env, const DstData &dst) {
 				switch (dst.mode) {
 				case drm_null:
 					return DataPointer(nullptr);
@@ -127,14 +154,31 @@ namespace CVM
 				}
 			}
 
-			void Call(Environment &env, const Runtime::Function &func, const DstData &dst, const PriLib::lightlist<SrcData> &arglist) {
+			void Call(Environment &env, const Runtime::Function &func, const ResultData &dst, const PriLib::lightlist<SrcData> &arglist) {
 				switch (func.type()) {
 				case ft_null:
 					break;
 				case ft_inst:
 				{
-					auto instf = static_cast<const Runtime::InstFunction &>(func);
-					auto senv = Compile::CreateLoaclEnvironment(instf, env.GetTypeInfoMap());
+					const Runtime::InstFunction &instf = static_cast<const Runtime::InstFunction &>(func);
+					auto senv = Compile::CreateLoaclEnvironment(instf, env.getTypeInfoMap());
+					auto argp = arglist.begin();
+					for (const auto &arg : instf.instfunc().arglist()) {
+						DstData dst;
+						if (senv->is_dyvarb(arg, e_current)) {
+							dst = GetDstData(senv->get_dyvarb(arg, e_current));
+						}
+						else if (senv->is_stvarb(arg, e_current)) {
+							dst = GetDstData(senv->get_stvarb(arg, e_current));
+						}
+						else {
+							assert(false);
+						}
+						MoveRegister(env, dst, *argp);
+						++argp;
+					}
+					senv->get_result().rtype = dst.rtype;
+					senv->get_result().drp = dst.drp;
 					env.addSubEnvironment(senv);
 					env.GEnv().getVM().Call(*senv);
 					break;
@@ -147,7 +191,8 @@ namespace CVM
 						aplist_creater.push_back(GetDataPointer(arg));
 					}
 					PointerFunction::ArgumentList aplist = aplist_creater.data();
-					PointerFunction::Result xdst = GetDataPointer(dst);
+					
+					PointerFunction::Result xdst = GetDataPointer(env, GetDstData(dst));
 					fp(xdst, aplist);
 					break;
 				}

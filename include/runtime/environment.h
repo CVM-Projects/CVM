@@ -58,7 +58,7 @@ namespace CVM
 			}
 
 			const TypeInfo& getType(TypeIndex index) const {
-				return _timp->at(index);
+				return getTypeInfoMap().at(index);
 			}
 			virtual DataRegisterSet& getDataRegisterSet(EnvType etype) {
 				if (etype == e_current) {
@@ -90,6 +90,12 @@ namespace CVM
 			DataRegisterSet& getDataRegisterSet() {
 				return _dataRegisterSet;
 			}
+			const ResultRegister& get_result() const {
+				return _resultRegister;
+			}
+			ResultRegister& get_result() {
+				return _resultRegister;
+			}
 
 			GlobalEnvironment& GEnv() const {
 				return *_genv;
@@ -105,20 +111,18 @@ namespace CVM
 				assert(_genv == nullptr);
 				_genv = genv;
 			}
-			void SetTypeInfoMap(TypeInfoMap *timp) {
-				_timp = timp;
-			}
-			TypeInfoMap& GetTypeInfoMap() {
-				return *_timp;
+			virtual TypeInfoMap& getTypeInfoMap();
+			const TypeInfoMap& getTypeInfoMap() const {
+				return const_cast<const TypeInfoMap&>(const_cast<Environment*>(this)->getTypeInfoMap());
 			}
 
 		protected:
 			GlobalEnvironment *_genv = nullptr;
 			Environment *_penv = nullptr;
 			Environment *_tenv = nullptr;
-			TypeInfoMap *_timp = nullptr;
 			DataRegisterSet _dataRegisterSet;
 			EnvironmentSet _subenv_set;
+			ResultRegister _resultRegister;
 		};
 
 		class GlobalEnvironment : public Environment
@@ -131,15 +135,12 @@ namespace CVM
 				const DataSectionMap &datasmap,
 				const FuncTable &functable
 			)
-				: Environment(drs), _tim(tim), _datasmap(datasmap), _functable(functable) {
-				_timp = &_tim;
-			}
+				: Environment(drs), _tim(tim), _datasmap(datasmap), _functable(functable) {}
 
 			GlobalEnvironment(const GlobalEnvironment &) = delete;
 
 			virtual void addSubEnvironment(Environment *envp) {
 				Environment::addSubEnvironment(envp);
-				envp->SetTypeInfoMap(this->_timp);
 				envp->SetGEnv(this);
 			}
 			const DataSectionMap& getDataSectionMap() const {
@@ -154,6 +155,9 @@ namespace CVM
 			VirtualMachine& getVM() {
 				return *_vmp;
 			}
+			TypeInfoMap& getTypeInfoMap() {
+				return _tim;
+			}
 
 		private:
 			TypeInfoMap _tim;
@@ -161,6 +165,10 @@ namespace CVM
 			FuncTable _functable;
 			VirtualMachine *_vmp;
 		};
+
+		inline TypeInfoMap& Environment::getTypeInfoMap() {
+			return GEnv().getTypeInfoMap();
+		}
 
 		class ThreadEnvironment : public Environment
 		{
