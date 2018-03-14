@@ -51,7 +51,7 @@ namespace CVM
 			for (auto &pfunc : functable) {
 				for (auto &arg : pfunc.second->arglist) {
 					if (arg > pfunc.second->regsize()) {
-						putError("Parse Error for '" + std::string(geterrmsg(PEC_UMArgs)) + "' in function '" + pfunc.first +"'.");
+						putError("Parse Error for '" + std::string(geterrmsg(PEC_UMArgs)) + "' in function '" + pfunc.first + "'.");
 						break;
 					}
 				}
@@ -178,7 +178,7 @@ namespace CVM
 			}
 
 			if (sm[3].matched) {
-				TypeIndex tindex = parseType(parseinfo, sm[3].str());\
+				TypeIndex tindex = parseType(parseinfo, sm[3].str());
 				return InstStruct::Register::PrivateDataRegister(index, etype, tindex);
 			}
 			else {
@@ -289,7 +289,7 @@ namespace CVM
 				escape = true;
 			}
 			if (escape) {
-				if (word.size() == 1 || word[1] != word[0])  {
+				if (word.size() == 1 || word[1] != word[0]) {
 					parseinfo.putErrorLine(PEC_UREscape, word);
 				}
 				return ParsedIdentifier(word.substr(1));
@@ -298,27 +298,245 @@ namespace CVM
 		return ParsedIdentifier(word);
 	}
 
+	static char get_xchar(const char *w) {
+		int c = 0;
+		int count = 0;
+		const char *p = w;
+		while (*p) {
+			count++;
+			p++;
+		}
+		int i = 1;
+		while (count--) {
+			char cc = w[count];
+			c += (isdigit(cc) ? (cc - '0') : (isupper(cc) ? (cc - 'A' + 10) : (cc - 'a' + 10))) * i;
+			i *= 0x10;
+		}
+
+		return c;
+	}
+
+	static char get_ochar(const char *w) {
+		char c = 0;
+		int count = 0;
+		const char *p = w;
+		while (*p) {
+			count++;
+			p++;
+		}
+		int i = 1;
+		while (count--) {
+			char cc = w[count];
+			c += (cc - '0') * i;
+			i *= 010;
+		}
+		return c;
+	}
+
+	static std::pair<size_t, size_t> get_substring(const std::string &line, size_t offset = 0)
+	{
+		size_t i = line.find('"', offset);
+		size_t j = i + 1;
+		if (i == line.npos) {
+			return std::make_pair(0, 0);
+		}
+
+		bool find_enchar = false;
+		bool escape = false;
+		for (; j < line.size(); j++) {
+			if (escape) {
+				escape = false;
+			}
+			else {
+				if (line[j] == '\\') {
+					escape = true;
+				}
+				else if (line[j] == '"') {
+					find_enchar = true;
+					break;
+				}
+			}
+		}
+
+		if (!find_enchar) {
+			return std::make_pair(0, 0);
+		}
+
+		return std::make_pair(i, j);
+	}
+
+	static bool parse_string_escape(const std::string &word, std::string &result) {
+		std::string nword;
+		char num[4] = "";
+		int num_i = 0;
+		int mode = 0;
+		for (size_t i = 0; i < word.size(); ++i) {
+			char c = word[i];
+			if (mode == 0) {
+				if (c == '\\') {
+					mode = 1;
+					continue;
+				}
+				else {
+					nword.push_back(c);
+					continue;
+				}
+			}
+			else if (mode == 1) {
+				if (c >= '0' && c <= '7') {
+					mode = 2;
+					i--;
+					continue;
+				}
+				else if (c == 'x') {
+					mode = 3;
+					continue;
+				}
+				else {
+					switch (c) {
+					case '\'': nword.push_back('\''); break;
+					case '"': nword.push_back('"'); break;
+					case '?': nword.push_back('?'); break;
+					case '\\': nword.push_back('\\'); break;
+					case 'a': nword.push_back('\a'); break;
+					case 'b': nword.push_back('\b'); break;
+					case 'f': nword.push_back('\f'); break;
+					case 'n': nword.push_back('\n'); break;
+					case 'r': nword.push_back('\r'); break;
+					case 't': nword.push_back('\t'); break;
+					case 'v': nword.push_back('\v'); break;
+					default: return false;
+					}
+					mode = 0;
+					continue;
+				}
+			}
+			else if (mode == 2) {
+				if (c >= '0' && c <= '7') {
+					num[num_i++] = c;
+					if (num_i == 3) {
+						mode = 0;
+					}
+				}
+				else {
+					mode = 0;
+					i--;
+				}
+				if (mode == 0) {
+					if (num_i == 0) {
+						return false;
+					}
+					else {
+						char cc = get_ochar(num);
+						nword.push_back(cc);
+						num[0] = num[1] = num[2] = '\0';
+						num_i = 0;
+						continue;
+					}
+				}
+			}
+			else if (mode == 3) {
+				if (isxdigit(c)) {
+					num[num_i++] = c;
+					if (num_i == 2) {
+						mode = 0;
+					}
+				}
+				else {
+					mode = 0;
+					i--;
+				}
+				if (mode == 0) {
+					if (num_i == 0) {
+						return false;
+					}
+					else {
+						char cc = get_xchar(num);
+						nword.push_back(cc);
+						num[0] = num[1] = num[2] = '\0';
+						num_i = 0;
+						continue;
+					}
+				}
+			}
+		}
+		if (mode == 1) {
+			return false;
+		}
+		else if (mode == 2) {
+			nword.push_back(get_ochar(num));
+		}
+		else if (mode == 3) {
+			nword.push_back(get_xchar(num));
+		}
+
+		result = nword;
+
+		return true;
+	}
+
 	void parseLineBase(
 		ParseInfo &parseinfo,
-		const std::string &line,
+		const std::string &xline,
 		std::function<int(const char*)> f1,
 		std::function<void(ParseInfo&, int, const std::vector<std::string>&)> f2)
 	{
+		std::string line = xline;
+
 		const char *blanks = " \t,";
-		bool start = true;
-		int code = 0;
 		std::vector<std::string> list;
-		PriLib::Convert::split(line, blanks, [&](const char *s) {
-			if (start) {
-				code = f1(s);
-				start = false;
+
+		// Match '"'
+
+		if (line.find('"') != line.npos) {
+			std::vector<size_t> rec;
+
+			std::pair<size_t, size_t> p;
+			size_t offset = 0;
+
+			do {
+				p = get_substring(line, offset);
+
+				if (p.second == 0) {
+					break;
+				}
+
+				rec.push_back(p.first);
+				rec.push_back(p.second);
+
+				offset = p.second + 1;
+
+			} while (true);
+
+			rec.push_back(line.size());
+
+			bool is_string = false;
+			size_t reci = 0;
+			for (auto &v : rec) {
+				std::string xline;
+				if (is_string) {
+					xline = line.substr(reci, v - reci + 1);
+					reci = v + 1;
+					list.push_back(xline);
+				}
+				else {
+					xline = line.substr(reci, v - reci);
+					reci = v;
+					PriLib::Convert::split(xline, blanks, [&](const char *s) { if (*s) list.push_back(s); });
+				}
+				is_string = !is_string;
 			}
-			else {
-				list.push_back(s);
-			}
-			});
-		if (!start)
-			f2(parseinfo, code, list);
+		}
+		else {
+			PriLib::Convert::split(line, blanks, [&](const char *s) { if (*s) list.push_back(s); });
+		}
+
+		//
+
+		if (!list.empty()) {
+			int code = f1(list[0].c_str());
+			f2(parseinfo, code, std::vector<std::string>(list.begin() + 1, list.end()));
+		}
 	}
 
 	TypeIndex parseType(ParseInfo &parseinfo, const std::string &word) {
@@ -572,6 +790,36 @@ namespace CVM
 								else {
 									parseinfo.putErrorLine(PEC_DUDataId);
 									return;
+								}
+							}
+							else {
+								parseinfo.putErrorLine();
+							}
+						}
+					},
+					{
+						"string",
+						[](ParseInfo &parseinfo, const std::vector<std::string> &list) {
+							if (list.size() == 2) {
+								InstStruct::DataIndex di = parseDataIndex(parseinfo, list[0]);
+								auto iter = parseinfo.datamap.find(di.index());
+								if (iter == parseinfo.datamap.end()) {
+									std::string nword = list[1].substr(1, list[1].size() - 2);
+
+									if (parse_string_escape(nword, nword)) {
+										size_t msize = nword.size() + 1;
+										uint8_t *buffer = new uint8_t[msize]();
+										for (size_t i = 0; i < nword.size(); ++i) {
+											buffer[i] = (uint8_t)nword[i];
+										}
+										parseinfo.datamap[di.index()] = std::make_pair(buffer, static_cast<uint32_t>(msize));
+									}
+									else {
+										parseinfo.putErrorLine(PEC_UREscape);
+									}
+								}
+								else {
+									parseinfo.putErrorLine(PEC_DUDataId);
 								}
 							}
 							else {
