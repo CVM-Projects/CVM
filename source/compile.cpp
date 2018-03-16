@@ -58,6 +58,38 @@ namespace CVM
 
 		void NopeFunc(Runtime::Environment &env) {}
 
+		struct ResultDataGetFunc
+		{
+			int mode = 0;
+			Config::RegisterIndexType dst_id = 0;
+
+			Runtime::DataManage::ResultData call(Runtime::Environment &env) const {
+				switch (mode)
+				{
+				case 0:
+					return Runtime::DataManage::ResultData { Runtime::rt_null, nullptr };
+				case 1:
+					if (env.is_dyvarb(dst_id, Runtime::e_current))
+						return Runtime::DataManage::ResultData { Runtime::rt_dynamic, &env.get_dyvarb(dst_id, Runtime::e_current) };
+					else
+						return Runtime::DataManage::ResultData { Runtime::rt_static, &env.get_stvarb(dst_id, Runtime::e_current) };
+				case 2:
+					return Runtime::DataManage::ResultData { env.get_result().rtype, env.get_result().drp };
+				default:
+					assert(false);
+				}
+			}
+		};
+		struct SrcDataGetFunc
+		{
+			TypeIndex type;
+			Config::RegisterIndexType src_id = 0;
+
+			Runtime::DataManage::SrcData call(Runtime::Environment &env) const {
+				return GetSrcData(env, src_id, Runtime::e_current, type);
+			}
+		};
+
 		Runtime::Instruction Compile(const InstStruct::Instruction &inst, const InstStruct::Function &func) {
 			if (inst.instcode == InstStruct::i_nop) {
 				return NopeFunc;
@@ -246,60 +278,51 @@ namespace CVM
 			}
 			else if (inst.instcode == InstStruct::i_call) {
 				auto &Inst = static_cast<const InstStruct::Insts::Call&>(inst);
-				std::function<Runtime::DataManage::ResultData(Runtime::Environment &env)> dst_f;
+				ResultDataGetFunc dst_f;
+
 				if (Inst.dst.isZeroRegister()) {
-					dst_f = [](Runtime::Environment &env) {
-						return Runtime::DataManage::ResultData { Runtime::rt_null, nullptr };
-					};
+					dst_f.mode = 0;
 				}
 				else if (Inst.dst.isPrivateDataRegister()) {
-					auto dst_e = Convert(Inst.dst.etype());
 					auto dst_id = Inst.dst.index();
-					dst_f = [=](Runtime::Environment &env) {
-						if (env.is_dyvarb(dst_id, dst_e))
-							return Runtime::DataManage::ResultData { Runtime::rt_dynamic, &env.get_dyvarb(dst_id, dst_e) };
-						else
-							return Runtime::DataManage::ResultData { Runtime::rt_static, &env.get_stvarb(dst_id, dst_e) };
-					};
+					dst_f.mode = 1;
+					dst_f.dst_id = dst_id;
 				}
 				else if (Inst.dst.isResultRegister()) {
-					dst_f = [=](Runtime::Environment &env) {
-						return Runtime::DataManage::ResultData { env.get_result().rtype, env.get_result().drp };
-					};
+					dst_f.mode = 2;
 				}
 				else {
 					assert(false);
 				}
-				std::function<Runtime::Function*(Runtime::Environment &env)> f;
 				const std::string &name = Inst.func.data();
-				f = [=](Runtime::Environment &env) -> Runtime::Function* {
-					auto &table = env.GEnv().getFuncTable();
-					return table.getValue(table.findKey(name));
-				};
-				std::vector<std::function<Runtime::DataManage::SrcData(Runtime::Environment &env)>> src_fs;
+				std::vector<SrcDataGetFunc> src_fs;
 				for (auto &arg : Inst.arglist.data()) {
 					if (arg.isPrivateDataRegister()) {
-						auto src_e = Convert(arg.etype());
 						auto src_id = arg.index();
 						TypeIndex type;
 						if (func.is_stvarb(src_id))
 							type = func.get_stvarb_type(src_id);
-						src_fs.push_back([=](Runtime::Environment &env) {
-							return GetSrcData(env, src_id, src_e, type);
-							});
+						SrcDataGetFunc sdgf;
+						sdgf.src_id = src_id;
+						sdgf.type = type;
+						src_fs.push_back(sdgf);
 					}
 					else {
 						assert(false);
 					}
 				}
 				return [=](Runtime::Environment &env) {
-					const Runtime::Function &ff = *f(env);
+					auto &table = env.GEnv().getFuncTable();
+					auto f = table.getValue(table.findKey(name));
+
+					const Runtime::Function &ff = *f;
 					PriLib::lightlist_creater<Runtime::DataManage::SrcData> arglist_creater(src_fs.size());
 					for (auto &src_f : src_fs) {
-						arglist_creater.push_back(src_f(env));
+						arglist_creater.push_back(src_f.call(env));
 					}
 
-					Runtime::DataManage::Call(env, ff, dst_f(env), arglist_creater.data());
+					Runtime::DataManage::ResultData rd = dst_f.call(env);
+					Runtime::DataManage::Call(env, ff, rd, arglist_creater.data());
 				};
 			}
 			else if (inst.instcode == InstStruct::i_ret) {

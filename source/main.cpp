@@ -79,6 +79,11 @@ void _int64_add(CVM::Runtime::PointerFunction::Result &result, CVM::Runtime::Poi
 	*result.get<int64_t>() = x + y;
 }
 
+void _system(CVM::Runtime::PointerFunction::Result &result, CVM::Runtime::PointerFunction::ArgumentList &arglist)
+{
+	std::system(*arglist[0].get<const char*>());
+}
+
 int main(int argc, char *argv[])
 {
 	if (argc != 2) {
@@ -106,6 +111,10 @@ int main(int argc, char *argv[])
 
 	auto parseInfo = createParseInfo(tim);
 	parseFile(parseInfo, cmsfile);
+
+	cmsfile.close();
+	//println("pause");
+	//getchar();
 
 	if (haveError(parseInfo)) {
 		return 1;
@@ -149,14 +158,20 @@ int main(int argc, char *argv[])
 	functable.insert("print_string", new Runtime::PointerFunction(&_print_string));
 	functable.insert("print_int64", new Runtime::PointerFunction(&_print_int64));
 	functable.insert("cms#int64#+", new Runtime::PointerFunction(&_int64_add));
+	functable.insert("system", new Runtime::PointerFunction(&_system));
 
 	println(ldp.toString());
 	VM.addGlobalEnvironment(Compile::CreateGlobalEnvironment(0xff, tim, ldp, functable));
 	Runtime::LocalEnvironment *lenv = Compile::CreateLoaclEnvironment(static_cast<Runtime::InstFunction&>(*func), tim);
 
 	VM.Genv().addSubEnvironment(lenv);
+	//println("pause");
+	//getchar();
 
 	VM.Call(*lenv);
+
+	//println("pause");
+	//getchar();
 
 	return 0;
 }

@@ -298,41 +298,6 @@ namespace CVM
 		return ParsedIdentifier(word);
 	}
 
-	static char get_xchar(const char *w) {
-		int c = 0;
-		int count = 0;
-		const char *p = w;
-		while (*p) {
-			count++;
-			p++;
-		}
-		int i = 1;
-		while (count--) {
-			char cc = w[count];
-			c += (isdigit(cc) ? (cc - '0') : (isupper(cc) ? (cc - 'A' + 10) : (cc - 'a' + 10))) * i;
-			i *= 0x10;
-		}
-
-		return c;
-	}
-
-	static char get_ochar(const char *w) {
-		char c = 0;
-		int count = 0;
-		const char *p = w;
-		while (*p) {
-			count++;
-			p++;
-		}
-		int i = 1;
-		while (count--) {
-			char cc = w[count];
-			c += (cc - '0') * i;
-			i *= 010;
-		}
-		return c;
-	}
-
 	static std::pair<size_t, size_t> get_substring(const std::string &line, size_t offset = 0)
 	{
 		size_t i = line.find('"', offset);
@@ -366,6 +331,43 @@ namespace CVM
 	}
 
 	static bool parse_string_escape(const std::string &word, std::string &result) {
+		const static auto get_xchar = [](const char *w, const int mode) {
+			int c = 0;
+			int count = 0;
+			const char *p = w;
+			while (*p++) count++;
+			int i = 1;
+			while (count--) {
+				char cc = w[count];
+				if (mode == 0x10) {
+					c += (isdigit(cc) ? (cc - '0') : (isupper(cc) ? (cc - 'A' + 10) : (cc - 'a' + 10))) * i;
+					i *= 0x10;
+				}
+				else if (mode == 010) {
+					c += (cc - '0') * i;
+					i *= 010;
+				}
+			}
+
+			return c;
+		};
+		const static auto get_escape_char = [](char c) {
+			switch (c) {
+			case '\'': return '\'';
+			case '"':  return '"';
+			case '?':  return '?';
+			case '\\': return '\\';
+			case 'a':  return '\a';
+			case 'b':  return '\b';
+			case 'f':  return '\f';
+			case 'n':  return '\n';
+			case 'r':  return '\r';
+			case 't':  return '\t';
+			case 'v':  return '\v';
+			default:   return '\0';
+			}
+		};
+
 		std::string nword;
 		char num[4] = "";
 		int num_i = 0;
@@ -375,46 +377,31 @@ namespace CVM
 			if (mode == 0) {
 				if (c == '\\') {
 					mode = 1;
-					continue;
 				}
 				else {
 					nword.push_back(c);
-					continue;
 				}
 			}
 			else if (mode == 1) {
 				if (c >= '0' && c <= '7') {
 					mode = 2;
 					i--;
-					continue;
 				}
 				else if (c == 'x') {
 					mode = 3;
-					continue;
+				}
+				else if ((c = get_escape_char(c)) != '\0') {
+					nword.push_back(c);
+					mode = 0;
 				}
 				else {
-					switch (c) {
-					case '\'': nword.push_back('\''); break;
-					case '"': nword.push_back('"'); break;
-					case '?': nword.push_back('?'); break;
-					case '\\': nword.push_back('\\'); break;
-					case 'a': nword.push_back('\a'); break;
-					case 'b': nword.push_back('\b'); break;
-					case 'f': nword.push_back('\f'); break;
-					case 'n': nword.push_back('\n'); break;
-					case 'r': nword.push_back('\r'); break;
-					case 't': nword.push_back('\t'); break;
-					case 'v': nword.push_back('\v'); break;
-					default: return false;
-					}
-					mode = 0;
-					continue;
+					return false;
 				}
 			}
-			else if (mode == 2) {
-				if (c >= '0' && c <= '7') {
+			else if (mode == 2 || mode == 3) {
+				if ((mode == 2 && (c >= '0' && c <= '7')) || (mode == 3 && isxdigit(c))) {
 					num[num_i++] = c;
-					if (num_i == 3) {
+					if (num_i == ((mode == 2) ? 3 : 2)) {
 						mode = 0;
 					}
 				}
@@ -427,35 +414,10 @@ namespace CVM
 						return false;
 					}
 					else {
-						char cc = get_ochar(num);
+						char cc = get_xchar(num, ((mode == 2) ? 010 : 0x10));
 						nword.push_back(cc);
 						num[0] = num[1] = num[2] = '\0';
 						num_i = 0;
-						continue;
-					}
-				}
-			}
-			else if (mode == 3) {
-				if (isxdigit(c)) {
-					num[num_i++] = c;
-					if (num_i == 2) {
-						mode = 0;
-					}
-				}
-				else {
-					mode = 0;
-					i--;
-				}
-				if (mode == 0) {
-					if (num_i == 0) {
-						return false;
-					}
-					else {
-						char cc = get_xchar(num);
-						nword.push_back(cc);
-						num[0] = num[1] = num[2] = '\0';
-						num_i = 0;
-						continue;
 					}
 				}
 			}
@@ -464,10 +426,10 @@ namespace CVM
 			return false;
 		}
 		else if (mode == 2) {
-			nword.push_back(get_ochar(num));
+			nword.push_back(get_xchar(num, 010));
 		}
 		else if (mode == 3) {
-			nword.push_back(get_xchar(num));
+			nword.push_back(get_xchar(num, 0x10));
 		}
 
 		result = nword;

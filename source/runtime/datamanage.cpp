@@ -154,48 +154,52 @@ namespace CVM
 				}
 			}
 
+			static void CallInst(Environment &env, const Runtime::Function &func, const ResultData &dst, const PriLib::lightlist<SrcData> &arglist) {
+				const Runtime::InstFunction &instf = static_cast<const Runtime::InstFunction &>(func);
+				auto senv = Compile::CreateLoaclEnvironment(instf, env.getTypeInfoMap());
+				auto argp = arglist.begin();
+				for (const auto &arg : instf.instfunc().arglist()) {
+					DstData dst;
+					if (senv->is_dyvarb(arg, e_current)) {
+						dst = GetDstData(senv->get_dyvarb(arg, e_current));
+					}
+					else if (senv->is_stvarb(arg, e_current)) {
+						dst = GetDstData(senv->get_stvarb(arg, e_current));
+					}
+					else {
+						assert(false);
+					}
+					MoveRegister(env, dst, *argp);
+					++argp;
+				}
+				senv->get_result().rtype = dst.rtype;
+				senv->get_result().drp = dst.drp;
+				env.addSubEnvironment(senv);
+				env.GEnv().getVM().Call(*senv);
+				env.removeSubEnvironment(senv);
+			}
+			static void CallPtr(Environment &env, const Runtime::Function &func, const ResultData &dst, const PriLib::lightlist<SrcData> &arglist) {
+				auto fp = static_cast<const Runtime::PointerFunction &>(func).data();
+				PointerFunction::ArgumentList::creater aplist_creater(arglist.size());
+				for (auto &arg : arglist) {
+					aplist_creater.push_back(GetDataPointer(arg));
+				}
+				PointerFunction::ArgumentList aplist = aplist_creater.data();
+
+				PointerFunction::Result xdst = GetDataPointer(env, GetDstData(dst));
+				fp(xdst, aplist);
+			}
+
 			void Call(Environment &env, const Runtime::Function &func, const ResultData &dst, const PriLib::lightlist<SrcData> &arglist) {
 				switch (func.type()) {
 				case ft_null:
 					break;
 				case ft_inst:
-				{
-					const Runtime::InstFunction &instf = static_cast<const Runtime::InstFunction &>(func);
-					auto senv = Compile::CreateLoaclEnvironment(instf, env.getTypeInfoMap());
-					auto argp = arglist.begin();
-					for (const auto &arg : instf.instfunc().arglist()) {
-						DstData dst;
-						if (senv->is_dyvarb(arg, e_current)) {
-							dst = GetDstData(senv->get_dyvarb(arg, e_current));
-						}
-						else if (senv->is_stvarb(arg, e_current)) {
-							dst = GetDstData(senv->get_stvarb(arg, e_current));
-						}
-						else {
-							assert(false);
-						}
-						MoveRegister(env, dst, *argp);
-						++argp;
-					}
-					senv->get_result().rtype = dst.rtype;
-					senv->get_result().drp = dst.drp;
-					env.addSubEnvironment(senv);
-					env.GEnv().getVM().Call(*senv);
+					CallInst(env, func, dst, arglist);
 					break;
-				}
 				case ft_ptr:
-				{
-					auto fp = static_cast<const Runtime::PointerFunction &>(func).data();
-					PointerFunction::ArgumentList::creater aplist_creater(arglist.size());
-					for (auto &arg : arglist) {
-						aplist_creater.push_back(GetDataPointer(arg));
-					}
-					PointerFunction::ArgumentList aplist = aplist_creater.data();
-					
-					PointerFunction::Result xdst = GetDataPointer(env, GetDstData(dst));
-					fp(xdst, aplist);
+					CallPtr(env, func, dst, arglist);
 					break;
-				}
 				}
 			}
 

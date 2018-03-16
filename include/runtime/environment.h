@@ -31,6 +31,10 @@ namespace CVM
 			void add(const std::shared_ptr<Environment> &env) {
 				_data.push_back(env);
 			}
+			void remove(Environment *envp) {
+				assert(_data.back().get() == envp);
+				_data.pop_back();
+			}
 
 		private:
 			std::list<std::shared_ptr<Environment>> _data;
@@ -51,6 +55,12 @@ namespace CVM
 				envp->SetPEnv(this);
 				std::shared_ptr<Environment> env(envp);
 				_subenv_set.add(env);
+			}
+
+			void removeSubEnvironment(Environment *envp) {
+				if (envp) {
+					_subenv_set.remove(envp);
+				}
 			}
 
 			virtual bool isLocal() const {
