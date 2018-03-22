@@ -77,6 +77,7 @@ namespace CVM
 					return Runtime::DataManage::ResultData { env.get_result().rtype, env.get_result().drp };
 				default:
 					assert(false);
+					return Runtime::DataManage::ResultData {};
 				}
 			}
 		};
@@ -89,301 +90,343 @@ namespace CVM
 				return GetSrcData(env, src_id, Runtime::e_current, type);
 			}
 		};
+	}
 
-		Runtime::Instruction Compile(const InstStruct::Instruction &inst, const InstStruct::Function &func) {
-			if (inst.instcode == InstStruct::i_nop) {
+	Runtime::Instruction Compiler::compile(const InstStruct::Instruction &inst, const FunctionInfo &info) {
+		using namespace Compile;
+
+		if (inst.instcode == InstStruct::i_nop) {
+			return NopeFunc;
+		}
+		else if (inst.instcode == InstStruct::i_mov) {
+			auto &Inst = static_cast<const InstStruct::Insts::Move&>(inst);
+
+			if (Inst.dst.isZeroRegister() || Inst.src.isZeroRegister()) {
+				println("Error compile with %0.");
 				return NopeFunc;
 			}
-			else if (inst.instcode == InstStruct::i_mov) {
-				auto &Inst = static_cast<const InstStruct::Insts::Move&>(inst);
 
-				if (Inst.dst.isZeroRegister() || Inst.src.isZeroRegister()) {
+			using namespace Runtime::DataManage;
+			DstData dst;
+
+			std::function<DstData(Runtime::Environment &)> dst_f;
+
+			if (Inst.dst.isResultRegister()) {
+				dst_f = Runtime::DataManage::GetDstDataResult;
+			}
+			else {
+				auto dst_e = Convert(Inst.dst.etype());
+				auto dst_id = Inst.dst.index();;
+
+				if (Inst.dst.isPrivateDataRegister()) {
+					if (info.is_dyvarb(dst_id)) {
+						auto dst_df = compile_drd(Inst.dst);
+						dst_f = [=](Runtime::Environment &env) { return Runtime::DataManage::GetDstData(dst_df(env)); };
+					}
+					else if (info.is_stvarb(dst_id)) {
+						TypeIndex type = info.get_stvarb_type(dst_id);
+						auto dst_sf = compile_drs(Inst.dst);
+						dst_f = [=](Runtime::Environment &env) { return Runtime::DataManage::GetDstData(dst_sf(env)); };
+					}
+				}
+				else {
+					dst_f = [=](Runtime::Environment &env) { return GetDstData(env, dst_id, dst_e); };
+				}
+			}
+
+			auto src_e = Convert(Inst.src.etype());
+			auto src_id = Inst.src.index();
+
+			TypeIndex src_tid = Inst.src.have_tindex() ? Inst.src.tindex() : TypeIndex(0);
+			SrcData src;
+			std::function<SrcData(Runtime::Environment &)> src_f;
+
+			if (Inst.src.isPrivateDataRegister()) {
+				if (info.is_dyvarb(src_id)) {
+					auto src_df = compile_drd(Inst.src);
+					src_f = [=](Runtime::Environment &env) { return Runtime::DataManage::GetSrcData(src_df(env)); };
+				}
+				else if (info.is_stvarb(src_id)) {
+					TypeIndex type = info.get_stvarb_type(src_id);
+					auto src_sf = compile_drs(Inst.src);
+					src_f = [=](Runtime::Environment &env) { return Runtime::DataManage::GetSrcData(src_sf(env), type); };
+				}
+			}
+			else {
+				src_f = [=](Runtime::Environment &env) { return GetSrcData(env, src_id, src_e, src_tid); }; // TODO : src_tid
+			}
+
+			return [=](Runtime::Environment &env) {
+				MoveRegister(env, dst_f(env), src_f(env));
+			};
+		}
+		else if (inst.instcode == InstStruct::i_load) {
+			if (inst._subid == 1) {
+				auto &Inst = static_cast<const InstStruct::Insts::Load1&>(inst);
+
+				if (Inst.dst.isZeroRegister()) {
 					println("Error compile with %0.");
 					return NopeFunc;
 				}
 
-				using namespace Runtime::DataManage;
-				DstData dst;
+				TypeIndex type = Inst.type;
 
-				std::function<DstData(Runtime::Environment &)> dst_f;
+				auto data = Inst.src.data();
 
-				if (Inst.dst.isResultRegister()) {
-					dst_f = Runtime::DataManage::GetDstDataResult;
-				}
-				else {
-					auto dst_e = Convert(Inst.dst.etype());
-					auto dst_id = Inst.dst.index();;
-
-					if (Inst.dst.isPrivateDataRegister()) {
-						if (func.is_dyvarb(dst_id)) {
-							auto dst_df = compile_drd(Inst.dst);
-							dst_f = [=](Runtime::Environment &env) { return Runtime::DataManage::GetDstData(dst_df(env)); };
-						}
-						else if (func.is_stvarb(dst_id)) {
-							TypeIndex type = func.get_stvarb_type(dst_id);
-							auto dst_sf = compile_drs(Inst.dst);
-							dst_f = [=](Runtime::Environment &env) { return Runtime::DataManage::GetDstData(dst_sf(env)); };
-						}
-					}
-					else {
-						dst_f = [=](Runtime::Environment &env) { return GetDstData(env, dst_id, dst_e); };
-					}
-				}
-
-				auto src_e = Convert(Inst.src.etype());
-				auto src_id = Inst.src.index();
-
-				TypeIndex src_tid = Inst.src.have_tindex() ? Inst.src.tindex() : TypeIndex(0);
-				SrcData src;
-				std::function<SrcData(Runtime::Environment &)> src_f;
-
-				if (Inst.src.isPrivateDataRegister()) {
-					if (func.is_dyvarb(src_id)) {
-						auto src_df = compile_drd(Inst.src);
-						src_f = [=](Runtime::Environment &env) { return Runtime::DataManage::GetSrcData(src_df(env)); };
-					}
-					else if (func.is_stvarb(src_id)) {
-						TypeIndex type = func.get_stvarb_type(src_id);
-						auto src_sf = compile_drs(Inst.src);
-						src_f = [=](Runtime::Environment &env) { return Runtime::DataManage::GetSrcData(src_sf(env), type); };
-					}
-				}
-				else {
-					src_f = [=](Runtime::Environment &env) { return GetSrcData(env, src_id, src_e, src_tid); }; // TODO : src_tid
-				}
-
-				return [=](Runtime::Environment &env) {
-					MoveRegister(env, dst_f(env), src_f(env));
-				};
-			}
-			else if (inst.instcode == InstStruct::i_load) {
-				if (inst._subid == 1) {
-					auto &Inst = static_cast<const InstStruct::Insts::Load1&>(inst);
-
-					if (Inst.dst.isZeroRegister()) {
-						println("Error compile with %0.");
-						return NopeFunc;
-					}
-
-					TypeIndex type = Inst.type;
-
-					auto data = Inst.src.data();
-
-					if (Inst.dst.isPrivateDataRegister()) {
-						auto dst_e = Convert(Inst.dst.etype());
-						auto dst_id = Inst.dst.index();
-						return [=](Runtime::Environment &env) {
-							auto newdata = data;
-							Runtime::DataManage::LoadData(env, GetDstData(env, dst_id, dst_e), Runtime::DataPointer(&newdata), type, MemorySize(sizeof(InstStruct::Data::Type)));
-						};
-					}
-					else if (Inst.dst.isResultRegister()) {
-						return [=](Runtime::Environment &env) {
-							auto newdata = data;
-							Runtime::DataManage::LoadData(env, Runtime::DataManage::GetDstDataResult(env), Runtime::DataPointer(&newdata), type, MemorySize(sizeof(InstStruct::Data::Type)));
-						};
-					}
-					else {
-						// TODO
-						assert(false);
-					}
-				}
-				else if (inst._subid == 2) {
-					auto &Inst = static_cast<const InstStruct::Insts::Load2&>(inst);
-
-					if (Inst.dst.isZeroRegister()) {
-						println("Error compile with %0.");
-						return NopeFunc;
-					}
-
-					TypeIndex type = Inst.type;
-
-					auto index = Inst.src.index();
-
-					if (Inst.dst.isPrivateDataRegister()) {
-						auto dst_e = Convert(Inst.dst.etype());
-						auto dst_id = Inst.dst.index();
-						return [=](Runtime::Environment &env) {
-							const auto &pair = env.GEnv().getDataSectionMap().at(index);
-							auto &ptr = pair.first;
-							auto &size = pair.second;
-							Runtime::DataManage::LoadData(env, GetDstData(env, dst_id, dst_e), Runtime::ConstDataPointer(ptr), type, MemorySize(size));
-						};
-					}
-					else if (Inst.dst.isResultRegister()) {
-						return [=](Runtime::Environment &env) {
-							const auto &pair = env.GEnv().getDataSectionMap().at(index);
-							auto &ptr = pair.first;
-							auto &size = pair.second;
-							Runtime::DataManage::LoadData(env, Runtime::DataManage::GetDstDataResult(env), Runtime::ConstDataPointer(ptr), type, MemorySize(size));
-						};
-					}
-					else {
-						// TODO
-						assert(false);
-					}
-				}
-			}
-			else if (inst.instcode == InstStruct::i_loadp) {
-				if (inst._subid == 1) {
-					auto &Inst = static_cast<const InstStruct::Insts::LoadPointer1&>(inst);
-
-					if (Inst.dst.isZeroRegister()) {
-						println("Error compile with %0.");
-						return NopeFunc;
-					}
-
+				if (Inst.dst.isPrivateDataRegister()) {
 					auto dst_e = Convert(Inst.dst.etype());
 					auto dst_id = Inst.dst.index();
-
-					auto data = Inst.src.data();
-
-					if (Inst.dst.isPrivateDataRegister()) {
-						return [=](Runtime::Environment &env) {
-							auto newdata = data;
-							Runtime::DataManage::LoadDataPointer(env, GetDstData(env, dst_id, dst_e), Runtime::DataPointer(&newdata), MemorySize(sizeof(InstStruct::Data::Type)));
-						};
-					}
-					else {
-						// TODO
-						assert(false);
-					}
-				}
-				else if (inst._subid == 2) {
-					auto &Inst = static_cast<const InstStruct::Insts::LoadPointer2&>(inst);
-
-					if (Inst.dst.isZeroRegister()) {
-						println("Error compile with %0.");
-						return NopeFunc;
-					}
-
-					auto dst_e = Convert(Inst.dst.etype());
-					auto dst_id = Inst.dst.index();
-
-					auto index = Inst.src.index();
-
-					if (Inst.dst.isPrivateDataRegister()) {
-						return [=](Runtime::Environment &env) {
-							const auto &pair = env.GEnv().getDataSectionMap().at(index);
-							auto &ptr = pair.first;
-							auto &size = pair.second;
-							Runtime::DataManage::LoadDataPointer(env, GetDstData(env, dst_id, dst_e), Runtime::ConstDataPointer(ptr), MemorySize(size));
-						};
-					}
-					else {
-						// TODO
-						assert(false);
-					}
-				}
-			}
-			else if (inst.instcode == InstStruct::i_call) {
-				auto &Inst = static_cast<const InstStruct::Insts::Call&>(inst);
-				ResultDataGetFunc dst_f;
-
-				if (Inst.dst.isZeroRegister()) {
-					dst_f.mode = 0;
-				}
-				else if (Inst.dst.isPrivateDataRegister()) {
-					auto dst_id = Inst.dst.index();
-					dst_f.mode = 1;
-					dst_f.dst_id = dst_id;
+					return [=](Runtime::Environment &env) {
+						auto newdata = data;
+						Runtime::DataManage::LoadData(env, GetDstData(env, dst_id, dst_e), Runtime::DataPointer(&newdata), type, MemorySize(sizeof(InstStruct::Data::Type)));
+					};
 				}
 				else if (Inst.dst.isResultRegister()) {
-					dst_f.mode = 2;
+					return [=](Runtime::Environment &env) {
+						auto newdata = data;
+						Runtime::DataManage::LoadData(env, Runtime::DataManage::GetDstDataResult(env), Runtime::DataPointer(&newdata), type, MemorySize(sizeof(InstStruct::Data::Type)));
+					};
+				}
+				else {
+					// TODO
+					assert(false);
+				}
+			}
+			else if (inst._subid == 2) {
+				auto &Inst = static_cast<const InstStruct::Insts::Load2&>(inst);
+
+				if (Inst.dst.isZeroRegister()) {
+					println("Error compile with %0.");
+					return NopeFunc;
+				}
+
+				TypeIndex type = Inst.type;
+
+				auto index = Inst.src.index();
+
+				if (Inst.dst.isPrivateDataRegister()) {
+					auto dst_e = Convert(Inst.dst.etype());
+					auto dst_id = Inst.dst.index();
+					return [=](Runtime::Environment &env) {
+						const auto &pair = env.GEnv().getDataSectionMap().at(index);
+						auto &ptr = pair.first;
+						auto &size = pair.second;
+						Runtime::DataManage::LoadData(env, GetDstData(env, dst_id, dst_e), Runtime::ConstDataPointer(ptr), type, MemorySize(size));
+					};
+				}
+				else if (Inst.dst.isResultRegister()) {
+					return [=](Runtime::Environment &env) {
+						const auto &pair = env.GEnv().getDataSectionMap().at(index);
+						auto &ptr = pair.first;
+						auto &size = pair.second;
+						Runtime::DataManage::LoadData(env, Runtime::DataManage::GetDstDataResult(env), Runtime::ConstDataPointer(ptr), type, MemorySize(size));
+					};
+				}
+				else {
+					// TODO
+					assert(false);
+				}
+			}
+		}
+		else if (inst.instcode == InstStruct::i_loadp) {
+			if (inst._subid == 1) {
+				auto &Inst = static_cast<const InstStruct::Insts::LoadPointer1&>(inst);
+
+				if (Inst.dst.isZeroRegister()) {
+					println("Error compile with %0.");
+					return NopeFunc;
+				}
+
+				auto dst_e = Convert(Inst.dst.etype());
+				auto dst_id = Inst.dst.index();
+
+				auto data = Inst.src.data();
+
+				if (Inst.dst.isPrivateDataRegister()) {
+					return [=](Runtime::Environment &env) {
+						auto newdata = data;
+						Runtime::DataManage::LoadDataPointer(env, GetDstData(env, dst_id, dst_e), Runtime::DataPointer(&newdata), MemorySize(sizeof(InstStruct::Data::Type)));
+					};
+				}
+				else {
+					// TODO
+					assert(false);
+				}
+			}
+			else if (inst._subid == 2) {
+				auto &Inst = static_cast<const InstStruct::Insts::LoadPointer2&>(inst);
+
+				if (Inst.dst.isZeroRegister()) {
+					println("Error compile with %0.");
+					return NopeFunc;
+				}
+
+				auto dst_e = Convert(Inst.dst.etype());
+				auto dst_id = Inst.dst.index();
+
+				auto index = Inst.src.index();
+
+				if (Inst.dst.isPrivateDataRegister()) {
+					return [=](Runtime::Environment &env) {
+						const auto &pair = env.GEnv().getDataSectionMap().at(index);
+						auto &ptr = pair.first;
+						auto &size = pair.second;
+						Runtime::DataManage::LoadDataPointer(env, GetDstData(env, dst_id, dst_e), Runtime::ConstDataPointer(ptr), MemorySize(size));
+					};
+				}
+				else {
+					// TODO
+					assert(false);
+				}
+			}
+		}
+		else if (inst.instcode == InstStruct::i_call) {
+			auto &Inst = static_cast<const InstStruct::Insts::Call&>(inst);
+			ResultDataGetFunc dst_f;
+
+			if (Inst.dst.isZeroRegister()) {
+				dst_f.mode = 0;
+			}
+			else if (Inst.dst.isPrivateDataRegister()) {
+				auto dst_id = Inst.dst.index();
+				dst_f.mode = 1;
+				dst_f.dst_id = dst_id;
+			}
+			else if (Inst.dst.isResultRegister()) {
+				dst_f.mode = 2;
+			}
+			else {
+				assert(false);
+			}
+			const size_t &id = Inst.func.data();
+			std::vector<SrcDataGetFunc> src_fs;
+			for (auto &arg : Inst.arglist.data()) {
+				if (arg.isPrivateDataRegister()) {
+					auto src_id = arg.index();
+					TypeIndex type;
+					if (info.is_stvarb(src_id))
+						type = info.get_stvarb_type(src_id);
+					SrcDataGetFunc sdgf;
+					sdgf.src_id = src_id;
+					sdgf.type = type;
+					src_fs.push_back(sdgf);
 				}
 				else {
 					assert(false);
 				}
-				const std::string &name = Inst.func.data();
-				std::vector<SrcDataGetFunc> src_fs;
-				for (auto &arg : Inst.arglist.data()) {
-					if (arg.isPrivateDataRegister()) {
-						auto src_id = arg.index();
-						TypeIndex type;
-						if (func.is_stvarb(src_id))
-							type = func.get_stvarb_type(src_id);
-						SrcDataGetFunc sdgf;
-						sdgf.src_id = src_id;
-						sdgf.type = type;
-						src_fs.push_back(sdgf);
-					}
-					else {
-						assert(false);
+			}
+			return [=](Runtime::Environment &env) {
+				auto &table = env.GEnv().getFuncTable();
+				auto f = table.at(id);
+
+				const Runtime::Function &ff = *f;
+				PriLib::lightlist_creater<Runtime::DataManage::SrcData> arglist_creater(src_fs.size());
+				for (auto &src_f : src_fs) {
+					arglist_creater.push_back(src_f.call(env));
+				}
+
+				Runtime::DataManage::ResultData rd = dst_f.call(env);
+				Runtime::DataManage::Call(env, ff, rd, arglist_creater.data());
+			};
+		}
+		else if (inst.instcode == InstStruct::i_ret) {
+			return [=](Runtime::Environment &env) {
+				CheckLocalEnv(env);
+				static_cast<Runtime::LocalEnvironment&>(env).Controlflow().setProgramCounterEnd();
+			};
+		}
+		else if (inst.instcode == InstStruct::id_opreg) {
+			const auto &typelist = info.stvarb_typelist;
+			return [=](Runtime::Environment &env) {
+				Config::RegisterIndexType regcount = 0;
+				auto &regset = env.getDataRegisterSet();
+				PriLib::Output::println("=======================");
+				PriLib::Output::println("dyvarb:");
+				for (Config::RegisterIndexType i = 1; i <= regset.dysize(); i++) {
+					PriLib::Output::print("  %", ++regcount, ": type(", env.getType(regset.get_dynamic(i).type).name.data, "), ");
+					Runtime::DataManage::Debug_PrintRegister(env, regset.get_dynamic(i));
+				}
+				if (regset.stsize() != 0) {
+					PriLib::Output::print("stvarb:");
+					//for (size_t i = regset.dysize(); i <= regset.stsize() + regset.stsize());
+					//env.getType()
+					Runtime::DataPointer address = regset.get_static(regset.dysize() + 1).data;
+					printf(" [address : 0x%p]\n", address.get());
+					for (Config::RegisterIndexType i = 0; i < typelist.size(); ++i) {
+						MemorySize size = env.getType(typelist[i]).size;
+						PriLib::Output::print("  %", ++regcount, ": type(", env.getType(typelist[i]).name.data, "), ");
+						const auto &str = Runtime::DataManage::ToStringData(address, size);
+						PriLib::Output::println(str);
+						address = address.offset(size);
 					}
 				}
-				return [=](Runtime::Environment &env) {
-					auto &table = env.GEnv().getFuncTable();
-					auto f = table.getValue(table.findKey(name));
+				PriLib::Output::println("=======================");
+				PriLib::Output::println();
+			};
+		}
+		println(inst.instcode);
+		assert(false);
+		return nullptr;
+	}
+}
 
-					const Runtime::Function &ff = *f;
-					PriLib::lightlist_creater<Runtime::DataManage::SrcData> arglist_creater(src_fs.size());
-					for (auto &src_f : src_fs) {
-						arglist_creater.push_back(src_f.call(env));
-					}
+#include "parse.h"
+#include "inststruct/identkeytable.h"
 
-					Runtime::DataManage::ResultData rd = dst_f.call(env);
-					Runtime::DataManage::Call(env, ff, rd, arglist_creater.data());
-				};
-			}
-			else if (inst.instcode == InstStruct::i_ret) {
-				return [=](Runtime::Environment &env) {
-					CheckLocalEnv(env);
-					static_cast<Runtime::LocalEnvironment&>(env).Controlflow().setProgramCounterEnd();
-				};
-			}
-			else if (inst.instcode == InstStruct::id_opreg) {
-				const auto &typelist = func.stvarb_typelist();
-				return [=](Runtime::Environment &env) {
-					Config::RegisterIndexType regcount = 0;
-					auto &regset = env.getDataRegisterSet();
-					PriLib::Output::println("=======================");
-					PriLib::Output::println("dyvarb:");
-					for (Config::RegisterIndexType i = 1; i <= regset.dysize(); i++) {
-						PriLib::Output::print("  %", ++regcount, ": type(", env.getType(regset.get_dynamic(i).type).name.data, "), ");
-						Runtime::DataManage::Debug_PrintRegister(env, regset.get_dynamic(i));
-					}
-					if (regset.stsize() != 0) {
-						PriLib::Output::print("stvarb:");
-						//for (size_t i = regset.dysize(); i <= regset.stsize() + regset.stsize());
-						//env.getType()
-						Runtime::DataPointer address = regset.get_static(regset.dysize() + 1).data;
-						printf(" [address : 0x%p]\n", address.get());
-						for (Config::RegisterIndexType i = 0; i < typelist.size(); ++i) {
-							MemorySize size = env.getType(typelist[i]).size;
-							PriLib::Output::print("  %", ++regcount, ": type(", env.getType(typelist[i]).name.data, "), ");
-							const auto &str = Runtime::DataManage::ToStringData(address, size);
-							PriLib::Output::println(str);
-							address = address.offset(size);
-						}
-					}
-					PriLib::Output::println("=======================");
-					PriLib::Output::println();
-				};
-			}
-			println(inst.instcode);
-			assert(false);
-			return nullptr;
+namespace CVM
+{
+	Runtime::InstFunction Compiler::compile(const InstStruct::Function &func) {
+		const InstStruct::InstList &src = func.instdata;
+		Runtime::InstFunction::InstList dst;
+		auto &info = static_cast<const FunctionInfo&>(func);
+
+		std::transform(src.begin(), src.end(), std::back_inserter(dst), [&](const InstStruct::Instruction *inst) {
+			return compile(*inst, info);
+			});
+
+		return Runtime::InstFunction(dst, info);
+	}
+
+	bool Compiler::compile(ParseInfo &parseinfo, Runtime::FuncTable &functable) {
+		InstStruct::IdentKeyTable &ikt = getFunctionTable(parseinfo);
+
+		// Get entry func
+
+		auto entry = getEntry(parseinfo);
+		if (entry.empty()) {
+			println("Undeclared entry function.");
+			return false;
+		}
+		if (!ikt.hasKey(entry)) {
+			println("Not find '" + entry + "' function.");
+			return false;
 		}
 
-		Runtime::InstFunction Compile(const InstStruct::Function &func) {
-			const InstStruct::InstList &src = func.instlist();
-			Runtime::InstFunction::InstList dst;
+		// Compile All Functions
 
-			std::transform(src.begin(), src.end(), std::back_inserter(dst), [&](const InstStruct::Instruction *inst) {
-				return Compile(*inst, func);
-				});
+		ikt.each([&](size_t id, const InstStruct::IdentKeyTable::FuncPtr &f) {
+			if (f) {
+				Runtime::Function *fp = new Runtime::InstFunction(compile(*f));
+				functable.insert({ id, fp });
+			}});
 
-			return Runtime::InstFunction(dst, &func);
-		}
+		return true;
+	}
+}
 
+namespace CVM
+{
+	// TODO : Move these code to other file.
+	namespace Compile
+	{
 		Runtime::LocalEnvironment* CreateLoaclEnvironment(const Runtime::InstFunction &func, const TypeInfoMap &tim) {
-			const auto &ifunc = func.instfunc();
+			const auto &info = func.info();
 
 			// Initialize DataRegisterSet
-			Runtime::DataRegisterSet::DyDatRegSize dysize(ifunc.dyvarb_count());
-			Runtime::DataRegisterSet::StDatRegSize stsize(ifunc.stvarb_count());
+			Runtime::DataRegisterSet::DyDatRegSize dysize(info.dyvarb_count());
+			Runtime::DataRegisterSet::StDatRegSize stsize(info.stvarb_count());
 
-			const auto &typelist = ifunc.stvarb_typelist();
+			const auto &typelist = info.stvarb_typelist;
 			Runtime::DataRegisterSetStatic::SizeList sizelist(typelist.size());
 
 			size_t i = 0;

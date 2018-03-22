@@ -10,6 +10,8 @@ namespace CVM
 			explicit Instruction(InstCode ic, uint8_t id = 0)
 				: instcode(ic), _subid(id) {}
 
+			virtual ~Instruction() {}
+
 			InstCode instcode;
 			uint8_t _subid;
 		};

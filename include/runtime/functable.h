@@ -6,6 +6,6 @@ namespace CVM
 {
 	namespace Runtime
 	{
-		using FuncTable = PriLib::BijectionMap<std::string, Function*>;
+		using FuncTable = std::map<size_t, Function*>;
 	}
 }

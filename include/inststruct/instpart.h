@@ -170,7 +170,7 @@ namespace CVM
 		struct Identifier
 		{
 		public:
-			using Type = std::string;
+			using Type = size_t;
 
 			explicit Identifier(Type index)
 				: _data(index) {}
@@ -180,8 +180,7 @@ namespace CVM
 			}
 
 			std::string toString() const {
-				return _data;
-				//return "i" + std::to_string(_index);
+				return "i" + std::to_string(_data);
 			}
 
 		private:

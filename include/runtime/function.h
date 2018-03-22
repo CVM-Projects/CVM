@@ -3,11 +3,10 @@
 #include <vector>
 #include "instruction.h"
 #include "datapointer.h"
+#include "funcinfo.h"
 
 namespace CVM
 {
-	namespace InstStruct { class Function; }
-
 	namespace Runtime
 	{
 		enum FunctionType
@@ -20,6 +19,8 @@ namespace CVM
 		class Function
 		{
 		public:
+			virtual ~Function() {}
+
 			virtual FunctionType type() const {
 				return ft_null;
 			}
@@ -28,10 +29,11 @@ namespace CVM
 		class InstFunction : public Function
 		{
 		public:
+			using Info = FunctionInfo;
 			using InstList = std::vector<Instruction>;
 		public:
-			explicit InstFunction(const InstList &il, const InstStruct::Function *ifunc)
-				: _data(il), _instfunc(ifunc) {}
+			explicit InstFunction(const InstList &il, const Info &info)
+				: _data(il), _info(info) {}
 
 			virtual FunctionType type() const {
 				return ft_inst;
@@ -53,13 +55,13 @@ namespace CVM
 				return _data;
 			}
 
-			const InstStruct::Function& instfunc() const {
-				return *_instfunc;
+			const Info& info() const {
+				return _info;
 			}
 
 		private:
 			InstList _data;
-			const InstStruct::Function *_instfunc;
+			Info _info;
 		};
 
 		class PointerFunction : public Function

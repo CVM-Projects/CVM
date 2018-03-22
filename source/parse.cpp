@@ -3,6 +3,7 @@
 #include "inststruct/instcode.h"
 #include "inststruct/function.h"
 #include "inststruct/instpart.h"
+#include "inststruct/identkeytable.h"
 #include "bignumber.h"
 #include <regex>
 
@@ -37,8 +38,42 @@ namespace CVM
 		explicit ParseInfo(TypeInfoMap &tim)
 			: tim(tim) {}
 
-		std::map<std::string, InstStruct::FunctionInfo*> functable;
-		InstStruct::FunctionInfo *currfunc;
+		~ParseInfo() {
+			//println("~ParseInfo();");
+		}
+
+		class FunctionInfoCreater
+		{
+		public:
+			void set(InstStruct::Function *fip) {
+				over();
+				currfunc = fip;
+			}
+			auto get() {
+				return currfunc;
+			}
+			void over() {
+				if (currfunc) {
+					currfunc->arglist = FunctionInfo::ArgList(arglist.begin(), arglist.end());
+					currfunc->stvarb_typelist = FunctionInfo::TypeList(stvarb_typelist.begin(), stvarb_typelist.end());
+					currfunc->_dyvarb_count = dyvarb_count;
+					currfunc = nullptr;
+					arglist.clear();
+					stvarb_typelist.clear();
+					dyvarb_count = 0;
+				}
+			}
+
+		public:
+			std::vector<InstStruct::Function::ArgList::value_type> arglist;
+			std::vector<InstStruct::Function::TypeList::value_type> stvarb_typelist;
+			Config::RegisterIndexType dyvarb_count;
+
+		private:
+			InstStruct::Function *currfunc;
+		} currfunc_creater;
+
+		InstStruct::IdentKeyTable functable;
 		TypeInfoMap &tim;
 		LiteralDataPoolCreater datamap;
 		size_t lcount = 0;
@@ -48,14 +83,14 @@ namespace CVM
 		mutable bool haveerror = false;
 
 		bool check() const {
-			for (auto &pfunc : functable) {
+			/*for (auto &pfunc : functable) {
 				for (auto &arg : pfunc.second->arglist) {
 					if (arg > pfunc.second->regsize()) {
 						putError("Parse Error for '" + std::string(geterrmsg(PEC_UMArgs)) + "' in function '" + pfunc.first + "'.");
 						break;
 					}
 				}
-			}
+			}*/
 			if (haveerror)
 				return false;
 			return true;
@@ -107,6 +142,16 @@ namespace CVM
 
 	PriLib::StorePtr<ParseInfo> createParseInfo(TypeInfoMap &tim) {
 		return PriLib::StorePtr<ParseInfo>(new ParseInfo(tim));
+	}
+
+	std::string getEntry(ParseInfo &parseinfo) {
+		return parseinfo.entry.data;
+	}
+	LiteralDataPoolCreater& getDataSectionMap(ParseInfo &parseinfo) {
+		return parseinfo.datamap;
+	}
+	InstStruct::IdentKeyTable& getFunctionTable(ParseInfo &parseinfo) {
+		return parseinfo.functable;
 	}
 
 	bool haveError(const ParseInfo &parseinfo) {
@@ -330,6 +375,10 @@ namespace CVM
 		return std::make_pair(i, j);
 	}
 
+	static uint8_t* createMemory(size_t size) {
+		return new uint8_t[size]();
+	}
+
 	static bool parse_string_escape(const std::string &word, std::string &result) {
 		const static auto get_xchar = [](const char *w, const int mode) {
 			int c = 0;
@@ -546,10 +595,10 @@ namespace CVM
 				parseinfo.putErrorLine();
 			}
 			const auto &name = parseIdentifier(parseinfo, list.at(0));
-			if (parseinfo.functable.find(name.data) == parseinfo.functable.end()) {
-				auto fp = new InstStruct::FunctionInfo();
-				parseinfo.functable[list[0]] = fp;
-				parseinfo.currfunc = fp;
+			auto &data = parseinfo.functable.getData(name.data);
+			if (data == nullptr) {
+				data.reset(new InstStruct::Function());
+				parseinfo.currfunc_creater.set(data.get());
 			}
 			else {
 				parseinfo.putErrorLine(PEC_DUFunc);
@@ -578,7 +627,7 @@ namespace CVM
 	void parseSectionInside(ParseInfo &parseinfo, const std::string &code, const std::vector<std::string> &list) {
 		using ParseInsideProcess = std::function<void(ParseInfo &, const std::vector<std::string> &)>;
 		using ParseInsideMap = std::map<std::string, ParseInsideProcess>;
-		static std::map<int, ParseInsideMap> parsemap {
+		const static std::map<int, ParseInsideMap> parsemap {
 			{
 				ks_func,
 				ParseInsideMap {
@@ -592,7 +641,7 @@ namespace CVM
 									for (const auto &word : list) {
 										InstStruct::Register reg = parseRegister(parseinfo, word);
 										if (reg.isPrivateDataRegister())
-											parseinfo.currfunc->arglist.push_back(reg.index());
+											parseinfo.currfunc_creater.arglist.push_back(reg.index());
 										else
 											parseinfo.putErrorLine(PEC_NotFuncReg, word);
 									}
@@ -601,7 +650,7 @@ namespace CVM
 									if (list.size() == 1) {
 										auto count = parseNumber<InstStruct::Register::RegisterIndexType>(parseinfo, list[0]);
 										for (InstStruct::Register::RegisterIndexType i = 0; i != count; ++i) {
-											parseinfo.currfunc->arglist.push_back(i + 1);
+											parseinfo.currfunc_creater.arglist.push_back(i + 1);
 										}
 									}
 									else {
@@ -615,7 +664,7 @@ namespace CVM
 						"dyvarb",
 						[](ParseInfo &parseinfo, const std::vector<std::string> &list) {
 							if (list.size() == 1) {
-								parseNumber(parseinfo, parseinfo.currfunc->dyvarb_count, list[0]);
+								parseNumber(parseinfo, parseinfo.currfunc_creater.dyvarb_count, list[0]);
 							}
 							else {
 								parseinfo.putErrorLine();
@@ -630,7 +679,7 @@ namespace CVM
 								size_t count = parseNumber<size_t>(parseinfo, list[0]);
 								TypeIndex index = parseType(parseinfo, type);
 								for (size_t i = 0; i < count; ++i)
-									parseinfo.currfunc->stvarb_typelist.push_back(index);
+									parseinfo.currfunc_creater.stvarb_typelist.push_back(index);
 							}
 							else {
 								parseinfo.putErrorLine(PEC_IllegalFormat, "stvarb");
@@ -687,13 +736,13 @@ namespace CVM
 									size_t msize = 0;
 									if (list.size() == 3) {
 										msize = parseNumber<size_t>(parseinfo, list[2]);
-										buffer = new uint8_t[msize]();
+										buffer = createMemory(msize);
 										parseDataLarge(parseinfo, list[1], buffer, msize);
 									}
 									else {
 										if (!parseDataLarge(parseinfo, list[1], [&](size_t size) {
 											msize = size;
-											return buffer = new uint8_t[size]();
+											return buffer = createMemory(size);
 										}))
 											delete[] buffer;
 									}
@@ -745,7 +794,7 @@ namespace CVM
 										}
 									}
 
-									uint8_t *buffer = new uint8_t[vec.size()]();
+									uint8_t *buffer = createMemory(vec.size());
 									PriLib::Memory::copyTo(buffer, vec.data(), vec.size());
 									parseinfo.datamap[di.index()] = std::make_pair(buffer, static_cast<uint32_t>(vec.size())); // TODO
 								}
@@ -770,7 +819,7 @@ namespace CVM
 
 									if (parse_string_escape(nword, nword)) {
 										size_t msize = nword.size() + 1;
-										uint8_t *buffer = new uint8_t[msize]();
+										uint8_t *buffer = createMemory(msize);
 										for (size_t i = 0; i < nword.size(); ++i) {
 											buffer[i] = (uint8_t)nword[i];
 										}
@@ -812,7 +861,7 @@ namespace CVM
 
 	void parseFuncInst(ParseInfo &parseinfo, const std::string &code, const std::vector<std::string> &list)
 	{
-		return parseinfo.currfunc->instdata.push_back(parseFuncInstBase(parseinfo, code, list));
+		return parseinfo.currfunc_creater.get()->instdata.push_back(parseFuncInstBase(parseinfo, code, list));
 	}
 
 	void parseLine(ParseInfo &parseinfo, const std::string &line)
@@ -871,22 +920,8 @@ namespace CVM
 			// Parse Line
 			parseLine(parseinfo, line);
 		}
-	}
 
-	FunctionSet createFunctionSet(ParseInfo &parseinfo) {
-		FunctionSet fset;
-		for (auto &val : parseinfo.functable) {
-			fset[val.first] = new InstStruct::Function(std::move(*parseinfo.functable.at(val.first)));
-		}
-		return fset;
-	}
-
-	std::string getEntry(ParseInfo &parseinfo) {
-		return parseinfo.entry.data;
-	}
-	LiteralDataPoolCreater& getDataSectionMap(ParseInfo & parseinfo)
-	{
-		return parseinfo.datamap;
+		parseinfo.currfunc_creater.over();
 	}
 }
 
@@ -901,7 +936,7 @@ namespace CVM
 
 		using namespace InstStruct;
 
-		static ParseInstMap parsemap {
+		const static ParseInstMap parsemap {
 			{
 				"mov",
 				[](ParseInfo &parseinfo, const std::vector<std::string> &list) {
@@ -955,7 +990,9 @@ namespace CVM
 				[](ParseInfo &parseinfo, const std::vector<std::string> &list) -> InstStruct::Instruction* {
 					if (list.size() >= 2) {
 						auto res = parseRegister(parseinfo, list[0]);
-						Identifier func(parseIdentifier(parseinfo, list[1]).data);
+						const auto &name = parseIdentifier(parseinfo, list[1]).data;
+						auto id = parseinfo.functable.getID(name);
+						Identifier func(id);
 						ArgumentList::Creater arglist_creater(list.size() - 2);
 						for (auto e : PriLib::rangei(list.begin() + 2, list.end())) {
 							arglist_creater.push_back(parseRegister(parseinfo, e));

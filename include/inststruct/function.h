@@ -1,46 +1,33 @@
 #pragma once
-#include "functioninfo.h"
+#include "funcinfo.h"
 #include "config.h"
+#include "instruction.h"
 
 namespace CVM
 {
 	namespace InstStruct
 	{
-		class Function
+		using InstList = std::vector<Instruction*>; // TODO
+
+		struct Function : public FunctionInfo
 		{
-		public:
-			explicit Function(FunctionInfo &&info)
-				: _info(std::move(info)) {}
+			explicit Function() = default;
+			explicit Function(const Function &info) = default;
 
-			const InstList& instlist() const {
-				return _info.instdata;
-			}
+			explicit Function(Function &&info)
+				: instdata(info.instdata), FunctionInfo(std::move(info)) {}
 
-			bool is_dyvarb(Config::RegisterIndexType index) const {
-				return Config::is_dynamic(index, dyvarb_count(), stvarb_count());
-			}
-			bool is_stvarb(Config::RegisterIndexType index) const {
-				return Config::is_static(index, dyvarb_count(), stvarb_count());
-			}
-			TypeIndex get_stvarb_type(Config::RegisterIndexType index) const {
-				return _info.stvarb_typelist.at(Config::get_static_id(index, dyvarb_count(), stvarb_count()));
-			}
-			const TypeList& stvarb_typelist() const {
-				return _info.stvarb_typelist;
-			}
-			const ArgList& arglist() const {
-				return _info.arglist;
+			explicit Function(InstList &&il, Config::RegisterIndexType &&dysize, TypeList &&stvarb_typelist, ArgList &&arglist) :
+				instdata(std::move(il)),
+				FunctionInfo(std::move(dysize), std::move(stvarb_typelist), std::move(arglist)) {}
+
+			~Function() {
+				for (auto &p : instdata)
+					if (p)
+						delete p;
 			}
 
-			Config::RegisterIndexType dyvarb_count() const {
-				return _info.dyvarb_count;
-			}
-			Config::RegisterIndexType stvarb_count() const {
-				return Config::convertToRegisterIndexType(_info.stvarb_typelist.size());
-			}
-
-		private:
-			FunctionInfo _info;
+			InstList instdata;
 		};
 	}
 }

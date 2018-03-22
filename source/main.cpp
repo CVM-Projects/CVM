@@ -84,6 +84,83 @@ void _system(CVM::Runtime::PointerFunction::Result &result, CVM::Runtime::Pointe
 	std::system(*arglist[0].get<const char*>());
 }
 
+#include "runtime/function.h"
+
+namespace CVM
+{
+	using PtrFuncMap = std::map<std::string, Runtime::PointerFunction::Func*>;
+
+	PtrFuncMap createPtrFuncMap()
+	{
+		PtrFuncMap pfm;
+
+		pfm.insert({ "print_string", _print_string });
+		pfm.insert({ "print_int64", _print_int64 });
+		pfm.insert({ "cms#int64#+", _int64_add });
+		pfm.insert({ "system", _system });
+
+		return pfm;
+	}
+}
+
+void pause() {
+	//print("Pause");
+	//getchar();
+}
+
+CVM::Runtime::LocalEnvironment * createVM(PriLib::TextFile &cmsfile, CVM::VirtualMachine &VM)
+{
+	// Init TypeInfoMap
+
+	CVM::TypeInfoMap tim;
+
+	// Parse File
+
+	using namespace CVM;
+
+	auto parseinfo = createParseInfo(tim);
+	parseFile(parseinfo, cmsfile);
+	cmsfile.close();
+	pause();
+
+	auto &functablex = getFunctionTable(parseinfo);
+	Runtime::FuncTable functable;
+
+	Compiler compiler;
+
+	if (!compiler.compile(parseinfo, functable)) {
+		println("Compiled Error.");
+		exit(-1);
+	}
+
+	PtrFuncMap pfm = createPtrFuncMap();
+
+	for (auto &pair : pfm) {
+		size_t id = functablex.getID(pair.first);
+		functable.insert({ id, new Runtime::PointerFunction(pair.second) });
+	}
+
+
+	auto datasmap = getDataSectionMap(parseinfo);
+	LiteralDataPool ldp(datasmap);
+	auto entry = getEntry(parseinfo);
+	size_t entry_id = functablex.getID(entry);
+
+	parseinfo.clear();
+
+	Runtime::Function *func = functable.at(entry_id);
+
+
+	println(ldp.toString());
+	VM.addGlobalEnvironment(Compile::CreateGlobalEnvironment(0xff, tim, ldp, functable));
+	Runtime::LocalEnvironment *lenv = Compile::CreateLoaclEnvironment(static_cast<Runtime::InstFunction&>(*func), tim);
+
+	VM.Genv().addSubEnvironment(lenv);
+	pause();
+
+	return lenv;
+}
+
 int main(int argc, char *argv[])
 {
 	if (argc != 2) {
@@ -101,77 +178,18 @@ int main(int argc, char *argv[])
 		putError("Error in open file.");
 	}
 
-	// Init TypeInfoMap
-
-	CVM::TypeInfoMap tim;
-
-	// Parse File
 
 	using namespace CVM;
-
-	auto parseInfo = createParseInfo(tim);
-	parseFile(parseInfo, cmsfile);
-
-	cmsfile.close();
-	//println("pause");
-	//getchar();
-
-	if (haveError(parseInfo)) {
-		return 1;
-	}
-
-	auto datasmap = getDataSectionMap(parseInfo);
-
-	// Get entry func
-
-	auto entry = getEntry(parseInfo);
-	if (entry.empty()) {
-		println("Undeclared entry function.");
-		return -1;
-	}
-	FunctionSet fset = createFunctionSet(parseInfo);
-	if (fset.find(entry) == fset.end())
-	{
-		println("Not find '" + entry + "' function.");
-		return -1;
-	}
 
 	// Run 'main'
 
 	VirtualMachine VM;
-	
-	LiteralDataPool ldp(datasmap);
-	Runtime::FuncTable functable;
 
-	for (auto &func : fset) {
-		if (functable.findKey(func.first) == functable.size()) {
-			Runtime::Function *f = new Runtime::InstFunction(Compile::Compile(*func.second));
-			functable.insert(func.first, f);
-		}
-		else {
-			assert(false);
-		}
-	}
-
-	Runtime::Function *func = functable.getValue(functable.findKey(entry));
-
-	functable.insert("print_string", new Runtime::PointerFunction(&_print_string));
-	functable.insert("print_int64", new Runtime::PointerFunction(&_print_int64));
-	functable.insert("cms#int64#+", new Runtime::PointerFunction(&_int64_add));
-	functable.insert("system", new Runtime::PointerFunction(&_system));
-
-	println(ldp.toString());
-	VM.addGlobalEnvironment(Compile::CreateGlobalEnvironment(0xff, tim, ldp, functable));
-	Runtime::LocalEnvironment *lenv = Compile::CreateLoaclEnvironment(static_cast<Runtime::InstFunction&>(*func), tim);
-
-	VM.Genv().addSubEnvironment(lenv);
-	//println("pause");
-	//getchar();
+	Runtime::LocalEnvironment *lenv = createVM(cmsfile, VM);
 
 	VM.Call(*lenv);
 
-	//println("pause");
-	//getchar();
+	pause();
 
 	return 0;
 }
