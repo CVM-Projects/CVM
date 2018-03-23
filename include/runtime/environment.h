@@ -121,10 +121,7 @@ namespace CVM
 				assert(_genv == nullptr);
 				_genv = genv;
 			}
-			virtual TypeInfoMap& getTypeInfoMap();
-			const TypeInfoMap& getTypeInfoMap() const {
-				return const_cast<const TypeInfoMap&>(const_cast<Environment*>(this)->getTypeInfoMap());
-			}
+			virtual const TypeInfoMap& getTypeInfoMap() const;
 
 		protected:
 			GlobalEnvironment *_genv = nullptr;
@@ -141,23 +138,30 @@ namespace CVM
 			using DataSectionMap = LiteralDataPool;
 			explicit GlobalEnvironment(
 				const DataRegisterSet &drs,
-				const TypeInfoMap &tim,
-				const DataSectionMap &datasmap,
-				const FuncTable &functable
+				const TypeInfoMap *tim,
+				const DataSectionMap *datasmap,
+				const FuncTable *functable
 			)
 				: Environment(drs), _tim(tim), _datasmap(datasmap), _functable(functable) {}
 
 			GlobalEnvironment(const GlobalEnvironment &) = delete;
+
+			~GlobalEnvironment() {
+				// TODO
+				delete _functable;
+				delete _datasmap;
+				delete _tim;
+			}
 
 			virtual void addSubEnvironment(Environment *envp) {
 				Environment::addSubEnvironment(envp);
 				envp->SetGEnv(this);
 			}
 			const DataSectionMap& getDataSectionMap() const {
-				return _datasmap;
+				return *_datasmap;
 			}
 			const FuncTable& getFuncTable() const {
-				return _functable;
+				return *_functable;
 			}
 			void setVM(VirtualMachine *vmp) {
 				_vmp = vmp;
@@ -165,18 +169,19 @@ namespace CVM
 			VirtualMachine& getVM() {
 				return *_vmp;
 			}
-			TypeInfoMap& getTypeInfoMap() {
-				return _tim;
+			const TypeInfoMap& getTypeInfoMap() const {
+				return *_tim;
 			}
 
 		private:
-			TypeInfoMap _tim;
-			DataSectionMap _datasmap;
-			FuncTable _functable;
+			// TODO : Change const * to std::shared_ptr
+			const TypeInfoMap *_tim;
+			const DataSectionMap *_datasmap;
+			const FuncTable *_functable;
 			VirtualMachine *_vmp;
 		};
 
-		inline TypeInfoMap& Environment::getTypeInfoMap() {
+		inline const TypeInfoMap& Environment::getTypeInfoMap() const {
 			return GEnv().getTypeInfoMap();
 		}
 

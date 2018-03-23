@@ -32,8 +32,13 @@ namespace CVM
 			using Info = FunctionInfo;
 			using InstList = std::vector<Instruction>;
 		public:
-			explicit InstFunction(const InstList &il, const Info &info)
-				: _data(il), _info(info) {}
+			explicit InstFunction() = default;
+
+			explicit InstFunction(InstList &&il, Info &&info)
+				: _data(std::move(il)), _info(std::move(info)) {}
+
+			//explicit InstFunction(const InstList &il, const Info &info)
+			//	: _data(il), _info(info) {}
 
 			virtual FunctionType type() const {
 				return ft_inst;

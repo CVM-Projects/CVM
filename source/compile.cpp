@@ -298,7 +298,7 @@ namespace CVM
 			else {
 				assert(false);
 			}
-			const size_t &id = Inst.func.data();
+			const Config::FuncIndexType &id = Inst.func.data();
 			std::vector<SrcDataGetFunc> src_fs;
 			for (auto &arg : Inst.arglist.data()) {
 				if (arg.isPrivateDataRegister()) {
@@ -315,7 +315,8 @@ namespace CVM
 					assert(false);
 				}
 			}
-			return [=](Runtime::Environment &env) {
+
+			auto fx = [=](Runtime::Environment &env) {
 				auto &table = env.GEnv().getFuncTable();
 				auto f = table.at(id);
 
@@ -328,6 +329,10 @@ namespace CVM
 				Runtime::DataManage::ResultData rd = dst_f.call(env);
 				Runtime::DataManage::Call(env, ff, rd, arglist_creater.data());
 			};
+
+			sizeof(fx);
+
+			return fx;
 		}
 		else if (inst.instcode == InstStruct::i_ret) {
 			return [=](Runtime::Environment &env) {
@@ -336,7 +341,8 @@ namespace CVM
 			};
 		}
 		else if (inst.instcode == InstStruct::id_opreg) {
-			const auto &typelist = info.stvarb_typelist;
+			const auto &typelist = info.sttypelist();
+			auto typelist_count = info.stvarb_count();
 			return [=](Runtime::Environment &env) {
 				Config::RegisterIndexType regcount = 0;
 				auto &regset = env.getDataRegisterSet();
@@ -352,7 +358,7 @@ namespace CVM
 					//env.getType()
 					Runtime::DataPointer address = regset.get_static(regset.dysize() + 1).data;
 					printf(" [address : 0x%p]\n", address.get());
-					for (Config::RegisterIndexType i = 0; i < typelist.size(); ++i) {
+					for (Config::RegisterIndexType i = 0; i < typelist_count; ++i) {
 						MemorySize size = env.getType(typelist[i]).size;
 						PriLib::Output::print("  %", ++regcount, ": type(", env.getType(typelist[i]).name.data, "), ");
 						const auto &str = Runtime::DataManage::ToStringData(address, size);
@@ -378,16 +384,16 @@ namespace CVM
 	Runtime::InstFunction Compiler::compile(const InstStruct::Function &func) {
 		const InstStruct::InstList &src = func.instdata;
 		Runtime::InstFunction::InstList dst;
-		auto &info = static_cast<const FunctionInfo&>(func);
+		FunctionInfo&info = const_cast<FunctionInfo&>(func.info); // TODO
 
 		std::transform(src.begin(), src.end(), std::back_inserter(dst), [&](const InstStruct::Instruction *inst) {
 			return compile(*inst, info);
 			});
 
-		return Runtime::InstFunction(dst, info);
+		return Runtime::InstFunction(std::move(dst), std::move(info));
 	}
 
-	bool Compiler::compile(ParseInfo &parseinfo, Runtime::FuncTable &functable) {
+	bool Compiler::compile(ParseInfo &parseinfo, const Runtime::PtrFuncMap &pfm, Runtime::FuncTable &functable) {
 		InstStruct::IdentKeyTable &ikt = getFunctionTable(parseinfo);
 
 		// Get entry func
@@ -402,13 +408,20 @@ namespace CVM
 			return false;
 		}
 
+		this->entry_index = ikt.getID(entry);
+
 		// Compile All Functions
 
-		ikt.each([&](size_t id, const InstStruct::IdentKeyTable::FuncPtr &f) {
+		ikt.each([&](Config::FuncIndexType id, const InstStruct::IdentKeyTable::FuncPtr &f) {
 			if (f) {
 				Runtime::Function *fp = new Runtime::InstFunction(compile(*f));
 				functable.insert({ id, fp });
 			}});
+
+		for (auto &pair : pfm) {
+			Config::FuncIndexType id = ikt.getID(pair.first);
+			functable.insert({ id, new Runtime::PointerFunction(pair.second) });
+		}
 
 		return true;
 	}
@@ -426,14 +439,15 @@ namespace CVM
 			Runtime::DataRegisterSet::DyDatRegSize dysize(info.dyvarb_count());
 			Runtime::DataRegisterSet::StDatRegSize stsize(info.stvarb_count());
 
-			const auto &typelist = info.stvarb_typelist;
-			Runtime::DataRegisterSetStatic::SizeList sizelist(typelist.size());
+			const auto &typelist = info.sttypelist();
+			Runtime::DataRegisterSetStatic::SizeList sizelist(info.stvarb_count());
 
 			size_t i = 0;
 			MemorySize size;
-			for (auto &type : typelist) {
+			for (Config::RegisterIndexType i = 0; i != info.stvarb_count(); ++i) {
+				const TypeIndex& type = typelist[i];
 				MemorySize s = tim.at(type).size;
-				sizelist[i++] = s;
+				sizelist[i] = s;
 				size += s;
 			}
 
@@ -445,7 +459,7 @@ namespace CVM
 			return new Runtime::LocalEnvironment(drs, func);
 		}
 
-		Runtime::GlobalEnvironment* CreateGlobalEnvironment(Config::RegisterIndexType dysize, const TypeInfoMap &tim, const LiteralDataPool &datasmap, const Runtime::FuncTable &functable) {
+		Runtime::GlobalEnvironment* CreateGlobalEnvironment(Config::RegisterIndexType dysize, const TypeInfoMap *tim, const LiteralDataPool *datasmap, const Runtime::FuncTable *functable) {
 			Runtime::DataRegisterSet::DyDatRegSize _dysize(dysize);
 			Runtime::DataRegisterSet drs(_dysize);
 

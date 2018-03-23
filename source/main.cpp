@@ -86,74 +86,63 @@ void _system(CVM::Runtime::PointerFunction::Result &result, CVM::Runtime::Pointe
 
 #include "runtime/function.h"
 
-namespace CVM
+static const CVM::Runtime::PtrFuncMap& getInsidePtrFuncMap()
 {
-	using PtrFuncMap = std::map<std::string, Runtime::PointerFunction::Func*>;
+	static const CVM::Runtime::PtrFuncMap pfm {
+		{ "print_string", _print_string },
+		{ "print_int64", _print_int64 },
+		{ "cms#int64#+", _int64_add },
+		{ "system", _system }
+	};
 
-	PtrFuncMap createPtrFuncMap()
-	{
-		PtrFuncMap pfm;
-
-		pfm.insert({ "print_string", _print_string });
-		pfm.insert({ "print_int64", _print_int64 });
-		pfm.insert({ "cms#int64#+", _int64_add });
-		pfm.insert({ "system", _system });
-
-		return pfm;
-	}
+	return pfm;
 }
 
 void pause() {
-	//print("Pause");
-	//getchar();
+	//print("Pause");getchar();
 }
 
 CVM::Runtime::LocalEnvironment * createVM(PriLib::TextFile &cmsfile, CVM::VirtualMachine &VM)
 {
 	// Init TypeInfoMap
 
-	CVM::TypeInfoMap tim;
+	CVM::TypeInfoMap *tim = new CVM::TypeInfoMap();
 
 	// Parse File
 
 	using namespace CVM;
 
-	auto parseinfo = createParseInfo(tim);
-	parseFile(parseinfo, cmsfile);
-	cmsfile.close();
-	pause();
-
-	auto &functablex = getFunctionTable(parseinfo);
-	Runtime::FuncTable functable;
-
 	Compiler compiler;
+	Runtime::FuncTable *functable;
+	LiteralDataPool *ldp;
 
-	if (!compiler.compile(parseinfo, functable)) {
-		println("Compiled Error.");
-		exit(-1);
+	{
+		// Parse File
+		auto parseinfo = createParseInfo(*tim);
+		parseFile(parseinfo, cmsfile);
+		cmsfile.close();
+		pause();
+
+		// Create LiteralDataPool
+		LiteralDataPoolCreater &datasmap = getDataSectionMap(parseinfo);
+		ldp = new LiteralDataPool(datasmap);
+
+		// Create FuncTable
+		functable = new Runtime::FuncTable();
+
+		// Compile
+		if (!compiler.compile(parseinfo, getInsidePtrFuncMap(), *functable)) {
+			println("Compiled Error.");
+			exit(-1);
+		}
 	}
 
-	PtrFuncMap pfm = createPtrFuncMap();
+	Config::FuncIndexType entry_id = compiler.getEntryID();
+	Runtime::Function *entry_func = functable->at(entry_id);
 
-	for (auto &pair : pfm) {
-		size_t id = functablex.getID(pair.first);
-		functable.insert({ id, new Runtime::PointerFunction(pair.second) });
-	}
-
-
-	auto datasmap = getDataSectionMap(parseinfo);
-	LiteralDataPool ldp(datasmap);
-	auto entry = getEntry(parseinfo);
-	size_t entry_id = functablex.getID(entry);
-
-	parseinfo.clear();
-
-	Runtime::Function *func = functable.at(entry_id);
-
-
-	println(ldp.toString());
+	println(ldp->toString());
 	VM.addGlobalEnvironment(Compile::CreateGlobalEnvironment(0xff, tim, ldp, functable));
-	Runtime::LocalEnvironment *lenv = Compile::CreateLoaclEnvironment(static_cast<Runtime::InstFunction&>(*func), tim);
+	Runtime::LocalEnvironment *lenv = Compile::CreateLoaclEnvironment(static_cast<Runtime::InstFunction&>(*entry_func), *tim);
 
 	VM.Genv().addSubEnvironment(lenv);
 	pause();

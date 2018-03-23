@@ -54,19 +54,31 @@ namespace CVM
 			}
 			void over() {
 				if (currfunc) {
-					currfunc->arglist = FunctionInfo::ArgList(arglist.begin(), arglist.end());
-					currfunc->stvarb_typelist = FunctionInfo::TypeList(stvarb_typelist.begin(), stvarb_typelist.end());
-					currfunc->_dyvarb_count = dyvarb_count;
+					assert(sttypelist.size() <= std::numeric_limits<Config::RegisterIndexType>::max());
+					assert(arglist.size() <= std::numeric_limits<Config::RegisterIndexType>::max());
+					auto sttypelist_size = static_cast<Config::RegisterIndexType>(sttypelist.size());
+					auto arglist_size = static_cast<Config::RegisterIndexType>(arglist.size());
+					auto size = FunctionInfoAccesser::GetSize(sttypelist_size, arglist_size);
+
+					currfunc->info.data = FunctionInfo::Type(size);
+					FunctionInfoAccesser accesser = currfunc->info.get_accesser();
+
+					accesser.dyvarb_count() = dyvarb_count;
+					accesser.stvarb_count() = sttypelist_size;
+					accesser.argument_count() = arglist_size;
+					PriLib::Memory::copyTo(accesser.arglist(), arglist.data(), arglist.size());
+					PriLib::Memory::copyTo(accesser.sttypelist(), sttypelist.data(), sttypelist.size());
+
 					currfunc = nullptr;
 					arglist.clear();
-					stvarb_typelist.clear();
+					sttypelist.clear();
 					dyvarb_count = 0;
 				}
 			}
 
 		public:
-			std::vector<InstStruct::Function::ArgList::value_type> arglist;
-			std::vector<InstStruct::Function::TypeList::value_type> stvarb_typelist;
+			std::vector<FunctionInfoAccesser::ArgumentTypeType> arglist;
+			std::vector<FunctionInfoAccesser::StvarbTypeType> sttypelist;
 			Config::RegisterIndexType dyvarb_count;
 
 		private:
@@ -679,7 +691,7 @@ namespace CVM
 								size_t count = parseNumber<size_t>(parseinfo, list[0]);
 								TypeIndex index = parseType(parseinfo, type);
 								for (size_t i = 0; i < count; ++i)
-									parseinfo.currfunc_creater.stvarb_typelist.push_back(index);
+									parseinfo.currfunc_creater.sttypelist.push_back(index);
 							}
 							else {
 								parseinfo.putErrorLine(PEC_IllegalFormat, "stvarb");

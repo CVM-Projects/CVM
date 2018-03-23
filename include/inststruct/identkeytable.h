@@ -20,14 +20,14 @@ namespace CVM
 				}
 				return false;
 			}
-			size_t getID(const std::string &key) {
+			Config::FuncIndexType getID(const std::string &key) {
 				auto iter = keytable.find(key);
 				if (iter == keytable.end()) {
 					return _insert(key);
 				}
 				return iter->second;
 			}
-			auto& getData(size_t id) {
+			auto& getData(Config::FuncIndexType id) {
 				return functable.at(id);
 			}
 			auto& getData(const std::string &key) {
@@ -48,11 +48,12 @@ namespace CVM
 			}
 
 		private:
-			std::map<std::string, size_t> keytable;
+			std::map<std::string, Config::FuncIndexType> keytable;
 			std::vector<FuncPtr> functable;
 
-			size_t _insert(const std::string &key) {
-				size_t id = keytable.size();
+			Config::FuncIndexType _insert(const std::string &key) {
+				assert(keytable.size() < std::numeric_limits<Config::FuncIndexType>::max());
+				Config::FuncIndexType id = static_cast<Config::FuncIndexType>(keytable.size());
 				keytable.insert({ key, id });
 				while (functable.size() <= id)
 					functable.push_back(nullptr);

@@ -14,16 +14,21 @@ namespace CVM
 	public:
 		explicit Compiler() {}
 
-		bool compile(ParseInfo &parseinfo, Runtime::FuncTable &functable);
+		bool compile(ParseInfo &parseinfo, const Runtime::PtrFuncMap &pfm, Runtime::FuncTable &functable);
+
+		Config::FuncIndexType getEntryID() {
+			return entry_index;
+		}
 
 	private:
 		Runtime::Instruction compile(const InstStruct::Instruction &inst, const FunctionInfo &info);
 		Runtime::InstFunction compile(const InstStruct::Function &func);
+		Config::FuncIndexType entry_index;
 	};
 
 	namespace Compile
 	{
 		Runtime::LocalEnvironment* CreateLoaclEnvironment(const Runtime::InstFunction &func, const TypeInfoMap &tim);
-		Runtime::GlobalEnvironment* CreateGlobalEnvironment(Config::RegisterIndexType dysize, const TypeInfoMap &tim, const LiteralDataPool &datasmap, const Runtime::FuncTable &functable);
+		Runtime::GlobalEnvironment* CreateGlobalEnvironment(Config::RegisterIndexType dysize, const TypeInfoMap *tim, const LiteralDataPool *datasmap, const Runtime::FuncTable *functable);
 	}
 }

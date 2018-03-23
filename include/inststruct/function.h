@@ -9,17 +9,13 @@ namespace CVM
 	{
 		using InstList = std::vector<Instruction*>; // TODO
 
-		struct Function : public FunctionInfo
+		struct Function
 		{
 			explicit Function() = default;
 			explicit Function(const Function &info) = default;
 
-			explicit Function(Function &&info)
-				: instdata(info.instdata), FunctionInfo(std::move(info)) {}
-
-			explicit Function(InstList &&il, Config::RegisterIndexType &&dysize, TypeList &&stvarb_typelist, ArgList &&arglist) :
-				instdata(std::move(il)),
-				FunctionInfo(std::move(dysize), std::move(stvarb_typelist), std::move(arglist)) {}
+			explicit Function(Function &&func)
+				: instdata(func.instdata), info(std::move(func.info)) {}
 
 			~Function() {
 				for (auto &p : instdata)
@@ -27,6 +23,7 @@ namespace CVM
 						delete p;
 			}
 
+			FunctionInfo info;
 			InstList instdata;
 		};
 	}

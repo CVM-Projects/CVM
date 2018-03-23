@@ -158,7 +158,8 @@ namespace CVM
 				const Runtime::InstFunction &instf = static_cast<const Runtime::InstFunction &>(func);
 				auto senv = Compile::CreateLoaclEnvironment(instf, env.getTypeInfoMap());
 				auto argp = arglist.begin();
-				for (const auto &arg : instf.info().arglist) {
+				for (Config::RegisterIndexType i = 0; i != instf.info().get_accesser().argument_count(); ++i) {
+					const auto &arg = instf.info().arglist()[i];
 					DstData dst;
 					if (senv->is_dyvarb(arg, e_current)) {
 						dst = GetDstData(senv->get_dyvarb(arg, e_current));

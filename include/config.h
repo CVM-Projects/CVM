@@ -18,6 +18,7 @@ namespace CVM
 		using DataInstType = std::uint32_t;
 		using DataIndexType = std::uint32_t;
 		using StackSizeType = std::uint32_t;
+		using FuncIndexType = std::uint32_t;
 		using StackOffsetType = std::uint16_t;
 
 		constexpr bool isCheckMemorySizeOverflow = true;

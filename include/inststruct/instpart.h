@@ -170,7 +170,7 @@ namespace CVM
 		struct Identifier
 		{
 		public:
-			using Type = size_t;
+			using Type = Config::FuncIndexType;
 
 			explicit Identifier(Type index)
 				: _data(index) {}
