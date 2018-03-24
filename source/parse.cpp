@@ -21,6 +21,7 @@ namespace CVM
 		PEC_URCmd,
 		PEC_UREnv,
 		PEC_URReg,
+		PEC_URLabel,
 		PEC_UREscape,
 		PEC_UFType,
 		PEC_UFFunc,
@@ -36,7 +37,7 @@ namespace CVM
 	{
 	public:
 		explicit ParseInfo(TypeInfoMap &tim)
-			: tim(tim) {}
+			: tim(tim), currfunc_creater(*this) {}
 
 		~ParseInfo() {
 			//println("~ParseInfo();");
@@ -45,44 +46,114 @@ namespace CVM
 		class FunctionInfoCreater
 		{
 		public:
+			class LabelKeyTable
+			{
+			public:
+				size_t operator[](const std::string &key) {
+					auto iter = _data.find(key);
+					if (iter == _data.end()) {
+						size_t id = _data.size();
+						_data.insert({ key, id });
+						_linedata.push_back(std::numeric_limits<Config::LineCountType>::max());
+						return id;
+					}
+					else {
+						return iter->second;
+					}
+				}
+				void setLine(size_t id, Config::LineCountType value) {
+					Config::LineCountType &line = _linedata[id];
+					assert(!hasValue(id));
+					line = value;
+				}
+				Config::LineCountType getLine(size_t id) {
+					Config::LineCountType line = _linedata[id];
+					assert(hasValue(id));
+					return line;
+				}
+				bool hasValue(size_t id) {
+					Config::LineCountType line = _linedata[id];
+					return line != std::numeric_limits<Config::LineCountType>::max();
+				}
+
+				void clear() {
+					_data.clear();
+					_linedata.clear();
+				}
+
+			private:
+				std::map<std::string, size_t> _data;
+				std::vector<Config::LineCountType> _linedata;
+			};
+
+		public:
+			FunctionInfoCreater(ParseInfo &parseinfo)
+				: parseinfo(parseinfo) {}
+
 			void set(InstStruct::Function *fip) {
 				over();
 				currfunc = fip;
+				current_line = 0;
 			}
 			auto get() {
 				return currfunc;
 			}
 			void over() {
 				if (currfunc) {
-					assert(sttypelist.size() <= std::numeric_limits<Config::RegisterIndexType>::max());
-					assert(arglist.size() <= std::numeric_limits<Config::RegisterIndexType>::max());
-					auto sttypelist_size = static_cast<Config::RegisterIndexType>(sttypelist.size());
-					auto arglist_size = static_cast<Config::RegisterIndexType>(arglist.size());
-					auto size = FunctionInfoAccesser::GetSize(sttypelist_size, arglist_size);
-
-					currfunc->info.data = FunctionInfo::Type(size);
-					FunctionInfoAccesser accesser = currfunc->info.get_accesser();
-
-					accesser.dyvarb_count() = dyvarb_count;
-					accesser.stvarb_count() = sttypelist_size;
-					accesser.argument_count() = arglist_size;
-					PriLib::Memory::copyTo(accesser.arglist(), arglist.data(), arglist.size());
-					PriLib::Memory::copyTo(accesser.sttypelist(), sttypelist.data(), sttypelist.size());
-
-					currfunc = nullptr;
-					arglist.clear();
-					sttypelist.clear();
-					dyvarb_count = 0;
+					create_funcinfo();
+					adjust_linelabel();
+					clear();
 				}
 			}
 
 		public:
+			Config::LineCountType current_line = 0;
 			std::vector<FunctionInfoAccesser::ArgumentTypeType> arglist;
 			std::vector<FunctionInfoAccesser::StvarbTypeType> sttypelist;
 			Config::RegisterIndexType dyvarb_count;
+			LabelKeyTable labelkeytable;
+			std::list<Config::LineCountType*> rec_line;
+			ParseInfo &parseinfo;
 
 		private:
 			InstStruct::Function *currfunc;
+
+			void create_funcinfo() {
+				assert(sttypelist.size() <= std::numeric_limits<Config::RegisterIndexType>::max());
+				assert(arglist.size() <= std::numeric_limits<Config::RegisterIndexType>::max());
+				auto sttypelist_size = static_cast<Config::RegisterIndexType>(sttypelist.size());
+				auto arglist_size = static_cast<Config::RegisterIndexType>(arglist.size());
+				auto size = FunctionInfoAccesser::GetSize(sttypelist_size, arglist_size);
+
+				currfunc->info.data = FunctionInfo::Type(size);
+				FunctionInfoAccesser accesser = currfunc->info.get_accesser();
+
+				accesser.dyvarb_count() = dyvarb_count;
+				accesser.stvarb_count() = sttypelist_size;
+				accesser.argument_count() = arglist_size;
+				PriLib::Memory::copyTo(accesser.arglist(), arglist.data(), arglist.size());
+				PriLib::Memory::copyTo(accesser.sttypelist(), sttypelist.data(), sttypelist.size());
+			}
+			void adjust_linelabel() {
+				for (Config::LineCountType* p : rec_line) {
+					if (labelkeytable.hasValue(*p)) {
+						*p = labelkeytable.getLine(*p);
+					}
+					else {
+						parseinfo.putErrorLine();
+					}
+				}
+			}
+			void clear() {
+				currfunc = nullptr;
+				arglist.clear();
+				sttypelist.clear();
+				dyvarb_count = 0;
+				current_line = 0;
+				labelkeytable.clear();
+				rec_line.clear();
+			}
+
 		} currfunc_creater;
 
 		InstStruct::IdentKeyTable functable;
@@ -138,6 +209,7 @@ namespace CVM
 				{ PEC_URIns, "Unrecognized instruction" },
 				{ PEC_UREnv, "Unrecognized environment" },
 				{ PEC_URReg, "Unrecognized register" },
+				{ PEC_URLabel, "Unrecognized label" },
 				{ PEC_UREscape, "Unrecognized escape" },
 				{ PEC_UFType, "Unfind type" },
 				{ PEC_UFFunc, "Unfind function" },
@@ -355,6 +427,13 @@ namespace CVM
 		return ParsedIdentifier(word);
 	}
 
+	ParsedIdentifier parseLabelKey(ParseInfo &parseinfo, const std::string &word) {
+		if (word.size() <= 1 || word[0] != '#' || (word.size() >= 2 && (word[1] == '#' || std::isdigit(word[1])))) {
+			parseinfo.putErrorLine(PEC_URLabel, word);
+		}
+		return ParsedIdentifier(word.substr(1));
+	}
+
 	static std::pair<size_t, size_t> get_substring(const std::string &line, size_t offset = 0)
 	{
 		size_t i = line.find('"', offset);
@@ -385,10 +464,6 @@ namespace CVM
 		}
 
 		return std::make_pair(i, j);
-	}
-
-	static uint8_t* createMemory(size_t size) {
-		return new uint8_t[size]();
 	}
 
 	static bool parse_string_escape(const std::string &word, std::string &result) {
@@ -636,6 +711,10 @@ namespace CVM
 		}
 	}
 
+	static uint8_t* createMemory(size_t size) {
+		return new uint8_t[size]();
+	}
+
 	void parseSectionInside(ParseInfo &parseinfo, const std::string &code, const std::vector<std::string> &list) {
 		using ParseInsideProcess = std::function<void(ParseInfo &, const std::vector<std::string> &)>;
 		using ParseInsideMap = std::map<std::string, ParseInsideProcess>;
@@ -873,7 +952,8 @@ namespace CVM
 
 	void parseFuncInst(ParseInfo &parseinfo, const std::string &code, const std::vector<std::string> &list)
 	{
-		return parseinfo.currfunc_creater.get()->instdata.push_back(parseFuncInstBase(parseinfo, code, list));
+		parseinfo.currfunc_creater.current_line++;
+		parseinfo.currfunc_creater.get()->instdata.push_back(parseFuncInstBase(parseinfo, code, list));
 	}
 
 	void parseLine(ParseInfo &parseinfo, const std::string &line)
@@ -881,6 +961,7 @@ namespace CVM
 		char fc = line[0];
 
 		if (fc == '.') {
+			parseinfo.currfunc_creater.over();
 			parseLineBase(parseinfo, line,
 				[&](const char *code) {
 					auto &map = getSectionKeyMap();
@@ -895,6 +976,15 @@ namespace CVM
 				},
 				parseSection);
 		}
+		else if (fc == '#') {
+			if (parseinfo.currfunc_creater.get() == nullptr) {
+				parseinfo.putErrorLine(PEC_URCmd, line);
+			}
+			ParsedIdentifier labelkey = parseLabelKey(parseinfo, line);
+			size_t id = parseinfo.currfunc_creater.labelkeytable[labelkey.data];
+			Config::LineCountType line = parseinfo.currfunc_creater.current_line;
+			parseinfo.currfunc_creater.labelkeytable.setLine(id, line);
+		}
 		else if (std::isblank(fc)) {
 			std::string cmd;
 			parseLineBase(parseinfo, line,
@@ -904,7 +994,12 @@ namespace CVM
 					return isinst;
 				},
 				[&](ParseInfo &parseinfo, int isinst, const std::vector<std::string> &list) {
-					(isinst ? parseFuncInst : parseSectionInside)(parseinfo, cmd, list);
+					if (isinst && parseinfo.currfunc_creater.get() == nullptr) {
+						parseinfo.putErrorLine();
+					}
+					else {
+						(isinst ? parseFuncInst : parseSectionInside)(parseinfo, cmd, list);
+					}
 				});
 		}
 		else {
@@ -1020,7 +1115,24 @@ namespace CVM
 			{
 				"ret",
 				[](ParseInfo &parseinfo, const std::vector<std::string> &list) {
-					return new Insts::Return();
+						return new Insts::Return();
+				}
+			},
+			{
+				"jump",
+				[](ParseInfo &parseinfo, const std::vector<std::string> &list) -> InstStruct::Instruction* {
+					if (list.size() == 1) {
+						ParsedIdentifier label = parseLabelKey(parseinfo, list[0]);
+						size_t id = parseinfo.currfunc_creater.labelkeytable[label.data];
+						assert(id < std::numeric_limits<Config::LineCountType>::max());
+						auto *inst = new Insts::Jump(static_cast<Config::LineCountType>(id));
+						parseinfo.currfunc_creater.rec_line.push_back(&inst->line);
+						return inst;
+					}
+					else {
+						parseinfo.putErrorLine(PEC_IllegalFormat, "ret");
+						return nullptr;
+					}
 				}
 			},
 			{

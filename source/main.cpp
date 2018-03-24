@@ -99,7 +99,10 @@ static const CVM::Runtime::PtrFuncMap& getInsidePtrFuncMap()
 }
 
 void pause() {
-	//print("Pause");getchar();
+#if (defined(TEST_MEMORY))
+	print("Pause");
+	getchar();
+#endif
 }
 
 CVM::Runtime::LocalEnvironment * createVM(PriLib::TextFile &cmsfile, CVM::VirtualMachine &VM)
@@ -123,9 +126,14 @@ CVM::Runtime::LocalEnvironment * createVM(PriLib::TextFile &cmsfile, CVM::Virtua
 		cmsfile.close();
 		pause();
 
+		if (haveError(parseinfo)) {
+			exit(-1);
+		}
+
 		// Create LiteralDataPool
 		LiteralDataPoolCreater &datasmap = getDataSectionMap(parseinfo);
 		ldp = new LiteralDataPool(datasmap);
+		println(ldp->toString());
 
 		// Create FuncTable
 		functable = new Runtime::FuncTable();
@@ -137,12 +145,11 @@ CVM::Runtime::LocalEnvironment * createVM(PriLib::TextFile &cmsfile, CVM::Virtua
 		}
 	}
 
-	Config::FuncIndexType entry_id = compiler.getEntryID();
-	Runtime::Function *entry_func = functable->at(entry_id);
-
-	println(ldp->toString());
 	VM.addGlobalEnvironment(Compile::CreateGlobalEnvironment(0xff, tim, ldp, functable));
-	Runtime::LocalEnvironment *lenv = Compile::CreateLoaclEnvironment(static_cast<Runtime::InstFunction&>(*entry_func), *tim);
+
+	Config::FuncIndexType entry_id = compiler.getEntryID();
+	Runtime::InstFunction &entry_func = static_cast<Runtime::InstFunction&>(*functable->at(entry_id));
+	Runtime::LocalEnvironment *lenv = Compile::CreateLoaclEnvironment(entry_func, *tim);
 
 	VM.Genv().addSubEnvironment(lenv);
 	pause();
@@ -167,14 +174,11 @@ int main(int argc, char *argv[])
 		putError("Error in open file.");
 	}
 
-
-	using namespace CVM;
-
 	// Run 'main'
 
-	VirtualMachine VM;
+	CVM::VirtualMachine VM;
 
-	Runtime::LocalEnvironment *lenv = createVM(cmsfile, VM);
+	CVM::Runtime::LocalEnvironment *lenv = createVM(cmsfile, VM);
 
 	VM.Call(*lenv);
 

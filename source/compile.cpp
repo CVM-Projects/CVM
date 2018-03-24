@@ -298,7 +298,7 @@ namespace CVM
 			else {
 				assert(false);
 			}
-			const Config::FuncIndexType &id = Inst.func.data();
+			Config::FuncIndexType id = Inst.func.data();
 			std::vector<SrcDataGetFunc> src_fs;
 			for (auto &arg : Inst.arglist.data()) {
 				if (arg.isPrivateDataRegister()) {
@@ -338,6 +338,14 @@ namespace CVM
 			return [=](Runtime::Environment &env) {
 				CheckLocalEnv(env);
 				static_cast<Runtime::LocalEnvironment&>(env).Controlflow().setProgramCounterEnd();
+			};
+		}
+		else if (inst.instcode == InstStruct::i_jump) {
+			auto &Inst = static_cast<const InstStruct::Insts::Jump&>(inst);
+			Config::LineCountType line = Inst.line;
+			return [=](Runtime::Environment &env) {
+				CheckLocalEnv(env);
+				static_cast<Runtime::LocalEnvironment&>(env).Controlflow().setProgramCounter(line);
 			};
 		}
 		else if (inst.instcode == InstStruct::id_opreg) {
@@ -442,7 +450,6 @@ namespace CVM
 			const auto &typelist = info.sttypelist();
 			Runtime::DataRegisterSetStatic::SizeList sizelist(info.stvarb_count());
 
-			size_t i = 0;
 			MemorySize size;
 			for (Config::RegisterIndexType i = 0; i != info.stvarb_count(); ++i) {
 				const TypeIndex& type = typelist[i];

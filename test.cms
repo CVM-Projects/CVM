@@ -48,5 +48,13 @@
     call %0, print_int64, %8
     call %8, Math#add, %5 %6
     call %0, print_int64, %8
+    jump #line1
+    call %0, print-hello
+    call %0, print-hello
+    call %0, print-hello
+    call %0, print-hello
+    call %0, print-hello
+#line1
+    call %0, print-hello
     ret
     

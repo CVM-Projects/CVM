@@ -80,6 +80,18 @@ namespace CVM
 			struct Return : public Inst<i_ret> {};
 			struct Nope : public Inst<i_nop> {};
 
+			// Jump
+
+			struct Jump : public Inst<i_jump>
+			{
+				explicit Jump(Config::LineCountType line)
+					: line(line) {}
+
+				Config::LineCountType line;
+			};
+
+			//
+
 			struct Debug_OutputRegister : public Inst<id_opreg> {};
 		}
 	}

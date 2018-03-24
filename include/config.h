@@ -20,6 +20,7 @@ namespace CVM
 		using StackSizeType = std::uint32_t;
 		using FuncIndexType = std::uint32_t;
 		using StackOffsetType = std::uint16_t;
+		using LineCountType = std::uint32_t;
 
 		constexpr bool isCheckMemorySizeOverflow = true;
 		inline void ThrowMemorySizeOverflowError() {

@@ -23,10 +23,10 @@ namespace CVM
 			bool isInstRunning() const {
 				return !isInstEnd();
 			}
-			size_t getProgramCounter() const {
+			Config::LineCountType getProgramCounter() const {
 				return ProgramCounter;
 			}
-			void setProgramCounter(size_t count) {
+			void setProgramCounter(Config::LineCountType count) {
 				ProgramCounter = count;
 				isIncProgramCounter = false;
 			}
@@ -39,7 +39,7 @@ namespace CVM
 			}
 
 		private:
-			size_t ProgramCounter = 0;
+			Config::LineCountType ProgramCounter = 0;
 			bool isIncProgramCounter;
 			const InstFunction &Func;
 		};

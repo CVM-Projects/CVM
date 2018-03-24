@@ -15,6 +15,8 @@ namespace CVM
 			i_call,
 			i_ret,
 
+			i_jump,
+
 			id_opreg,
 		};
 	}

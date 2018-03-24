@@ -48,8 +48,9 @@ namespace CVM
 				return _data.at(id);
 			}
 
-			size_t inst_size() const {
-				return _data.size();
+			Config::LineCountType inst_size() const {
+				assert(_data.size() < std::numeric_limits<Config::LineCountType>::max());
+				return static_cast<Config::LineCountType>(_data.size());
 			}
 
 			void inst_call(size_t id, Environment &env) const {
