@@ -85,11 +85,23 @@ namespace CVM
 					return getDataRegisterSet();
 				}
 			}
-			bool is_dyvarb(Config::RegisterIndexType index, EnvType etype) {
+			bool is_dyvarb(Config::RegisterIndexType index, EnvType etype) { // TODO : Will be removed.
 				return getDataRegisterSet(etype).is_dynamic(index);
 			}
-			bool is_stvarb(Config::RegisterIndexType index, EnvType etype) {
+			bool is_stvarb(Config::RegisterIndexType index, EnvType etype) { // TODO : Will be removed.
 				return getDataRegisterSet(etype).is_static(index);
+			}
+			bool is_dyvarb(Config::RegisterIndexType index) {
+				return getDataRegisterSet().is_dynamic(index);
+			}
+			bool is_stvarb(Config::RegisterIndexType index) {
+				return getDataRegisterSet().is_static(index);
+			}
+			DataRegisterDynamic& get_dyvarb(Config::RegisterIndexType index) {
+				return getDataRegisterSet().get_dynamic(index);
+			}
+			DataRegisterStatic& get_stvarb(Config::RegisterIndexType index) {
+				return getDataRegisterSet().get_static(index);
 			}
 			DataRegisterDynamic& get_dyvarb(Config::RegisterIndexType index, EnvType etype) {
 				return getDataRegisterSet(etype).get_dynamic(index);
@@ -179,6 +191,7 @@ namespace CVM
 			const DataSectionMap *_datasmap;
 			const FuncTable *_functable;
 			VirtualMachine *_vmp;
+			LCMM::MemoryManager _memory_manager;
 		};
 
 		inline const TypeInfoMap& Environment::getTypeInfoMap() const {

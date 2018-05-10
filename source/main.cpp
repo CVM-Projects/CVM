@@ -57,6 +57,11 @@ void print_int64(int64_t v)
 	println(v);
 }
 
+void print_int64x(int64_t v)
+{
+	printf("%p\n", v);
+}
+
 #include "runtime/function.h"
 
 void _print_string(CVM::Runtime::PointerFunction::Result &result, CVM::Runtime::PointerFunction::ArgumentList &arglist)
@@ -70,6 +75,13 @@ void _print_int64(CVM::Runtime::PointerFunction::Result &result, CVM::Runtime::P
 	auto x = arglist[0].get<int64_t>();
 	print_int64(*x);
 }
+
+void _print_int64x(CVM::Runtime::PointerFunction::Result &result, CVM::Runtime::PointerFunction::ArgumentList &arglist)
+{
+	auto x = arglist[0].get<int64_t>();
+	print_int64x(*x);
+}
+
 
 void _int64_add(CVM::Runtime::PointerFunction::Result &result, CVM::Runtime::PointerFunction::ArgumentList &arglist)
 {
@@ -91,6 +103,7 @@ static const CVM::Runtime::PtrFuncMap& getInsidePtrFuncMap()
 	static const CVM::Runtime::PtrFuncMap pfm {
 		{ "print_string", _print_string },
 		{ "print_int64", _print_int64 },
+		{ "print_int64x", _print_int64x },
 		{ "cms#int64#+", _int64_add },
 		{ "system", _system }
 	};

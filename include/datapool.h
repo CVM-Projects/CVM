@@ -6,7 +6,20 @@
 
 namespace CVM
 {
-	using LiteralDataPoolCreater = std::map<uint32_t, std::pair<uint8_t*, uint32_t>>;
+	class LiteralDataPoolCreater : public std::map<uint32_t, std::pair<uint8_t*, uint32_t>>
+	{
+	public:
+		LiteralDataPoolCreater() = default;
+
+		LiteralDataPoolCreater(const LiteralDataPoolCreater &) = delete;
+
+		~LiteralDataPoolCreater() {
+			for (auto &pair : *this) {
+				delete pair.second.first;
+			}
+		}
+
+	};
 
 	class LiteralDataPool
 	{

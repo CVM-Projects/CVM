@@ -1,6 +1,7 @@
 #pragma once
 #include "instruction.h"
 #include "instpart.h"
+#include "typeinfo.h"
 
 namespace CVM
 {
@@ -50,7 +51,7 @@ namespace CVM
 				TypeIndex type;
 			};
 
-			struct LoadPointer1 : public Instx<i_loadp, 1>
+			/*struct LoadPointer1 : public Instx<i_loadp, 1>
 			{
 				explicit LoadPointer1(const Register &dst, const Data &src)
 					: dst(dst), src(src) {}
@@ -61,6 +62,15 @@ namespace CVM
 			struct LoadPointer2 : public Instx<i_loadp, 2>
 			{
 				explicit LoadPointer2(const Register &dst, const DataIndex &src)
+					: dst(dst), src(src) {}
+
+				Register dst;
+				DataIndex src;
+			};*/
+
+			struct LoadPointer : public Inst<i_loadp>
+			{
+				explicit LoadPointer(const Register &dst, const DataIndex &src)
 					: dst(dst), src(src) {}
 
 				Register dst;

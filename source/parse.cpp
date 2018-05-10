@@ -114,6 +114,7 @@ namespace CVM
 			LabelKeyTable labelkeytable;
 			std::list<Config::LineCountType*> rec_line;
 			ParseInfo &parseinfo;
+			TypeIndex restype;
 
 		private:
 			InstStruct::Function *currfunc;
@@ -131,6 +132,7 @@ namespace CVM
 				accesser.dyvarb_count() = dyvarb_count;
 				accesser.stvarb_count() = sttypelist_size;
 				accesser.argument_count() = arglist_size;
+				accesser.result_type() = restype;
 				PriLib::Memory::copyTo(accesser.arglist(), arglist.data(), arglist.size());
 				PriLib::Memory::copyTo(accesser.sttypelist(), sttypelist.data(), sttypelist.size());
 			}
@@ -150,6 +152,7 @@ namespace CVM
 				sttypelist.clear();
 				dyvarb_count = 0;
 				current_line = 0;
+				restype = TypeIndex();
 				labelkeytable.clear();
 				rec_line.clear();
 			}
@@ -752,6 +755,18 @@ namespace CVM
 						}
 					},
 					{
+						"res",
+						[](ParseInfo &parseinfo, const std::vector<std::string> &list) {
+							if (list.size() == 1) {
+								TypeIndex index = parseType(parseinfo, list[0]);
+								parseinfo.currfunc_creater.restype = index;
+							}
+							else {
+								parseinfo.putErrorLine();
+							}
+						}
+					},
+					{
 						"dyvarb",
 						[](ParseInfo &parseinfo, const std::vector<std::string> &list) {
 							if (list.size() == 1) {
@@ -1074,8 +1089,11 @@ namespace CVM
 			{
 				"loadp",
 				[](ParseInfo &parseinfo, const std::vector<std::string> &list) -> InstStruct::Instruction* {
-					if (list.size() == 2) {
-						if (!list[1].empty() && list[1][0] != '#') {
+					if (list.size() == 2 && (!list[1].empty() && list[1][0] == '#')) {
+						return new Insts::LoadPointer(
+							parseRegister(parseinfo, list[0]),
+							parseDataIndex(parseinfo, list[1]));
+						/*if (!list[1].empty() && list[1][0] != '#') {
 							return new Insts::LoadPointer1(
 								parseRegister(parseinfo, list[0]),
 								parseDataInst(parseinfo, list[1]));
@@ -1084,7 +1102,7 @@ namespace CVM
 							return new Insts::LoadPointer2(
 								parseRegister(parseinfo, list[0]),
 								parseDataIndex(parseinfo, list[1]));
-						}
+						}*/
 					}
 					else {
 						parseinfo.putErrorLine(PEC_IllegalFormat, "loadp");

@@ -1,3 +1,6 @@
 [submodule "prilib"]
 	path = prilib
 	url = https://github.com/ChillMagic/PrivateLibrary
+[submodule "lcmm"]
+	path = lcmm
+	url = https://github.com/CVM-Projects/LCMM

@@ -9,7 +9,7 @@ namespace CVM
 	{
 		using byte = uint8_t;
 
-		class  ConstDataPointer;
+		class ConstDataPointer;
 
 		class DataPointer : private PriLib::ExplicitType<void*, nullptr>
 		{
@@ -35,7 +35,7 @@ namespace CVM
 			}
 		};
 
-		class  ConstDataPointer : private PriLib::ExplicitType<const void*, nullptr>
+		class ConstDataPointer : private PriLib::ExplicitType<const void*, nullptr>
 		{
 		public:
 			explicit ConstDataPointer(const void *ptr = nullptr)

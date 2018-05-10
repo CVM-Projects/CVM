@@ -21,7 +21,7 @@ namespace CVM
 		}
 
 	private:
-		Runtime::Instruction compile(const InstStruct::Instruction &inst, const FunctionInfo &info);
+		Runtime::Instruction* compile(const InstStruct::Instruction &inst, const FunctionInfo &info);
 		Runtime::InstFunction compile(const InstStruct::Function &func);
 		Config::FuncIndexType entry_index;
 	};

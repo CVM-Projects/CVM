@@ -1,6 +1,7 @@
 #pragma once
 #include "datapointer.h"
 #include "typeinfo.h"
+#include "../lcmm/include/lcmm.h"
 
 namespace CVM
 {
@@ -13,10 +14,7 @@ namespace CVM
 			rt_static,
 		};
 
-		struct DataRegister
-		{
-
-		};
+		struct DataRegister {};
 
 		struct DataRegisterStatic : public DataRegister
 		{
@@ -28,7 +26,7 @@ namespace CVM
 			DataPointer data;
 		};
 
-		struct DataRegisterDynamic : public DataRegister
+		struct DataRegisterDynamic : public DataRegister, public LCMM::Object
 		{
 			explicit DataRegisterDynamic() = default;
 
@@ -55,8 +53,8 @@ namespace CVM
 				drp = &drs;
 			}
 			
-			DataRegisterType rtype;
-			DataRegister *drp;
+			DataRegisterType rtype = rt_null;
+			DataRegister *drp = nullptr;
 		};
 
 		class Environment;

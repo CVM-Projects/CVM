@@ -9,7 +9,8 @@
     .data   #3, 5
     .data   #4, 6
 
-.func Math#add
+.func Math#add ;; (cms#int64 cms#int64) -> cms#int64
+	.res cms#int64
     .stvarb 2, cms#int64
     .arg 2
     db_opreg

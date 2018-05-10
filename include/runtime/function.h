@@ -30,7 +30,7 @@ namespace CVM
 		{
 		public:
 			using Info = FunctionInfo;
-			using InstList = std::vector<Instruction>;
+			using InstList = std::vector<Instruction*>;
 		public:
 			explicit InstFunction() = default;
 
@@ -45,7 +45,7 @@ namespace CVM
 			}
 
 			const Instruction& inst_get(size_t id) const {
-				return _data.at(id);
+				return *_data.at(id);
 			}
 
 			Config::LineCountType inst_size() const {

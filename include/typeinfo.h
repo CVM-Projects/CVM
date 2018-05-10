@@ -74,7 +74,22 @@ namespace CVM
 			MemorySize result;
 			return result /= other;
 		}
+
+		int compare(const MemorySize &other) const {
+			if (this->data == other.data)
+				return 0;
+			else if (this->data > other.data)
+				return 1;
+			else
+				return -1;
+		}
 	};
+
+	inline bool operator>(const MemorySize &lhs, const MemorySize &rhs) { return lhs.compare(rhs) > 0; }
+	inline bool operator>=(const MemorySize &lhs, const MemorySize &rhs) { return lhs.compare(rhs) >= 0; }
+	inline bool operator<(const MemorySize &lhs, const MemorySize &rhs) { return lhs.compare(rhs) < 0; }
+	inline bool operator<=(const MemorySize &lhs, const MemorySize &rhs) { return lhs.compare(rhs) <= 0; }
+	inline bool operator==(const MemorySize &lhs, const MemorySize &rhs) { return lhs.compare(rhs) == 0; }
 
 	using TypeName = PriLib::ExplicitType<std::string>;
 
