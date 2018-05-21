@@ -7,7 +7,6 @@ namespace CVM
 	{
 		class Environment;
 
-		//using Instruction = std::function<void(Environment &)>;
 		class Instruction
 		{
 		public:
