@@ -110,14 +110,14 @@ namespace CVM
 			Config::LineCountType current_line = 0;
 			std::vector<FunctionInfoAccesser::ArgumentTypeType> arglist;
 			std::vector<FunctionInfoAccesser::StvarbTypeType> sttypelist;
-			Config::RegisterIndexType dyvarb_count;
+			Config::RegisterIndexType dyvarb_count = 0;
 			LabelKeyTable labelkeytable;
 			std::list<Config::LineCountType*> rec_line;
 			ParseInfo &parseinfo;
 			TypeIndex restype;
 
 		private:
-			InstStruct::Function *currfunc;
+			InstStruct::Function *currfunc = nullptr;
 
 			void create_funcinfo() {
 				assert(sttypelist.size() <= std::numeric_limits<Config::RegisterIndexType>::max());
