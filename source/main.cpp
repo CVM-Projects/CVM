@@ -16,7 +16,7 @@ int add_int(int x, int y) {
 
 struct Point
 {
-	char x;
+	int x;
 	int y;
 };
 
