@@ -18,7 +18,9 @@ namespace CVM
 		}
 
 		void Call(Runtime::LocalEnvironment &env);
+		void Launch();
 
 		std::shared_ptr<Runtime::GlobalEnvironment> _genv;
+		Runtime::LocalEnvironment *currenv = nullptr;
 	};
 }

@@ -286,7 +286,6 @@ namespace CVM
 				senv->get_result().drp = dst.drp;
 				env.addSubEnvironment(senv);
 				env.GEnv().getVM().Call(*senv);
-				env.removeSubEnvironment(senv);
 			}
 			static void CallPtr(Environment &env, const Runtime::Function &func, const ResultData &dst, const PriLib::lightlist<SrcData> &arglist) {
 				auto fp = static_cast<const Runtime::PointerFunction &>(func).data();

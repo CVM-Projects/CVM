@@ -22,7 +22,7 @@ struct Point
 
 Point add_Point(Point x, Point y)
 {
-	return Point { x.x + y.x, x.y + y.y };
+	return Point{ x.x + y.x, x.y + y.y };
 }
 
 string to_string_data(CVM::Runtime::DataPointer dp, CVM::MemorySize size) {
@@ -38,11 +38,28 @@ using CVM::Runtime::DataPointer;
 namespace CVM
 {
 	void VirtualMachine::Call(Runtime::LocalEnvironment &env) {
-		auto &cflow = env.Controlflow();
-		while (cflow.isInstRunning()) {
+		this->currenv = &env;
+	}
+
+	void VirtualMachine::Launch() {
+		while (this->currenv) {
+			auto &env = *this->currenv;
+			auto &cflow = env.Controlflow();
 			cflow.init();
 			cflow.callCurrInst(env);
 			cflow.incProgramCounter();
+
+			if (!cflow.isInstRunning()) { // if 'ret'
+				if (env.PEnv().isLocal()) {
+					auto *oldenv = this->currenv;
+					this->currenv = &static_cast<Runtime::LocalEnvironment&>(env.PEnv());
+					this->currenv->removeSubEnvironment(oldenv);
+				}
+				else {
+					this->currenv = nullptr;
+					printf("Program Over\n");
+				}
+			}
 		}
 	}
 }
@@ -100,7 +117,7 @@ void _system(CVM::Runtime::PointerFunction::Result &result, CVM::Runtime::Pointe
 
 static const CVM::Runtime::PtrFuncMap& getInsidePtrFuncMap()
 {
-	static const CVM::Runtime::PtrFuncMap pfm {
+	static const CVM::Runtime::PtrFuncMap pfm{
 		{ "print_string", _print_string },
 		{ "print_int64", _print_int64 },
 		{ "print_int64x", _print_int64x },
@@ -194,6 +211,8 @@ int main(int argc, char *argv[])
 	CVM::Runtime::LocalEnvironment *lenv = createVM(cmsfile, VM);
 
 	VM.Call(*lenv);
+
+	VM.Launch();
 
 	pause();
 
