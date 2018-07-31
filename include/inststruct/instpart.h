@@ -249,6 +249,7 @@ namespace CVM
 				result.pop_back();
 				result.pop_back();
 				result += "]";
+				return result;
 			}
 
 		private:

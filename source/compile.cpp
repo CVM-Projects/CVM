@@ -167,9 +167,6 @@ namespace CVM
 				return NopeInst;
 			}
 
-			auto dst_e = Convert(Inst.dst.etype());
-			auto dst_id = Inst.dst.index();
-
 			auto index = Inst.src.index();
 
 			if (Inst.dst.isPrivateDataRegister()) {
