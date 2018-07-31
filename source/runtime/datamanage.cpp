@@ -1,9 +1,35 @@
-#include "basic.h"
+ #include "basic.h"
 #include "runtime/datamanage.h"
 #include "compile.h"
 
 namespace CVM
 {
+	namespace Runtime
+	{
+		namespace DataManage {
+			// Will be Remove
+			enum DstRegisterMode
+			{
+				drm_null,
+				drm_register_dynamic,
+				drm_register_static,
+			};
+			struct DstData {
+				DstRegisterMode mode = drm_null;
+				DataPointer *datap = nullptr;
+				TypeIndex *typep = nullptr;
+			};
+			struct SrcData {
+				DataPointer data;
+				TypeIndex type;
+			};
+			struct ResultData {
+				DataRegisterType rtype = rt_null;
+				DataRegister *drp = nullptr;
+			};
+		}
+	}
+
 	namespace Runtime
 	{
 		namespace DataManage {
@@ -200,98 +226,55 @@ namespace CVM
 				return src.data;
 			}
 
-			void MoveRegister(Environment &env, const DstData &dst, const SrcData &src) {
-				switch (dst.mode) {
-				case drm_null:
-					break;
-				case drm_register_dynamic:
-					*dst.datap = src.data;
-					break;
-				case drm_register_static:
-					CopyTo(*dst.datap, src.data, GetSize(env, src.type));
-					break;
-				default:
-					assert(false);
+			//=====================================
+
+			static SrcData convert(Environment &env, Config::RegisterIndexType rid) {
+				if (env.is_dyvarb(rid)) {
+					return GetSrcData(env.get_dyvarb(rid));
 				}
-				if (dst.typep) {
-					*dst.typep = src.type;
+				else if (env.is_stvarb(rid)) {
+					assert(env.isLocal());
+					return GetSrcData(env.get_stvarb(rid), ((Runtime::LocalEnvironment&)env)._func.info().get_stvarb_type(rid));
+				}
+				else {
+					println("Error");
+					exit(1);
 				}
 			}
 
-			void LoadData(Environment &env, const DstData &dst, ConstDataPointer src, TypeIndex dsttype, MemorySize srcsize) {
-				switch (dst.mode) {
-				case drm_null:
-					break;
-				case drm_register_dynamic:
-					*dst.datap = AllocClear(GetSize(env, dsttype));
-					CopyTo(*dst.datap, src, MemorySize(std::min(GetSize(env, dsttype).data, srcsize.data)));
-					*dst.typep = dsttype;
-					break;
-				case drm_register_static:
-					Clear(*dst.datap, GetSize(env, dsttype));
-					CopyTo(*dst.datap, src, MemorySize(std::min(GetSize(env, dsttype).data, srcsize.data)));
-					break;
-				default:
-					assert(false);
-				}
-			}
-
-			void LoadDataPointer(Environment &env, const DstData &dst, ConstDataPointer src, MemorySize srcsize) {
-				switch (dst.mode) {
-				case drm_null:
-					break;
-				case drm_register_dynamic:
-				{
-					DataPointer buffer = AllocClear(srcsize);
-					void *address = buffer.get();
-					CopyTo(buffer, src, srcsize);
-					*dst.datap = AllocClear(DataPointer::Size);
-					CopyTo(*dst.datap, DataPointer(&address), DataPointer::Size);
-					*dst.typep = TypeIndex(T_Pointer);
-					break;
-				}
-				case drm_register_static:
-				{
-					DataPointer buffer = AllocClear(srcsize);
-					void *address = buffer.get();
-					CopyTo(buffer, src, srcsize);
-					CopyTo(*dst.datap, DataPointer(&address), DataPointer::Size);
-					break;
-				}
-				default:
-					assert(false);
-				}
-			}
-
-			static void CallInst(Environment &env, const Runtime::Function &func, const ResultData &dst, const PriLib::lightlist<SrcData> &arglist) {
+			static void CallInst(Environment &env, const Runtime::Function &func, const ResultData &dst, const PriLib::lightlist<Config::RegisterIndexType> &arglist) {
 				const Runtime::InstFunction &instf = static_cast<const Runtime::InstFunction &>(func);
 				auto senv = Compile::CreateLoaclEnvironment(instf, env.getTypeInfoMap());
 				auto argp = arglist.begin();
 				for (Config::RegisterIndexType i = 0; i != instf.info().get_accesser().argument_count(); ++i) {
 					const auto &arg = instf.info().arglist()[i];
-					DstData dst;
-					if (senv->is_dyvarb(arg, e_current)) {
-						dst = GetDstData(senv->get_dyvarb(arg, e_current));
+					if (senv->is_dyvarb(arg) && env.is_dyvarb(*argp)) {
+						MoveRegisterDdDd(env, senv->get_dyvarb(arg), env.get_dyvarb(*argp));
 					}
-					else if (senv->is_stvarb(arg, e_current)) {
-						dst = GetDstData(senv->get_stvarb(arg, e_current));
+					else if (senv->is_stvarb(arg) && env.is_dyvarb(*argp)) {
+						MoveRegisterDsDd(env, senv->get_stvarb(arg), env.get_dyvarb(*argp));
+					}
+					else if (senv->is_dyvarb(arg) && env.is_stvarb(*argp)) {
+						MoveRegisterDdDs(env, senv->get_dyvarb(arg), env.get_stvarb(*argp), ((Runtime::LocalEnvironment&)env)._func.info().get_stvarb_type(*argp));
+					}
+					else if (senv->is_stvarb(arg) && env.is_stvarb(*argp)) {
+						MoveRegisterDsDs(env, senv->get_stvarb(arg), env.get_stvarb(*argp), ((Runtime::LocalEnvironment&)env)._func.info().get_stvarb_type(*argp));
 					}
 					else {
 						assert(false);
 					}
-					MoveRegister(env, dst, *argp);
 					++argp;
 				}
 				senv->get_result().rtype = dst.rtype;
 				senv->get_result().drp = dst.drp;
-				env.addSubEnvironment(senv);
-				env.GEnv().getVM().Call(*senv);
+				env.GEnv().getVM().Call(senv);
 			}
-			static void CallPtr(Environment &env, const Runtime::Function &func, const ResultData &dst, const PriLib::lightlist<SrcData> &arglist) {
+
+			static void CallPtr(Environment &env, const Runtime::Function &func, const ResultData &dst, const PriLib::lightlist<Config::RegisterIndexType> &arglist) {
 				auto fp = static_cast<const Runtime::PointerFunction &>(func).data();
 				PointerFunction::ArgumentList::creater aplist_creater(arglist.size());
 				for (auto &arg : arglist) {
-					aplist_creater.push_back(GetDataPointer(arg));
+					aplist_creater.push_back(GetDataPointer(convert(env, arg)));
 				}
 				PointerFunction::ArgumentList aplist = aplist_creater.data();
 
@@ -299,7 +282,7 @@ namespace CVM
 				fp(xdst, aplist);
 			}
 
-			void Call(Environment &env, const Runtime::Function &func, const ResultData &dst, const PriLib::lightlist<SrcData> &arglist) {
+			void Call(Environment &env, const Runtime::Function &func, const ResultData &dst, const PriLib::lightlist<Config::RegisterIndexType> &arglist) {
 				switch (func.type()) {
 				case ft_null:
 					break;
@@ -312,7 +295,6 @@ namespace CVM
 				}
 			}
 
-
 			// TODO : ResultData dst -> function operation
 			void CallBase(Environment &env, const ResultData &dst, Config::FuncIndexType fid, const PriLib::lightlist<Config::RegisterIndexType> &arglist) {
 				auto &table = env.GEnv().getFuncTable();
@@ -320,20 +302,7 @@ namespace CVM
 
 				if (iter != table.end()) {
 					const Runtime::Function &func = *iter->second;
-					PriLib::lightlist<SrcData>::creater arglist_creator(arglist.size());
-
-					for (auto rid : arglist) {
-						if (env.is_dyvarb(rid)) {
-							arglist_creator.push_back(GetSrcData(env.get_dyvarb(rid)));
-						}
-						else if (env.is_stvarb(rid)) {
-							assert(env.isLocal());
-							arglist_creator.push_back(GetSrcData(env.get_stvarb(rid),
-								((Runtime::LocalEnvironment&)env)._func.info().get_stvarb_type(rid)));
-						}
-					}
-					// TODO
-					Call(env, func, dst, arglist_creator.data());
+					Call(env, func, dst, arglist);
 				}
 				else {
 					println("Unfind function (id = ", fid, ").");

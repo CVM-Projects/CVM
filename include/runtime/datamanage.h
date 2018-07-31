@@ -14,27 +14,6 @@ namespace CVM
 			DataPointer Alloc(MemorySize size);
 			DataPointer AllocClear(MemorySize size);
 
-			// Will be Remove
-			enum DstRegisterMode
-			{
-				drm_null,
-				drm_register_dynamic,
-				drm_register_static,
-			};
-			struct DstData {
-				DstRegisterMode mode = drm_null;
-				DataPointer *datap = nullptr;
-				TypeIndex *typep = nullptr;
-			};
-			struct SrcData {
-				DataPointer data;
-				TypeIndex type;
-			};
-			struct ResultData {
-				DataRegisterType rtype = rt_null;
-				DataRegister *drp = nullptr;
-			};
-
 			// Move
 			void MoveRegisterDdDd(Environment &env, DataRegisterDynamic &dst, const DataRegisterDynamic &src);
 			void MoveRegisterDsDd(Environment &env, DataRegisterStatic &dst, const DataRegisterDynamic &src);
@@ -60,20 +39,7 @@ namespace CVM
 			void CallRes(Environment &env, Config::FuncIndexType fid, const PriLib::lightlist<Config::RegisterIndexType> &arglist);
 			void CallZero(Environment &env, Config::FuncIndexType fid, const PriLib::lightlist<Config::RegisterIndexType> &arglist);
 
-			// TODO
-			//void Call(Environment &env, const Runtime::Function &func, const ResultData &dst, const PriLib::lightlist<SrcData> &arglist);
-
-			// Will be Remove
-			/*DstData GetDstData(DataRegisterDynamic &dst);
-			DstData GetDstData(DataRegisterStatic &dst);
-			DstData GetDstDataZero();
-			DstData GetDstDataResult(Environment &env);
-
-			SrcData GetSrcData(const DataRegisterDynamic &src);
-			SrcData GetSrcData(const DataRegisterStatic &src, TypeIndex type);*/
-
 			// Debug
-
 			void Debug_PrintRegister(Environment &env, const DataRegisterDynamic &src);
 			void Debug_PrintRegister(Environment &env, const DataRegisterStatic &src, TypeIndex type);
 		}

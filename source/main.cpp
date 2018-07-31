@@ -37,13 +37,15 @@ using CVM::Runtime::DataPointer;
 
 namespace CVM
 {
-	void VirtualMachine::Call(Runtime::LocalEnvironment &env) {
-		this->currenv = &env;
+	void VirtualMachine::Call(Runtime::LocalEnvironment *env) {
+		if (this->_currenv)
+			this->_currenv->addSubEnvironment(env);
+		this->_currenv = env;
 	}
 
 	void VirtualMachine::Launch() {
-		while (this->currenv) {
-			auto &env = *this->currenv;
+		while (this->_currenv) {
+			auto &env = *this->_currenv;
 			auto &cflow = env.Controlflow();
 			cflow.init();
 			cflow.callCurrInst(env);
@@ -51,12 +53,12 @@ namespace CVM
 
 			if (!cflow.isInstRunning()) { // if 'ret'
 				if (env.PEnv().isLocal()) {
-					auto *oldenv = this->currenv;
-					this->currenv = &static_cast<Runtime::LocalEnvironment&>(env.PEnv());
-					this->currenv->removeSubEnvironment(oldenv);
+					auto *oldenv = this->_currenv;
+					this->_currenv = &static_cast<Runtime::LocalEnvironment&>(env.PEnv());
+					this->_currenv->removeSubEnvironment(oldenv);
 				}
 				else {
-					this->currenv = nullptr;
+					this->_currenv = nullptr;
 					printf("Program Over\n");
 				}
 			}
@@ -210,7 +212,7 @@ int main(int argc, char *argv[])
 
 	CVM::Runtime::LocalEnvironment *lenv = createVM(cmsfile, VM);
 
-	VM.Call(*lenv);
+	VM.Call(lenv);
 
 	VM.Launch();
 
