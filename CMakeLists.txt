@@ -3,8 +3,6 @@ project(CVM)
 
 include(cotire.cmake)
 
-set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS}")
-
 add_subdirectory(prilib prilib)
 add_subdirectory(lcmm lcmm)
 
