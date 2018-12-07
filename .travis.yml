@@ -2,7 +2,7 @@ language: cpp
 
 before_install:
   - sudo add-apt-repository ppa:ubuntu-toolchain-r/test -y
-  - sudo apt update -qq
+  - sudo apt update -qq --force-yes --allow-insecure-repositories --allow-unauthenticated
   - sudo apt install -y g++-8
   - sudo apt install -y libgmp-dev
   - MATRIX_EVAL="CC=gcc-8 && CXX=g++-8"
