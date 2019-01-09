@@ -7,6 +7,7 @@
 #include "inststruct/instpart.h"
 #include "inststruct/identkeytable.h"
 #include "datapool.h"
+#include "inststruct/info.h"
 
 namespace CVM
 {
@@ -15,7 +16,8 @@ namespace CVM
 	PriLib::StorePtr<ParseInfo> createParseInfo(TypeInfoMap &tim);
 	void parseFile(ParseInfo &parseinfo, PriLib::TextFile &file);
 
-	std::string getEntry(ParseInfo &parseinfo);
+	HashID getEntry(ParseInfo &parseinfo);
+	const std::string& getFromHashStringPool(ParseInfo &parseinfo, HashID id);
 	LiteralDataPoolCreater& getDataSectionMap(ParseInfo &parseinfo);
 	InstStruct::IdentKeyTable& getFunctionTable(ParseInfo &parseinfo);
 	bool haveError(const ParseInfo &parseinfo);

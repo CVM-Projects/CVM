@@ -80,8 +80,8 @@ namespace CVM
 		class DataRegisterSet
 		{
 		public:
-			using DyDatRegSize = PriLib::ExplicitType<Config::RegisterIndexType>;
-			using StDatRegSize = PriLib::ExplicitType<Config::RegisterIndexType>;
+			DefineExplicitType(DyDatRegSize, Config::RegisterIndexType);
+			DefineExplicitType(StDatRegSize, Config::RegisterIndexType);
 
 		public:
 			explicit DataRegisterSet(DyDatRegSize dy_size)

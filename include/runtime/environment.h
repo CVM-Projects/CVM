@@ -152,9 +152,10 @@ namespace CVM
 				const DataRegisterSet &drs,
 				const TypeInfoMap *tim,
 				const DataSectionMap *datasmap,
-				const FuncTable *functable
+				const FuncTable *functable,
+				HashStringPool *_hashStringPool
 			)
-				: Environment(drs), _tim(tim), _datasmap(datasmap), _functable(functable) {}
+				: Environment(drs), _tim(tim), _datasmap(datasmap), _functable(functable), _hashStringPool(_hashStringPool) {}
 
 			GlobalEnvironment(const GlobalEnvironment &) = delete;
 
@@ -184,6 +185,9 @@ namespace CVM
 			const TypeInfoMap& getTypeInfoMap() const {
 				return *_tim;
 			}
+			const std::string& getHashIDContext(const HashID &hashID) {
+				return _hashStringPool->get(hashID);
+			}
 
 		private:
 			// TODO : Change const * to std::shared_ptr
@@ -192,6 +196,7 @@ namespace CVM
 			const FuncTable *_functable;
 			VirtualMachine *_vmp;
 			LCMM::MemoryManager _memory_manager;
+			HashStringPool *_hashStringPool;  // TODO: Make it not a pointer.
 		};
 
 		inline const TypeInfoMap& Environment::getTypeInfoMap() const {

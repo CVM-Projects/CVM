@@ -1,6 +1,7 @@
 #pragma once
 #include "function.h"
 #include "../../prilib/include/bijectionmap.h"
+#include "inststruct/hashstringpool.h"
 
 namespace CVM
 {
@@ -18,6 +19,6 @@ namespace CVM
 				}
 			}
 		};
-		using PtrFuncMap = std::map<std::string, Runtime::PointerFunction::Func*>;
+		using PtrFuncMap = std::map<HashID, Runtime::PointerFunction::Func*>;
 	}
 }

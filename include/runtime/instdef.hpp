@@ -387,7 +387,7 @@ namespace CVM
 					PriLib::Output::println("=======================");
 					PriLib::Output::println("dyvarb:");
 					for (Config::RegisterIndexType i = 1; i <= regset.dysize(); i++) {
-						PriLib::Output::print("  %", ++regcount, ": type(", env.getType(regset.get_dynamic(i).type).name.data, "), ");
+						PriLib::Output::print("  %", ++regcount, ": type(", env.GEnv().getHashIDContext(env.getType(regset.get_dynamic(i).type).name.data), "), ");
 						Runtime::DataManage::Debug_PrintRegister(env, regset.get_dynamic(i));
 					}
 					if (regset.stsize() != 0) {
@@ -398,7 +398,7 @@ namespace CVM
 						printf(" [address : 0x%p]\n", address.get());
 						for (Config::RegisterIndexType i = 0; i < typelist_count; ++i) {
 							MemorySize size = env.getType(typelist[i]).size;
-							PriLib::Output::print("  %", ++regcount, ": type(", env.getType(typelist[i]).name.data, "), ");
+							PriLib::Output::print("  %", ++regcount, ": type(", env.GEnv().getHashIDContext(env.getType(typelist[i]).name.data), "), ");
 							const auto &str = Runtime::DataManage::ToStringData(address, size);
 							PriLib::Output::println(str);
 							address = address.offset(size);
