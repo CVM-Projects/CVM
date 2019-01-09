@@ -1,6 +1,7 @@
 #pragma once
 #include "basic.h"
 #include "function.h"
+#include "hashstringpool.h"
 
 namespace CVM
 {
@@ -10,28 +11,28 @@ namespace CVM
 		{
 			using FuncPtr = std::shared_ptr<InstStruct::Function>;
 
-			bool hasKey(const std::string &key) {
-				return keytable.find(key) != keytable.end();
+			bool hasKey(const HashID &keyid) {
+				return keytable.find(keyid) != keytable.end();
 			}
-			bool insert(const std::string &key) {
-				if (!hasKey(key)) {
-					_insert(key);
+			bool insert(const HashID &keyid) {
+				if (!hasKey(keyid)) {
+					_insert(keyid);
 					return true;
 				}
 				return false;
 			}
-			Config::FuncIndexType getID(const std::string &key) {
-				auto iter = keytable.find(key);
+			Config::FuncIndexType getID(const HashID &keyid) {
+				auto iter = keytable.find(keyid);
 				if (iter == keytable.end()) {
-					return _insert(key);
+					return _insert(keyid);
 				}
 				return iter->second;
 			}
 			auto& getData(Config::FuncIndexType id) {
 				return functable.at(id);
 			}
-			auto& getData(const std::string &key) {
-				return getData(getID(key));
+			auto& getData(const HashID &keyid) {
+				return getData(getID(keyid));
 			}
 			/*auto begin() const {
 				return functable.begin();
@@ -48,13 +49,13 @@ namespace CVM
 			}
 
 		private:
-			std::map<std::string, Config::FuncIndexType> keytable;
+			std::map<HashID, Config::FuncIndexType> keytable;
 			std::vector<FuncPtr> functable;
 
-			Config::FuncIndexType _insert(const std::string &key) {
+			Config::FuncIndexType _insert(const HashID &keyid) {
 				assert(keytable.size() < std::numeric_limits<Config::FuncIndexType>::max());
 				Config::FuncIndexType id = static_cast<Config::FuncIndexType>(keytable.size());
-				keytable.insert({ key, id });
+				keytable.insert({ keyid, id });
 				while (functable.size() <= id)
 					functable.push_back(nullptr);
 				return id;

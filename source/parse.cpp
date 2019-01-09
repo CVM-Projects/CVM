@@ -5,11 +5,12 @@
 #include "inststruct/instpart.h"
 #include "inststruct/identkeytable.h"
 #include "bignumber.h"
+#include "inststruct/info.h"
 #include <regex>
 
 namespace CVM
 {
-	using ParsedIdentifier = PriLib::ExplicitType<std::string>;
+	using ParsedIdentifier = HashID;
 
 	enum ParseErrorCode
 	{
@@ -159,11 +160,19 @@ namespace CVM
 
 		} currfunc_creater;
 
+		ParsedIdentifier addParsedIdentifier(const std::string &value) {
+			return info.hashStringPool.insert(value);
+		}
+
+		const std::string& getFromHashStringPool(HashID id) {
+			return info.hashStringPool.get(id);
+		}
+
+		InstStruct::GlobalInfo info;
 		InstStruct::IdentKeyTable functable;
 		TypeInfoMap &tim;
 		LiteralDataPoolCreater datamap;
 		size_t lcount = 0;
-		ParsedIdentifier entry;
 		ParsedIdentifier currtype;
 		int currsection = 0;
 		mutable bool haveerror = false;
@@ -227,12 +236,16 @@ namespace CVM
 		}
 	};
 
+	const std::string& getFromHashStringPool(ParseInfo &parseinfo, HashID id) {
+		return parseinfo.getFromHashStringPool(id);
+	}
+
 	PriLib::StorePtr<ParseInfo> createParseInfo(TypeInfoMap &tim) {
 		return PriLib::StorePtr<ParseInfo>(new ParseInfo(tim));
 	}
 
-	std::string getEntry(ParseInfo &parseinfo) {
-		return parseinfo.entry.data;
+	ParsedIdentifier getEntry(ParseInfo &parseinfo) {
+		return parseinfo.info.entry;
 	}
 	LiteralDataPoolCreater& getDataSectionMap(ParseInfo &parseinfo) {
 		return parseinfo.datamap;
@@ -424,17 +437,17 @@ namespace CVM
 				if (word.size() == 1 || word[1] != word[0]) {
 					parseinfo.putErrorLine(PEC_UREscape, word);
 				}
-				return ParsedIdentifier(word.substr(1));
+				return parseinfo.addParsedIdentifier(word.substr(1));
 			}
 		}
-		return ParsedIdentifier(word);
+		return parseinfo.addParsedIdentifier(word);
 	}
 
 	ParsedIdentifier parseLabelKey(ParseInfo &parseinfo, const std::string &word) {
 		if (word.size() <= 1 || word[0] != '#' || (word.size() >= 2 && (word[1] == '#' || std::isdigit(word[1])))) {
 			parseinfo.putErrorLine(PEC_URLabel, word);
 		}
-		return ParsedIdentifier(word.substr(1));
+		return parseinfo.addParsedIdentifier(word.substr(1));
 	}
 
 	static std::pair<size_t, size_t> get_substring(const std::string &line, size_t offset = 0)
@@ -642,7 +655,7 @@ namespace CVM
 
 	TypeIndex parseType(ParseInfo &parseinfo, const std::string &word) {
 		TypeIndex index;
-		if (parseinfo.tim.find(parseIdentifier(parseinfo, word).data, index)) {
+		if (parseinfo.tim.find(parseIdentifier(parseinfo, word), index)) {
 			return index;
 		}
 		else {
@@ -684,8 +697,8 @@ namespace CVM
 			if (list.size() != 1) {
 				parseinfo.putErrorLine();
 			}
-			const auto &name = parseIdentifier(parseinfo, list.at(0));
-			auto &data = parseinfo.functable.getData(name.data);
+			const auto &namekey = parseIdentifier(parseinfo, list.at(0));
+			auto &data = parseinfo.functable.getData(namekey);
 			if (data == nullptr) {
 				data.reset(new InstStruct::Function());
 				parseinfo.currfunc_creater.set(data.get());
@@ -700,14 +713,14 @@ namespace CVM
 			if (list.size() != 1) {
 				parseinfo.putErrorLine();
 			}
-			const auto &name = parseIdentifier(parseinfo, list.at(0));
+			const auto &nameid = parseIdentifier(parseinfo, list.at(0));
 			TypeIndex tid;
-			if (parseinfo.tim.find(name.data, tid)) {
+			if (parseinfo.tim.find(nameid, tid)) {
 				parseinfo.putErrorLine(PEC_DUType);
 			}
 			else {
-				parseinfo.currtype = name;
-				parseinfo.tim.insert(name.data, TypeInfo());
+				parseinfo.currtype = nameid;
+				parseinfo.tim.insert(nameid, TypeInfo());
 			}
 			break;
 		}
@@ -801,7 +814,18 @@ namespace CVM
 						"entry",
 						[](ParseInfo &parseinfo, const std::vector<std::string> &list) {
 							if (list.size() == 1) {
-								parseinfo.entry = parseIdentifier(parseinfo, list[0]);
+								parseinfo.info.entry = parseIdentifier(parseinfo, list[0]);
+							}
+							else {
+								parseinfo.putErrorLine();
+							}
+						}
+					},
+					{
+						"mode",
+						[](ParseInfo &parseinfo, const std::vector<std::string> &list) {
+							if (list.size() == 1) {
+								// TODO
 							}
 							else {
 								parseinfo.putErrorLine();
@@ -816,8 +840,8 @@ namespace CVM
 					{
 						"size",
 						[](ParseInfo &parseinfo, const std::vector<std::string> &list) {
-							const auto &name = parseinfo.currtype;
-							auto &typeinfo = parseinfo.tim.at(name.data);
+							const auto &nameid = parseinfo.currtype;
+							auto &typeinfo = parseinfo.tim.at(nameid);
 							if (list.size() == 1) {
 								parseNumber(parseinfo, typeinfo.size.data, list[0]);
 							}
@@ -955,7 +979,7 @@ namespace CVM
 				iiter->second(parseinfo, list);
 			}
 			else {
-				parseinfo.putErrorLine(PEC_URCmd);
+				parseinfo.putErrorLine(PEC_URCmd, code);
 			}
 		}
 		else {
@@ -996,7 +1020,7 @@ namespace CVM
 				parseinfo.putErrorLine(PEC_URCmd, line);
 			}
 			ParsedIdentifier labelkey = parseLabelKey(parseinfo, line);
-			size_t id = parseinfo.currfunc_creater.labelkeytable[labelkey.data];
+			size_t id = parseinfo.currfunc_creater.labelkeytable[parseinfo.info.hashStringPool.get(labelkey)];
 			Config::LineCountType line = parseinfo.currfunc_creater.current_line;
 			parseinfo.currfunc_creater.labelkeytable.setLine(id, line);
 		}
@@ -1115,8 +1139,8 @@ namespace CVM
 				[](ParseInfo &parseinfo, const std::vector<std::string> &list) -> InstStruct::Instruction* {
 					if (list.size() >= 2) {
 						auto res = parseRegister(parseinfo, list[0]);
-						const auto &name = parseIdentifier(parseinfo, list[1]).data;
-						auto id = parseinfo.functable.getID(name);
+						const auto &namekey = parseIdentifier(parseinfo, list[1]);
+						auto id = parseinfo.functable.getID(namekey);
 						Identifier func(id);
 						ArgumentList::Creater arglist_creater(list.size() - 2);
 						for (auto e : PriLib::rangei(list.begin() + 2, list.end())) {
@@ -1133,7 +1157,7 @@ namespace CVM
 			{
 				"ret",
 				[](ParseInfo &parseinfo, const std::vector<std::string> &list) {
-						return new Insts::Return();
+					return new Insts::Return();
 				}
 			},
 			{
@@ -1141,14 +1165,14 @@ namespace CVM
 				[](ParseInfo &parseinfo, const std::vector<std::string> &list) -> InstStruct::Instruction* {
 					if (list.size() == 1) {
 						ParsedIdentifier label = parseLabelKey(parseinfo, list[0]);
-						size_t id = parseinfo.currfunc_creater.labelkeytable[label.data];
+						size_t id = parseinfo.currfunc_creater.labelkeytable[parseinfo.info.hashStringPool.get(label)];
 						assert(id < std::numeric_limits<Config::LineCountType>::max());
 						auto *inst = new Insts::Jump(static_cast<Config::LineCountType>(id));
 						parseinfo.currfunc_creater.rec_line.push_back(&inst->line);
 						return inst;
 					}
 					else {
-						parseinfo.putErrorLine(PEC_IllegalFormat, "ret");
+						parseinfo.putErrorLine(PEC_IllegalFormat, "jump");
 						return nullptr;
 					}
 				}

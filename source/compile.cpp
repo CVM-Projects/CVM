@@ -299,17 +299,17 @@ namespace CVM
 
 		// Get entry func
 
-		auto entry = getEntry(parseinfo);
+		auto entry = getFromHashStringPool(parseinfo, getEntry(parseinfo));
 		if (entry.empty()) {
 			println("Undeclared entry function.");
 			return false;
 		}
-		if (!ikt.hasKey(entry)) {
+		if (!ikt.hasKey(getEntry(parseinfo))) {
 			println("Not find '" + entry + "' function.");
 			return false;
 		}
 
-		this->entry_index = ikt.getID(entry);
+		this->entry_index = ikt.getID(getEntry(parseinfo));
 
 		// Compile All Functions
 
@@ -359,12 +359,12 @@ namespace CVM
 			return new Runtime::LocalEnvironment(drs, func);
 		}
 
-		Runtime::GlobalEnvironment* CreateGlobalEnvironment(Config::RegisterIndexType dysize, const TypeInfoMap *tim, const LiteralDataPool *datasmap, const Runtime::FuncTable *functable) {
+		Runtime::GlobalEnvironment* CreateGlobalEnvironment(Config::RegisterIndexType dysize, const TypeInfoMap *tim, const LiteralDataPool *datasmap, const Runtime::FuncTable *functable, HashStringPool *hashStringPool) {
 			Runtime::DataRegisterSet::DyDatRegSize _dysize(dysize);
 			Runtime::DataRegisterSet drs(_dysize);
 
 			// Return Environment
-			return new Runtime::GlobalEnvironment(drs, tim, datasmap, functable);
+			return new Runtime::GlobalEnvironment(drs, tim, datasmap, functable, hashStringPool);
 		}
 	}
 }

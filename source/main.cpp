@@ -1,11 +1,8 @@
 #include "basic.h"
 #include "virtualmachine.h"
 #include "typeinfo.h"
-#include "typeinfo.h"
 #include "compile.h"
 #include "parse.h"
-#include "inststruct/instpart.h"
-#include "inststruct/instdef.h"
 #include "runtime/environment.h"
 #include "runtime/datapointer.h"
 #include "runtime/datamanage.h"
@@ -78,7 +75,7 @@ void print_int64(int64_t v)
 
 void print_int64x(int64_t v)
 {
-	printf("%p\n", v);
+	println(v);
 }
 
 #include "runtime/function.h"
@@ -117,14 +114,14 @@ void _system(CVM::Runtime::PointerFunction::Result &result, CVM::Runtime::Pointe
 
 #include "runtime/function.h"
 
-static const CVM::Runtime::PtrFuncMap& getInsidePtrFuncMap()
+static const CVM::Runtime::PtrFuncMap& getInsidePtrFuncMap(CVM::HashStringPool &hashStringPool)
 {
-	static const CVM::Runtime::PtrFuncMap pfm{
-		{ "print_string", _print_string },
-		{ "print_int64", _print_int64 },
-		{ "print_int64x", _print_int64x },
-		{ "cms#int64#+", _int64_add },
-		{ "system", _system }
+	static const CVM::Runtime::PtrFuncMap pfm {
+		{ hashStringPool.insert("print_string"), _print_string },
+		{ hashStringPool.insert("print_int64"), _print_int64 },
+		{ hashStringPool.insert("print_int64x"), _print_int64x },
+		{ hashStringPool.insert("cms#int64#+"), _int64_add },
+		{ hashStringPool.insert("system"), _system }
 	};
 
 	return pfm;
@@ -137,11 +134,16 @@ void pause() {
 #endif
 }
 
+#include "inststruct/hashstringpool.h"
+
 CVM::Runtime::LocalEnvironment * createVM(PriLib::TextFile &cmsfile, CVM::VirtualMachine &VM)
 {
+	// Init HashStringPool
+	CVM::HashStringPool *hashstringpool = new CVM::HashStringPool();  // TODO: Use smart pointer.
+
 	// Init TypeInfoMap
 
-	CVM::TypeInfoMap *tim = new CVM::TypeInfoMap();
+	CVM::TypeInfoMap *tim = new CVM::TypeInfoMap(*hashstringpool);
 
 	// Parse File
 
@@ -171,13 +173,13 @@ CVM::Runtime::LocalEnvironment * createVM(PriLib::TextFile &cmsfile, CVM::Virtua
 		functable = new Runtime::FuncTable();
 
 		// Compile
-		if (!compiler.compile(parseinfo, getInsidePtrFuncMap(), *functable)) {
+		if (!compiler.compile(parseinfo, getInsidePtrFuncMap(*hashstringpool), *functable)) {
 			println("Compiled Error.");
 			exit(-1);
 		}
 	}
 
-	VM.addGlobalEnvironment(Compile::CreateGlobalEnvironment(0xff, tim, ldp, functable));
+	VM.addGlobalEnvironment(Compile::CreateGlobalEnvironment(0xff, tim, ldp, functable, hashstringpool));
 
 	Config::FuncIndexType entry_id = compiler.getEntryID();
 	Runtime::InstFunction &entry_func = static_cast<Runtime::InstFunction&>(*functable->at(entry_id));
@@ -188,6 +190,8 @@ CVM::Runtime::LocalEnvironment * createVM(PriLib::TextFile &cmsfile, CVM::Virtua
 
 	return lenv;
 }
+
+#include "inststruct/info.h"
 
 int main(int argc, char *argv[])
 {

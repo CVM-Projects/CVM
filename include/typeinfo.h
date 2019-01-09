@@ -4,17 +4,18 @@
 #include <map>
 #include "config.h"
 #include "typebase.h"
+#include "inststruct/hashstringpool.h"
 
 namespace CVM
 {
-	using TypeIndex = PriLib::ExplicitType<Config::TypeIndexType, 0>;
+	DefineExplicitTypeWithValue(TypeIndex, Config::TypeIndexType, 0);
 	struct TypeIndexLess {
 		bool operator()(const TypeIndex &t1, const TypeIndex &t2) const {
 			return t1.data < t2.data;
 		}
 	};
 
-	using MemoryCount = PriLib::ExplicitType<Config::MemoryCountType, 0>;
+	DefineExplicitTypeWithValue(MemoryCount, Config::MemoryCountType, 0);
 
 	class MemorySize : public PriLib::ExplicitType<Config::MemorySizeType, 0>
 	{
@@ -91,23 +92,23 @@ namespace CVM
 	inline bool operator<=(const MemorySize &lhs, const MemorySize &rhs) { return lhs.compare(rhs) <= 0; }
 	inline bool operator==(const MemorySize &lhs, const MemorySize &rhs) { return lhs.compare(rhs) == 0; }
 
-	using TypeName = PriLib::ExplicitType<std::string>;
+	DefineExplicitType(TypeNameID, HashID);
 
 	struct TypeInfo
 	{
 		TypeIndex index;
 		MemorySize size;
-		TypeName name;
+		TypeNameID name;
 	};
 
 	class TypeInfoMap
 	{
 	public:
-		explicit TypeInfoMap();
+		explicit TypeInfoMap(HashStringPool &hashStringPool);
 
-		bool insert(const std::string &name, const TypeInfo &info);
-		bool find(const std::string &name, TypeIndex &id) const {
-			auto iter = _keymap.find(name);
+		bool insert(const HashID &nameid, const TypeInfo &info);
+		bool find(const HashID &nameid, TypeIndex &id) const {
+			auto iter = _keymap.find(nameid);
 			if (iter != _keymap.end()) {
 				id.data = iter->second;
 				return true;
@@ -117,18 +118,18 @@ namespace CVM
 		const TypeInfo& at(TypeIndex id) const {
 			return _data.at(id.data);
 		}
-		const TypeInfo& at(const std::string &name) const {
+		const TypeInfo& at(const HashID &nameid) const {
 			TypeIndex id;
-			bool result = find(name, id);
+			bool result = find(nameid, id);
 			assert(result);
 			return _data.at(id.data);
 		}
-		TypeInfo& at(const std::string &name) {
-			return const_cast<TypeInfo&>(const_cast<const TypeInfoMap*>(this)->at(name));
+		TypeInfo& at(const HashID &nameid) {
+			return const_cast<TypeInfo&>(const_cast<const TypeInfoMap*>(this)->at(nameid));
 		}
 
 	private:
-		std::map<std::string, Config::TypeIndexType> _keymap;
+		std::map<HashID, Config::TypeIndexType> _keymap;
 		std::vector<TypeInfo> _data;
 	};
 }
