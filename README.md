@@ -3,6 +3,10 @@ The first Virual Machine for CMS language
 
 [![Build Status](https://api.travis-ci.org/CVM-Projects/CVM.svg?branch=master)](https://travis-ci.org/CVM-Projects/CVM)
 
+## Requirement
+
+C++ Compiler supports C++ 17.
+
 ## Build
 
 ```

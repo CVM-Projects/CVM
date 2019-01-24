@@ -6,7 +6,7 @@
 
 namespace CVM
 {
-	DefineExplicitType(HashID, size_t);
+	DefineExplicitTypeWithValue(HashID, size_t, 0);
 
 	inline bool operator<(const HashID &lhs, const HashID &rhs) {
 		return lhs.data < rhs.data;

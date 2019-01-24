@@ -21,4 +21,8 @@ namespace CVM
 	LiteralDataPoolCreater& getDataSectionMap(ParseInfo &parseinfo);
 	InstStruct::IdentKeyTable& getFunctionTable(ParseInfo &parseinfo);
 	bool haveError(const ParseInfo &parseinfo);
+	InstStruct::GlobalInfo& getGlobalInfo(ParseInfo &parseinfo);
+	bool isEndChar(ParseInfo &parseinfo, char c);
+	bool isIdentifierChar(ParseInfo &parseinfo, char c);
+	bool hasIdentifierPrefix(ParseInfo &parseinfo, const char *str);
 }
