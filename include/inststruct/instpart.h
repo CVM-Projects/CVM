@@ -5,6 +5,7 @@
 #include <bitset>
 #include "../prilib/include/prints.h"
 #include "config.h"
+#include "typeinfo.h"
 
 namespace CVM
 {

@@ -258,6 +258,28 @@ namespace CVM
 		return !parseinfo.check();
 	}
 
+	InstStruct::GlobalInfo& getGlobalInfo(ParseInfo &parseinfo) {
+	    return parseinfo.info;
+	}
+
+	bool isEndChar(ParseInfo &parseinfo, char c) {
+	    return c == '\0' || std::isspace(c) || c == ',';
+	}
+
+	bool isIdentifierChar(ParseInfo &parseinfo, char c) {
+        static std::string identcharset("!#$%&*+-./:<=>?@^_~");
+        return isalnum(c) || (identcharset.find(c) != identcharset.npos);
+	}
+
+	bool hasIdentifierPrefix(ParseInfo &parseinfo, const char *str) {
+	    char c = *str;
+	    if (c == '\0')
+	        return false;
+	    if (c == '%' || c == '#')
+	        return str[1] == c;
+	    return isIdentifierChar(parseinfo, c);
+	}
+
 	template <typename T>
 	T parseNumber(ParseInfo &parseinfo, const std::string &word) {
 		if (!std::numeric_limits<T>::is_signed) {
@@ -444,7 +466,7 @@ namespace CVM
 	}
 
 	ParsedIdentifier parseLabelKey(ParseInfo &parseinfo, const std::string &word) {
-		if (word.size() <= 1 || word[0] != '#' || (word.size() >= 2 && (word[1] == '#' || std::isdigit(word[1])))) {
+		if (word.size() <= 1 || word[0] != '#' || word[1] == '#' || std::isdigit(word[1])) {
 			parseinfo.putErrorLine(PEC_URLabel, word);
 		}
 		return parseinfo.addParsedIdentifier(word.substr(1));
@@ -825,7 +847,15 @@ namespace CVM
 						"mode",
 						[](ParseInfo &parseinfo, const std::vector<std::string> &list) {
 							if (list.size() == 1) {
-								// TODO
+								if (list[0] == "multiply") {
+								    parseinfo.info.dataRegisterMode = InstStruct::drm_multiply;
+								}
+								else if (list[0] == "dynamic") {
+								    parseinfo.info.dataRegisterMode = InstStruct::drm_dynamic;
+								}
+								else if (list[0] == "static") {
+								    parseinfo.info.dataRegisterMode = InstStruct::drm_static;
+								}
 							}
 							else {
 								parseinfo.putErrorLine();
