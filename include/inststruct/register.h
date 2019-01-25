@@ -13,9 +13,9 @@ namespace CVM
     namespace InstStructX
     {
         using namespace InstStruct;
-        //------------------------------------------------------------------------------------
+        //---------------------------------------------------------------------------------------------
         // * Types
-        //------------------------------------------------------------------------------------
+        //---------------------------------------------------------------------------------------------
         enum RegisterType : uint8_t {
             rt_unknown = 0,
 
@@ -66,9 +66,9 @@ namespace CVM
         DefineExplicitTypeWithValue(StackOffset, Config::StackOffsetType, 0);
         DefineExplicitTypeWithValue(StackSize, Config::StackSizeType, 0);
 
-        //------------------------------------------------------------------------------------
+        //---------------------------------------------------------------------------------------------
         // * Register Info
-        //------------------------------------------------------------------------------------
+        //---------------------------------------------------------------------------------------------
         struct RegisterInfo {
             RegisterInfo() = default;
             RegisterInfo(RegisterType registerType, RegisterScopeType scopeType)
@@ -78,10 +78,10 @@ namespace CVM
             RegisterScopeType scopeType = rst_unknown;
         };
 
-        //------------------------------------------------------------------------------------
+        //---------------------------------------------------------------------------------------------
         // * Zero Register
         //    %0
-        //------------------------------------------------------------------------------------
+        //---------------------------------------------------------------------------------------------
         struct ZeroRegister;
         struct ZeroRegisterBase {
             using ImplType = ZeroRegister;
@@ -95,10 +95,10 @@ namespace CVM
             std::string ToString(GlobalInfo &ginfo) const;
         };
 
-        //------------------------------------------------------------------------------------
+        //---------------------------------------------------------------------------------------------
         // * Result Register
         //    %res
-        //------------------------------------------------------------------------------------
+        //---------------------------------------------------------------------------------------------
         struct ResultRegister;
         struct ResultRegisterBase {
             using ImplType = ResultRegister;
@@ -112,13 +112,13 @@ namespace CVM
             std::string ToString(GlobalInfo &ginfo) const;
         };
 
-        //------------------------------------------------------------------------------------
+        //---------------------------------------------------------------------------------------------
         // * Data Register
         //    prefix      : {t, g, none}. t means thread, g means global.
         //                  It can be omitted for Local Data Register.
         //    suffix      : {d, s, none}. d means dynamic, s means static.
         //                  It can be omitted if Global Config Mode is not multiply.
-        //------------------------------------------------------------------------------------
+        //---------------------------------------------------------------------------------------------
         struct DataRegister;
         struct DataRegisterBase {
             using ImplType = DataRegister;
@@ -132,13 +132,13 @@ namespace CVM
             std::string ToString(GlobalInfo &ginfo) const;
         };
 
-        //------------------------------------------------------------------------------------
+        //---------------------------------------------------------------------------------------------
         // * Stack Pointer Register
         //    prefix      : {t, g, none}. t means thread, g means global. (%tsp, %gsp, etc.)
         //                  It can be omitted for Local Data Register.
         //    %sp         : Type(cms#pointer), the pointer to stack's first address.
         //    %sp[offset] : Type(cms#pointer), the pointer to (stack + offset).
-        //------------------------------------------------------------------------------------
+        //---------------------------------------------------------------------------------------------
         struct StackPointerRegister;
         struct StackPointerRegisterBase {
             using ImplType = StackPointerRegister;
@@ -154,20 +154,19 @@ namespace CVM
             std::string ToString(GlobalInfo &ginfo) const;
         };
 
-        //------------------------------------------------------------------------------------
+        //---------------------------------------------------------------------------------------------
         // * Stack Space Register
         //    prefix             : {t, g, none}. t means thread, g means global.
         //                         It can be omitted for Local Data Register.
         //    %sp()              : Type(cms#space), the space of full stack.
         //    %sp(n)             : Type(cms#space), the space of stack[0:n].
         //    %sp(Type)          : Type(Type), the space of stack[0:sizeof(Type)].
-        //    %sp[offset](n)     : Type(cms#space), the pointer to (stack + offset)[0:n].
+        //    %sp[offset]()      : Type(cms#space), the space of (stack + offset)[0:remsize].
+        //    %sp[offset](n)     : Type(cms#space), the space of (stack + offset)[0:n].
         //    %sp[offset](Type)  : Type(Type), the space of (stack + offset)[0:sizeof(Type)].
-        //    %sp[offset](n)!    : Type(cms#space), the pointer to (stack + offset)[0:n],
-        //                         decrease after use.
-        //    %sp[offset](Type)! : Type(Type), the space of (stack + offset)[0:sizeof(Type)],
-        //                         decrease after use.
-        //------------------------------------------------------------------------------------
+        //    %sp(n)!            : Type(cms#space), the space of stack[0:n], decrease after use.
+        //    %sp(Type)!         : Type(Type), the space of stack[0:sizeof(Type)], decrease after use.
+        //---------------------------------------------------------------------------------------------
         struct StackSpaceRegister;
         struct StackSpaceRegisterBase {
             using ImplType = StackSpaceRegister;
@@ -186,9 +185,9 @@ namespace CVM
             std::string ToString(GlobalInfo &ginfo) const;
         };
 
-        //------------------------------------------------------------------------------------
+        //---------------------------------------------------------------------------------------------
         // * Register
-        //------------------------------------------------------------------------------------
+        //---------------------------------------------------------------------------------------------
         struct Register : public RegisterInfo {
             std::variant<ZeroRegisterBase, ResultRegisterBase, DataRegisterBase, StackPointerRegisterBase, StackSpaceRegisterBase> data;
 
@@ -202,7 +201,7 @@ namespace CVM
             Register& operator=(const RT &value) {
                 this->registerType = value.registerType;
                 this->scopeType = value.scopeType;
-                this->data = static_cast<typename RT::BaseType>(value);
+                this->data = static_cast<const typename RT::BaseType &>(value);
                 return *this;
             }
 
@@ -258,10 +257,7 @@ namespace CVM
             }
             template <typename RT>
             std::string _toString(GlobalInfo &ginfo) const {
-                return _toString(std::get<typename RT::BaseType>(data), ginfo, _rinfo());
-            }
-            const RegisterInfo& _rinfo() const {
-                return static_cast<const RegisterInfo&>(*this);
+                return _toString(std::get<typename RT::BaseType>(data), ginfo, static_cast<const RegisterInfo&>(*this));
             }
         };
     }

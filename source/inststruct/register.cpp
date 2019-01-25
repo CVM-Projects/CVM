@@ -81,9 +81,9 @@ namespace CVM
             return true;
         }
 
-        //------------------------------------------------------------------------------------
+        //---------------------------------------------------------------------------------------------
         // * Zero Register
-        //------------------------------------------------------------------------------------
+        //---------------------------------------------------------------------------------------------
         std::optional<ZeroRegister> ZeroRegister::Parse(ParseInfo &parseinfo, const PriLib::StringView &raw, ptrdiff_t *matchsize) {
             ZeroRegister result;
             const char *ptr;
@@ -103,9 +103,9 @@ namespace CVM
             return "%0";
         }
 
-        //------------------------------------------------------------------------------------
+        //---------------------------------------------------------------------------------------------
         // * Result Register
-        //------------------------------------------------------------------------------------
+        //---------------------------------------------------------------------------------------------
         std::optional<ResultRegister> ResultRegister::Parse(ParseInfo &parseinfo, const PriLib::StringView &raw, ptrdiff_t *matchsize) {
             ResultRegister result;
             const char *ptr;
@@ -125,9 +125,9 @@ namespace CVM
             return "%res";
         }
 
-        //------------------------------------------------------------------------------------
+        //---------------------------------------------------------------------------------------------
         // * Data Register
-        //------------------------------------------------------------------------------------
+        //---------------------------------------------------------------------------------------------
         std::optional<DataRegister> DataRegister::Parse(ParseInfo &parseinfo, const PriLib::StringView &raw, ptrdiff_t *matchsize) {
             DataRegister result;
             // Get The First Character
@@ -196,9 +196,9 @@ namespace CVM
             return result;
         }
 
-        //------------------------------------------------------------------------------------
+        //---------------------------------------------------------------------------------------------
         // * Stack Pointer Register
-        //------------------------------------------------------------------------------------
+        //---------------------------------------------------------------------------------------------
         std::optional<StackPointerRegister> StackPointerRegister::Parse(ParseInfo &parseinfo, const PriLib::StringView &raw, ptrdiff_t *matchsize) {
             StackPointerRegister result;
             // Get The Prefix
@@ -231,9 +231,9 @@ namespace CVM
             return result;
         }
 
-        //------------------------------------------------------------------------------------
+        //---------------------------------------------------------------------------------------------
         // * Stack Space Register
-        //------------------------------------------------------------------------------------
+        //---------------------------------------------------------------------------------------------
         std::optional<StackSpaceRegister> StackSpaceRegister::Parse(ParseInfo &parseinfo, const PriLib::StringView &raw, ptrdiff_t *matchsize) {
             StackSpaceRegister result;
             // Get The Prefix
@@ -270,6 +270,9 @@ namespace CVM
                 return std::nullopt;
             ptr = ptr + 1;
             if (*ptr == '!') {
+                if (result.offset.data != 0) {
+                    return std::nullopt;
+                }
                 if (result.registerType == rt_stack_space_size)
                     result.registerType = rt_stack_space_size_decrease;
                 else if (result.registerType == rt_stack_space_type)
