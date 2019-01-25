@@ -1,7 +1,6 @@
 #include "basic.h"
-#include "inststruct/instpart-new.h"
+#include "inststruct/register.h"
 #include <cctype>
-#include <inststruct/instpart-new.h>
 
 #include "parse.h"
 
@@ -83,9 +82,53 @@ namespace CVM
         }
 
         //------------------------------------------------------------------------------------
+        // * Zero Register
+        //------------------------------------------------------------------------------------
+        std::optional<ZeroRegister> ZeroRegister::Parse(ParseInfo &parseinfo, const PriLib::StringView &raw, ptrdiff_t *matchsize) {
+            ZeroRegister result;
+            const char *ptr;
+            if (!ParseRegisterPrefix(parseinfo, raw, ptr))
+                return std::nullopt;
+            if (*ptr != '0')
+                return std::nullopt;
+            ptr = ptr + 1;
+            if (!isEndChar(parseinfo, *ptr))
+                return std::nullopt;
+            if (matchsize)
+                *matchsize = ptr - raw.get();
+            return result;
+        }
+
+        std::string ZeroRegister::ToString(GlobalInfo &ginfo) const {
+            return "%0";
+        }
+
+        //------------------------------------------------------------------------------------
+        // * Result Register
+        //------------------------------------------------------------------------------------
+        std::optional<ResultRegister> ResultRegister::Parse(ParseInfo &parseinfo, const PriLib::StringView &raw, ptrdiff_t *matchsize) {
+            ResultRegister result;
+            const char *ptr;
+            if (!ParseRegisterPrefix(parseinfo, raw, ptr))
+                return std::nullopt;
+            if (ptr[0] != 'r' || ptr[1] != 'e' || ptr[2] != 's')
+                return std::nullopt;
+            ptr = ptr + 3;
+            if (!isEndChar(parseinfo, *ptr))
+                return std::nullopt;
+            if (matchsize)
+                *matchsize = ptr - raw.get();
+            return result;
+        }
+
+        std::string ResultRegister::ToString(GlobalInfo &ginfo) const {
+            return "%res";
+        }
+
+        //------------------------------------------------------------------------------------
         // * Data Register
         //------------------------------------------------------------------------------------
-        std::optional<DataRegister> DataRegister::Parse(ParseInfo &parseinfo, const PriLib::StringView &raw) {
+        std::optional<DataRegister> DataRegister::Parse(ParseInfo &parseinfo, const PriLib::StringView &raw, ptrdiff_t *matchsize) {
             DataRegister result;
             // Get The First Character
             const char *ptr = nullptr;
@@ -93,6 +136,8 @@ namespace CVM
                 return std::nullopt;
             // Get Index
             if (!ParseNumber(parseinfo, ptr, result.registerIndex.data))
+                return std::nullopt;
+            if (result.registerIndex.data == 0)
                 return std::nullopt;
             // Get Data Register Type
             if (isEndChar(parseinfo, *ptr)) {
@@ -123,10 +168,12 @@ namespace CVM
                 if (!isEndChar(parseinfo, ptr[1]))
                     return std::nullopt;
             }
+            if (matchsize)
+                *matchsize = ptr - raw.get();
             return result;
         }
 
-        std::string DataRegister::ToString(GlobalInfo &ginfo) {
+        std::string DataRegister::ToString(GlobalInfo &ginfo) const {
             std::string result;
             // Set Scope Prefix
             result += ToStringRegisterScopePrefix(this->scopeType);
@@ -152,24 +199,25 @@ namespace CVM
         //------------------------------------------------------------------------------------
         // * Stack Pointer Register
         //------------------------------------------------------------------------------------
-        std::optional<StackPointerRegister> StackPointerRegister::Parse(ParseInfo &parseinfo, const PriLib::StringView &raw) {
+        std::optional<StackPointerRegister> StackPointerRegister::Parse(ParseInfo &parseinfo, const PriLib::StringView &raw, ptrdiff_t *matchsize) {
             StackPointerRegister result;
             // Get The Prefix
             const char *ptr = nullptr;
             if (!ParseStackRegisterPrefix(parseinfo, raw, ptr, result.scopeType))
                 return std::nullopt;
-            result.registerType = rt_stack_pointer;
-            if (isEndChar(parseinfo, *ptr))
-                return result;
-            // Get Offset
-            if (!ParseStackOffset(parseinfo, ptr, result.offset))
-                return std::nullopt;
-            if (!isEndChar(parseinfo, *ptr))
-                return std::nullopt;
+            if (!isEndChar(parseinfo, *ptr)) {
+                // Get Offset
+                if (!ParseStackOffset(parseinfo, ptr, result.offset))
+                    return std::nullopt;
+                if (!isEndChar(parseinfo, *ptr))
+                    return std::nullopt;
+            }
+            if (matchsize)
+                *matchsize = ptr - raw.get();
             return result;
         }
 
-        std::string StackPointerRegister::ToString(GlobalInfo &ginfo) {
+        std::string StackPointerRegister::ToString(GlobalInfo &ginfo) const {
             std::string result;
             // Set Prefix
             result += ToStringRegisterScopePrefix(this->scopeType);
@@ -186,7 +234,7 @@ namespace CVM
         //------------------------------------------------------------------------------------
         // * Stack Space Register
         //------------------------------------------------------------------------------------
-        std::optional<StackSpaceRegister> StackSpaceRegister::Parse(ParseInfo &parseinfo, const PriLib::StringView &raw) {
+        std::optional<StackSpaceRegister> StackSpaceRegister::Parse(ParseInfo &parseinfo, const PriLib::StringView &raw, ptrdiff_t *matchsize) {
             StackSpaceRegister result;
             // Get The Prefix
             const char *ptr = nullptr;
@@ -228,13 +276,16 @@ namespace CVM
                     result.registerType = rt_stack_space_type_decrease;
                 else
                     return std::nullopt;
+                ptr = ptr + 1;
             }
             if (!isEndChar(parseinfo, *ptr))
                 return std::nullopt;
+            if (matchsize)
+                *matchsize = ptr - raw.get();
             return result;
         }
 
-        std::string StackSpaceRegister::ToString(GlobalInfo &ginfo) {
+        std::string StackSpaceRegister::ToString(GlobalInfo &ginfo) const {
             std::string result;
             // Set Prefix
             result += ToStringRegisterScopePrefix(this->scopeType);
