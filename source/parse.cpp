@@ -6,6 +6,7 @@
 #include "inststruct/identkeytable.h"
 #include "bignumber.h"
 #include "inststruct/info.h"
+#include "inststruct/register.h"
 #include <regex>
 
 namespace CVM
@@ -302,6 +303,49 @@ namespace CVM
 	}
 
 	TypeIndex parseType(ParseInfo &parseinfo, const std::string &word);
+
+	InstStruct::Register parseRegisterTEMP(ParseInfo &parseinfo, const std::string &word) {
+		auto result = InstStructX::Register::Parse(parseinfo, word);
+		if (!result) {
+			parseinfo.putErrorLine(PEC_URReg, word);
+			return InstStruct::Register();
+		}
+		else {
+			const InstStructX::Register &reg = result.value();
+			switch (reg.registerType) {
+			case InstStructX::rt_zero:
+				return InstStruct::Register::ZeroRegister();
+			case InstStructX::rt_result:
+				return InstStruct::Register::ResultRegister();
+			case InstStructX::rt_stack_pointer:
+				return InstStruct::Register::StackPointerRegister();
+			case InstStructX::rt_data_dynamic:
+			case InstStructX::rt_data_static: {
+				const auto &index = std::get<InstStructX::DataRegisterBase>(reg.data).registerIndex;
+				switch (reg.scopeType) {
+				case InstStructX::rst_local:
+					return InstStruct::Register::PrivateDataRegister(index.data, InstStruct::e_current);
+				case InstStructX::rst_thread:
+					return InstStruct::Register::ThreadDataRegister(index.data);
+				case InstStructX::rst_global:
+					return InstStruct::Register::GlobalDataRegister(index.data);
+				default:
+					parseinfo.putErrorLine(PEC_URReg, word);
+					return InstStruct::Register();
+				}
+			}
+			case InstStructX::rt_stack_space_full:
+			case InstStructX::rt_stack_space_size:
+			case InstStructX::rt_stack_space_size_decrease:
+			case InstStructX::rt_stack_space_type:
+			case InstStructX::rt_stack_space_type_decrease:
+				// TODO: Support these.
+				break;
+			}
+		}
+		parseinfo.putErrorLine(PEC_URReg, word);
+		return InstStruct::Register();
+	}
 
 	InstStruct::Register parseRegister(ParseInfo &parseinfo, const std::string &word) {
 		if (word[0] != '%') {
