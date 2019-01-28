@@ -11,10 +11,6 @@ namespace CVM
 {
 	namespace Compile
 	{
-		inline static Runtime::EnvType Convert(InstStruct::EnvType etype) {
-			return static_cast<Runtime::EnvType>(static_cast<int>(etype));
-		}
-
 		inline static void CheckLocalEnv(Runtime::Environment &env) {
 			if (!env.isLocal()) {
 				puts("Error Occur because of not LocalEnvironment.");

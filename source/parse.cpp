@@ -33,6 +33,7 @@ namespace CVM
 		PEC_DUDataId,
 		PEC_NotFuncReg,
 		PEC_IllegalFormat,
+		PEC_ModeNotAllow,
 	};
 
 	class ParseInfo
@@ -231,7 +232,8 @@ namespace CVM
 				{ PEC_DUFunc, "func name duplicate" },
 				{ PEC_DUDataId, "data index duplicate" },
 				{ PEC_NotFuncReg, "not function's register" },
-				{ PEC_IllegalFormat, "Illegal format" }
+				{ PEC_IllegalFormat, "Illegal format" },
+				{ PEC_ModeNotAllow, "Mode not allow" }
 			};
 			return pecmap.at(pec);
 		}
@@ -304,127 +306,14 @@ namespace CVM
 
 	TypeIndex parseType(ParseInfo &parseinfo, const std::string &word);
 
-	InstStruct::Register parseRegisterTEMP(ParseInfo &parseinfo, const std::string &word) {
-		auto result = InstStructX::Register::Parse(parseinfo, word);
-		if (!result) {
-			parseinfo.putErrorLine(PEC_URReg, word);
-			return InstStruct::Register();
-		}
-		else {
-			const InstStructX::Register &reg = result.value();
-			switch (reg.registerType) {
-			case InstStructX::rt_zero:
-				return InstStruct::Register::ZeroRegister();
-			case InstStructX::rt_result:
-				return InstStruct::Register::ResultRegister();
-			case InstStructX::rt_stack_pointer:
-				return InstStruct::Register::StackPointerRegister();
-			case InstStructX::rt_data_dynamic:
-			case InstStructX::rt_data_static: {
-				const auto &index = std::get<InstStructX::DataRegisterBase>(reg.data).registerIndex;
-				switch (reg.scopeType) {
-				case InstStructX::rst_local:
-					return InstStruct::Register::PrivateDataRegister(index.data, InstStruct::e_current);
-				case InstStructX::rst_thread:
-					return InstStruct::Register::ThreadDataRegister(index.data);
-				case InstStructX::rst_global:
-					return InstStruct::Register::GlobalDataRegister(index.data);
-				default:
-					parseinfo.putErrorLine(PEC_URReg, word);
-					return InstStruct::Register();
-				}
-			}
-			case InstStructX::rt_stack_space_full:
-			case InstStructX::rt_stack_space_size:
-			case InstStructX::rt_stack_space_size_decrease:
-			case InstStructX::rt_stack_space_type:
-			case InstStructX::rt_stack_space_type_decrease:
-				// TODO: Support these.
-				break;
-			}
-		}
-		parseinfo.putErrorLine(PEC_URReg, word);
-		return InstStruct::Register();
-	}
-
 	InstStruct::Register parseRegister(ParseInfo &parseinfo, const std::string &word) {
-		if (word[0] != '%') {
+		auto result = InstStruct::Register::Parse(parseinfo, word);
+		if (result) {
+			return result.value();
+		} else {
 			parseinfo.putErrorLine(PEC_URReg, word);
 			return InstStruct::Register();
 		}
-		if (word == "%res")
-			return InstStruct::Register::ResultRegister();
-		else if (word == "%0")
-			return InstStruct::Register::ZeroRegister();
-		else if (word == "%sp")
-			return InstStruct::Register::StackPointerRegister();
-
-		std::smatch sm;
-		if (std::regex_match(word, sm, std::regex(R"S(%([tg])?(\d+))S"))) {
-			Config::RegisterIndexType index;
-			InstStruct::EnvType etype;
-			parseNumber(parseinfo, index, sm[2].str());
-			etype = InstStruct::e_current;
-			switch (sm[1].str()[0]) {
-			case '\0':
-				return InstStruct::Register::PrivateDataRegister(index, etype);
-			case 't':
-				return InstStruct::Register::ThreadDataRegister(index);
-			case 'g':
-				return InstStruct::Register::GlobalDataRegister(index);
-			}
-		}
-		else if (std::regex_match(word, sm, std::regex(R"S(%(\d+)\(\%(\w+)(?:\((.+)\))?\))S"))) {
-			auto index = parseNumber<Config::RegisterIndexType>(parseinfo, sm[1].str());
-			InstStruct::EnvType etype;
-			auto estr = sm[2].str();
-			if (estr == "env")
-				etype = InstStruct::e_current;
-			else if (estr == "tenv")
-				etype = InstStruct::e_temp;
-			else if (estr == "penv")
-				etype = InstStruct::e_parent;
-			else {
-				parseinfo.putErrorLine(PEC_UREnv);
-			}
-
-			if (sm[3].matched) {
-				TypeIndex tindex = parseType(parseinfo, sm[3].str());
-				return InstStruct::Register::PrivateDataRegister(index, etype, tindex);
-			}
-			else {
-				return InstStruct::Register::PrivateDataRegister(index, etype);
-			}
-		}
-		else if (std::regex_match(word, sm, std::regex(R"S(%sp\((\d+)\)(!)?)S"))) {
-			auto size = parseNumber<Config::MemorySizeType>(parseinfo, sm[1].str());
-			if (sm[2].str()[0] == '!')
-				return InstStruct::Register::StackRegisterSizeDecrease(MemorySize(size));
-			else
-				return InstStruct::Register::StackRegisterSize(MemorySize(size), 0);
-		}
-		else if (std::regex_match(word, sm, std::regex(R"S(%sp\((.+)\)(!)?)S"))) {
-			TypeIndex index = parseType(parseinfo, sm[1].str());
-			if (sm[2].str()[0] == '!')
-				return InstStruct::Register::StackRegisterTypeDecrease(index);
-			else
-				return InstStruct::Register::StackRegisterType(index, 0);
-		}
-		else if (std::regex_match(word, sm, std::regex(R"S(%sp\[(\d+)\]\(\d+\))S"))) {
-			auto offset = parseNumber<Config::StackOffsetType>(parseinfo, sm[1].str());
-			auto size = parseNumber<Config::MemorySizeType>(parseinfo, sm[2].str());
-			return InstStruct::Register::StackRegisterSize(MemorySize(size), offset);
-		}
-		else if (std::regex_match(word, sm, std::regex(R"S(%sp\[(\d+)\]\(.+\))S"))) {
-			auto offset = parseNumber<Config::StackOffsetType>(parseinfo, sm[1].str());
-			TypeIndex index = parseType(parseinfo, sm[1].str());
-			return InstStruct::Register::StackRegisterType(index, offset);
-		}
-		else {
-			parseinfo.putErrorLine(PEC_URReg);
-		}
-
-		return InstStruct::Register();
 	}
 
 	InstStruct::Data parseDataInst(ParseInfo &parseinfo, const std::string &word) {
@@ -821,9 +710,17 @@ namespace CVM
 								}
 								else {
 									if (list.size() == 1) {
-										auto count = parseNumber<InstStruct::Register::RegisterIndexType>(parseinfo, list[0]);
-										for (InstStruct::Register::RegisterIndexType i = 0; i != count; ++i) {
-											parseinfo.currfunc_creater.arglist.push_back(i + 1);
+										auto count = parseNumber<Config::RegisterIndexType>(parseinfo, list[0]);
+										if (parseinfo.info.dataRegisterMode == InstStruct::drm_multiply) {
+											if (count != 0) {
+												parseinfo.putErrorLine(PEC_ModeNotAllow, list[0]);
+												parseinfo.putError("Note: multiply mode not allow this format for '.arg'.");
+											}
+										}
+										else {
+											for (Config::RegisterIndexType i = 0; i != count; ++i) {
+												parseinfo.currfunc_creater.arglist.push_back(i + 1);
+											}
 										}
 									}
 									else {
@@ -1215,7 +1112,7 @@ namespace CVM
 						auto res = parseRegister(parseinfo, list[0]);
 						const auto &namekey = parseIdentifier(parseinfo, list[1]);
 						auto id = parseinfo.functable.getID(namekey);
-						Identifier func(id);
+						FuncIdentifier func(id);
 						ArgumentList::Creater arglist_creater(list.size() - 2);
 						for (auto e : PriLib::rangei(list.begin() + 2, list.end())) {
 							arglist_creater.push_back(parseRegister(parseinfo, e));
