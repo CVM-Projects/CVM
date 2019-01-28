@@ -13,17 +13,17 @@
 .func Math#add ;; (cms#int64 cms#int64) -> cms#int64
     .res cms#int64
     .stvarb 2, cms#int64
-    .arg 2
+    .arg %1s %2s
     db_opreg
-    call %res, cms#int64#+, %1 %2
+    call %res, cms#int64#+, %1s %2s
     ret
 
 .func print-hello
     .dyvarb 0
     .stvarb 1, cms#pointer
     .arg 0
-    loadp %1, #2
-    call %0, print_string, %1
+    loadp %1s, #2
+    call %0, print_string, %1s
     ret
 
 .func main
@@ -32,24 +32,24 @@
     .stvarb 1, cms#pointer
     .stvarb 1, cms#int64
     db_opreg
-    load %1, #1, cms#int64
+    load %1d, #1, cms#int64
     db_opreg
-    mov  %2, %1
-    mov  %3, %1
-    mov  %4, %1
+    mov  %2d, %1d
+    mov  %1s, %1d
+    mov  %2s, %1d
     db_opreg
-    load %5, #3, cms#int64
-    load %6, #4, cms#int64
-    load %8, 0, cms#int64
+    load %3s, #3, cms#int64
+    load %4s, #4, cms#int64
+    load %6s, 0, cms#int64
     db_opreg
-    loadp %7, #2
+    loadp %5s, #2
     db_opreg
     call %0, print-hello
-    call %0, print_int64, %5
-    call %0, print_int64, %6
-    call %0, print_int64, %8
-    call %8, Math#add, %5 %6
-    call %0, print_int64, %8
+    call %0, print_int64, %3s
+    call %0, print_int64, %4s
+    call %0, print_int64, %6s
+    call %6s, Math#add, %3s %4s
+    call %0, print_int64, %6s
     jump #line1
     call %0, print-hello
     call %0, print-hello

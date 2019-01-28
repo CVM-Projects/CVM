@@ -79,11 +79,11 @@ namespace CVM
 
 			struct Call : public Inst<i_call>
 			{
-				explicit Call(const Register &dst, const Identifier &func, const ArgumentList &arglist)
+				explicit Call(const Register &dst, const FuncIdentifier &func, const ArgumentList &arglist)
 					: dst(dst), func(func), arglist(arglist) {}
 
 				Register dst;
-				Identifier func;
+				FuncIdentifier func;
 				ArgumentList arglist;
 			};
 

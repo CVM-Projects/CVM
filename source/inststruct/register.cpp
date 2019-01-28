@@ -6,7 +6,7 @@
 
 namespace CVM
 {
-    namespace InstStructX
+    namespace InstStruct
     {
         static bool ParseRegisterPrefix(ParseInfo &parseinfo, const PriLib::StringView &raw, const char* &outptr) {
             // Parse '%'

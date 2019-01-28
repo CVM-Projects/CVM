@@ -14,13 +14,6 @@ namespace CVM
 
 	namespace Runtime
 	{
-		// This is different from Instruction::EnvType.
-		enum EnvType {
-			e_current = 0,  // %env
-			e_parent = 1,   // %penv
-			e_temp = 2,     // %tenv
-		};
-
 		class Environment;
 
 		class EnvironmentSet
@@ -70,27 +63,6 @@ namespace CVM
 			const TypeInfo& getType(TypeIndex index) const {
 				return getTypeInfoMap().at(index);
 			}
-			virtual DataRegisterSet& getDataRegisterSet(EnvType etype) {
-				if (etype == e_current) {
-					return getDataRegisterSet();
-				}
-				else if (etype == e_parent) {
-					return _penv->getDataRegisterSet();
-				}
-				else if (etype == e_temp) {
-					return _tenv->getDataRegisterSet();
-				}
-				else {
-					assert(false);
-					return getDataRegisterSet();
-				}
-			}
-			bool is_dyvarb(Config::RegisterIndexType index, EnvType etype) { // TODO : Will be removed.
-				return getDataRegisterSet(etype).is_dynamic(index);
-			}
-			bool is_stvarb(Config::RegisterIndexType index, EnvType etype) { // TODO : Will be removed.
-				return getDataRegisterSet(etype).is_static(index);
-			}
 			bool is_dyvarb(Config::RegisterIndexType index) {
 				return getDataRegisterSet().is_dynamic(index);
 			}
@@ -102,12 +74,6 @@ namespace CVM
 			}
 			DataRegisterStatic& get_stvarb(Config::RegisterIndexType index) {
 				return getDataRegisterSet().get_static(index);
-			}
-			DataRegisterDynamic& get_dyvarb(Config::RegisterIndexType index, EnvType etype) {
-				return getDataRegisterSet(etype).get_dynamic(index);
-			}
-			DataRegisterStatic& get_stvarb(Config::RegisterIndexType index, EnvType etype) {
-				return getDataRegisterSet(etype).get_static(index);
 			}
 			DataRegisterSet& getDataRegisterSet() {
 				return _dataRegisterSet;

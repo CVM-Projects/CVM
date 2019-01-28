@@ -39,20 +39,13 @@ namespace CVM
 			return 0 < id && id <= dysize;
 		}
 		inline bool is_static(RegisterIndexType id, RegisterIndexType dysize, RegisterIndexType stsize) {
-			return dysize < id && id <= dysize + stsize;
+			return 0 < id && id <= stsize;
 		}
 		inline RegisterIndexType get_dynamic_id(RegisterIndexType id, RegisterIndexType dysize, RegisterIndexType stsize) {
-			assert(id >= 1);
 			return id - 1;
 		}
 		inline RegisterIndexType get_static_id(RegisterIndexType id, RegisterIndexType dysize, RegisterIndexType stsize) {
-			assert(id >= dysize + 1);
-			return id - dysize - 1;
-		}
-		template <typename T>
-		Config::RegisterIndexType convertToRegisterIndexType(T value) {
-			assert(value <= std::numeric_limits<RegisterIndexType>::max());
-			return static_cast<RegisterIndexType>(value);
+			return id - 1;
 		}
 	}
 }

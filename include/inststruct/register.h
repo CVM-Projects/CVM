@@ -10,9 +10,8 @@ namespace CVM
 {
 	class ParseInfo;
 
-    namespace InstStructX
+    namespace InstStruct
     {
-        using namespace InstStruct;
         //---------------------------------------------------------------------------------------------
         // * Types
         //---------------------------------------------------------------------------------------------
@@ -148,7 +147,7 @@ namespace CVM
         struct StackPointerRegister : public RegisterInfo, public StackPointerRegisterBase {
             using BaseType = StackPointerRegisterBase;
 
-            StackPointerRegister() : RegisterInfo(rt_stack_pointer,rst_unknown) {}
+            StackPointerRegister() : RegisterInfo(rt_stack_pointer, rst_unknown) {}
 
             static std::optional<StackPointerRegister> Parse(ParseInfo &parseinfo, const PriLib::StringView &raw, ptrdiff_t *matchsize = nullptr);
             std::string ToString(GlobalInfo &ginfo) const;
@@ -205,6 +204,21 @@ namespace CVM
                 return *this;
             }
 
+			bool isZeroRegister() const {
+				return this->registerType == rt_zero;
+			}
+            bool isResultRegister() const {
+				return this->registerType == rt_result;
+			}
+			bool isPrivateDataRegister() const {
+				return is_rt_data(this->registerType) && (this->scopeType == rst_local);
+			}
+
+			RegisterIndex::Type index() const {
+				assert(isPrivateDataRegister());
+				return std::get<DataRegisterBase>(this->data).registerIndex.data;
+			}
+
             static std::optional<Register> Parse(ParseInfo &parseinfo, const PriLib::StringView &raw, ptrdiff_t *matchsize = nullptr) {
                 using Func = std::optional<Register> (ParseInfo &parseinfo, const PriLib::StringView &raw, ptrdiff_t *matchsize);
                 static Func* funcs[] = {
@@ -237,6 +251,13 @@ namespace CVM
                     assert(false && "Invalid data for Register.");
                     return "";
                 }
+            }
+
+            std::string toString() const {
+                // TODO
+                assert(false);
+                GlobalInfo ginfo;
+                return this->ToString(ginfo);
             }
 
         private:
