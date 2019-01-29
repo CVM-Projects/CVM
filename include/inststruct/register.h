@@ -5,10 +5,11 @@
 #include <variant>
 #include "config.h"
 #include "info.h"
+#include "parseunit.h"
 
 namespace CVM
 {
-	class ParseInfo;
+	struct ParseUnit;
 
     namespace InstStruct
     {
@@ -90,7 +91,7 @@ namespace CVM
 
             ZeroRegister() : RegisterInfo(rt_zero, rst_local) {}
 
-            static std::optional<ZeroRegister> Parse(ParseInfo &parseinfo, const PriLib::StringView &raw, ptrdiff_t *matchsize = nullptr);
+            static std::optional<ZeroRegister> Parse(ParseUnit &parseunit);
             std::string ToString(GlobalInfo &ginfo) const;
         };
 
@@ -107,7 +108,7 @@ namespace CVM
 
             ResultRegister() : RegisterInfo(rt_result, rst_local) {}
 
-            static std::optional<ResultRegister> Parse(ParseInfo &parseinfo, const PriLib::StringView &raw, ptrdiff_t *matchsize = nullptr);
+            static std::optional<ResultRegister> Parse(ParseUnit &parseunit);
             std::string ToString(GlobalInfo &ginfo) const;
         };
 
@@ -127,7 +128,7 @@ namespace CVM
         struct DataRegister : public RegisterInfo, public DataRegisterBase {
             using BaseType = DataRegisterBase;
 
-            static std::optional<DataRegister> Parse(ParseInfo &parseinfo, const PriLib::StringView &raw, ptrdiff_t *matchsize = nullptr);
+            static std::optional<DataRegister> Parse(ParseUnit &parseunit);
             std::string ToString(GlobalInfo &ginfo) const;
         };
 
@@ -149,7 +150,7 @@ namespace CVM
 
             StackPointerRegister() : RegisterInfo(rt_stack_pointer, rst_unknown) {}
 
-            static std::optional<StackPointerRegister> Parse(ParseInfo &parseinfo, const PriLib::StringView &raw, ptrdiff_t *matchsize = nullptr);
+            static std::optional<StackPointerRegister> Parse(ParseUnit &parseunit);
             std::string ToString(GlobalInfo &ginfo) const;
         };
 
@@ -180,7 +181,7 @@ namespace CVM
         struct StackSpaceRegister : public RegisterInfo, public StackSpaceRegisterBase {
             using BaseType = StackSpaceRegisterBase;
 
-            static std::optional<StackSpaceRegister> Parse(ParseInfo &parseinfo, const PriLib::StringView &raw, ptrdiff_t *matchsize = nullptr);
+            static std::optional<StackSpaceRegister> Parse(ParseUnit &parseunit);
             std::string ToString(GlobalInfo &ginfo) const;
         };
 
@@ -219,8 +220,8 @@ namespace CVM
 				return std::get<DataRegisterBase>(this->data).registerIndex.data;
 			}
 
-            static std::optional<Register> Parse(ParseInfo &parseinfo, const PriLib::StringView &raw, ptrdiff_t *matchsize = nullptr) {
-                using Func = std::optional<Register> (ParseInfo &parseinfo, const PriLib::StringView &raw, ptrdiff_t *matchsize);
+            static std::optional<Register> Parse(ParseUnit &parseunit) {
+                using Func = std::optional<Register> (ParseUnit &parseunit);
                 static Func* funcs[] = {
                     _parseBase<ZeroRegister>,
                     _parseBase<ResultRegister>,
@@ -229,9 +230,12 @@ namespace CVM
                     _parseBase<StackSpaceRegister>
                 };
                 for (auto func : funcs) {
-                    auto result = func(parseinfo, raw, matchsize);
-                    if (result)
+                    ParseUnit record(parseunit);
+                    auto result = func(record);
+                    if (result) {
+                        parseunit = record;
                         return result;
+                    }
                 }
                 return std::nullopt;
             }
@@ -262,8 +266,8 @@ namespace CVM
 
         private:
             template <typename RT>
-            static std::optional<Register> _parseBase(ParseInfo &parseinfo, const PriLib::StringView &raw, ptrdiff_t *matchsize = nullptr) {
-                auto parseresult = RT::Parse(parseinfo, raw, matchsize);
+            static std::optional<Register> _parseBase(ParseUnit &parseunit) {
+                auto parseresult = RT::Parse(parseunit);
                 if (parseresult)
                     return Register(parseresult.value());
                 else

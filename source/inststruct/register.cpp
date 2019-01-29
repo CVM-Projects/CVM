@@ -8,31 +8,20 @@ namespace CVM
 {
     namespace InstStruct
     {
-        static bool ParseRegisterPrefix(ParseInfo &parseinfo, const PriLib::StringView &raw, const char* &outptr) {
-            // Parse '%'
-            outptr = raw.get();
-            if (*outptr != '%') return false;
-            outptr = outptr + 1;
-            return true;
-        }
-        static bool ParseRegisterScopePrefix(ParseInfo &parseinfo, const PriLib::StringView &raw, const char* &outptr, RegisterScopeType &scopetype) {
+        static bool ParseRegisterScopePrefix(ParseUnit &parseunit, RegisterScopeType &scopetype) {
             // Parse '%t', '%g', '%'
-            if (!ParseRegisterPrefix(parseinfo, raw, outptr))
+            if (!matchPrefix(parseunit, "%"))
                 return false;
-            switch (*outptr) {
-            case 't': scopetype = rst_thread; outptr = outptr + 1; break;
-            case 'g': scopetype = rst_global; outptr = outptr + 1; break;
+            switch (parseunit.currview[0]) {
+            case 't': scopetype = rst_thread; parseunit.currview += 1; break;
+            case 'g': scopetype = rst_global; parseunit.currview += 1; break;
             default: scopetype = rst_local; break;
             }
             return true;
         }
-        static bool ParseStackRegisterPrefix(ParseInfo &parseinfo, const PriLib::StringView &raw, const char* &outptr, RegisterScopeType &scopetype) {
+        static bool ParseStackRegisterPrefix(ParseUnit &parseunit, RegisterScopeType &scopetype) {
             // Parse '%tsp', '%gsp', '%sp'
-            if (!ParseRegisterScopePrefix(parseinfo, raw, outptr, scopetype))
-                return false;
-            if (outptr[0] != 's' || outptr[1] != 'p') return false;
-            outptr = outptr + 2;
-            return true;
+            return ParseRegisterScopePrefix(parseunit, scopetype) && matchPrefix(parseunit, "sp");
         }
         static std::string ToStringRegisterScopePrefix(RegisterScopeType scopetype) {
             // Set '%t', '%g', '%'
@@ -56,46 +45,36 @@ namespace CVM
             return result;
         }
         template <typename NumType>
-        static bool ParseNumber(ParseInfo &parseinfo, const char* &outptr, NumType &result, bool allow_negative = false) {
-            const char *endptr = outptr;
-            if (allow_negative && (*outptr == '-') || (*outptr == '+'))
+        static bool ParseNumber(ParseUnit &parseunit, NumType &result, bool allow_negative = false) {
+            const char *ptr = parseunit.currview.get();
+            const char *endptr = parseunit.currview.get();
+            if (allow_negative && (*ptr == '-') || (*ptr == '+'))
                 ++endptr;
             while (isdigit(*endptr))
                 ++endptr;
-            if (outptr == endptr)
+            if (ptr == endptr)
                 return false;
-            if (!PriLib::Convert::to_integer<NumType>(std::string(outptr, endptr), result))
+            if (!PriLib::Convert::to_integer<NumType>(std::string(ptr, endptr), result))
                 return false;
-            outptr = endptr;
+            parseunit.currview = PriLib::StringView(endptr);
             return true;
         }
-        static bool ParseStackOffset(ParseInfo &parseinfo, const char* &outptr, StackOffset &result) {
-            if (*outptr != '[')
-                return false;
-            outptr = outptr + 1;
-            if (!ParseNumber(parseinfo, outptr, result.data, true))
-                return false;
-            if (*outptr != ']')
-                return false;
-            outptr = outptr + 1;
-            return true;
+        static bool ParseStackOffset(ParseUnit &parseunit, StackOffset &result) {
+            return matchPrefix(parseunit, '[') && ParseNumber(parseunit, result.data, true) && matchPrefix(parseunit, ']');
+        }
+        static bool IsEndChar(const ParseUnit &parseunit) {
+            return isEndChar(parseunit.parseinfo, parseunit.currview[0]);
         }
 
         //---------------------------------------------------------------------------------------------
         // * Zero Register
         //---------------------------------------------------------------------------------------------
-        std::optional<ZeroRegister> ZeroRegister::Parse(ParseInfo &parseinfo, const PriLib::StringView &raw, ptrdiff_t *matchsize) {
+        std::optional<ZeroRegister> ZeroRegister::Parse(ParseUnit &parseunit) {
             ZeroRegister result;
-            const char *ptr;
-            if (!ParseRegisterPrefix(parseinfo, raw, ptr))
+            if (!matchPrefix(parseunit, "%0"))
                 return std::nullopt;
-            if (*ptr != '0')
+            if (!IsEndChar(parseunit))
                 return std::nullopt;
-            ptr = ptr + 1;
-            if (!isEndChar(parseinfo, *ptr))
-                return std::nullopt;
-            if (matchsize)
-                *matchsize = ptr - raw.get();
             return result;
         }
 
@@ -106,18 +85,12 @@ namespace CVM
         //---------------------------------------------------------------------------------------------
         // * Result Register
         //---------------------------------------------------------------------------------------------
-        std::optional<ResultRegister> ResultRegister::Parse(ParseInfo &parseinfo, const PriLib::StringView &raw, ptrdiff_t *matchsize) {
+        std::optional<ResultRegister> ResultRegister::Parse(ParseUnit &parseunit) {
             ResultRegister result;
-            const char *ptr;
-            if (!ParseRegisterPrefix(parseinfo, raw, ptr))
+            if (!matchPrefix(parseunit, "%res"))
                 return std::nullopt;
-            if (ptr[0] != 'r' || ptr[1] != 'e' || ptr[2] != 's')
+            if (!IsEndChar(parseunit))
                 return std::nullopt;
-            ptr = ptr + 3;
-            if (!isEndChar(parseinfo, *ptr))
-                return std::nullopt;
-            if (matchsize)
-                *matchsize = ptr - raw.get();
             return result;
         }
 
@@ -128,20 +101,19 @@ namespace CVM
         //---------------------------------------------------------------------------------------------
         // * Data Register
         //---------------------------------------------------------------------------------------------
-        std::optional<DataRegister> DataRegister::Parse(ParseInfo &parseinfo, const PriLib::StringView &raw, ptrdiff_t *matchsize) {
+        std::optional<DataRegister> DataRegister::Parse(ParseUnit &parseunit) {
             DataRegister result;
             // Get The First Character
-            const char *ptr = nullptr;
-            if (!ParseRegisterScopePrefix(parseinfo, raw, ptr, result.scopeType))
+            if (!ParseRegisterScopePrefix(parseunit, result.scopeType))
                 return std::nullopt;
             // Get Index
-            if (!ParseNumber(parseinfo, ptr, result.registerIndex.data))
+            if (!ParseNumber(parseunit, result.registerIndex.data))
                 return std::nullopt;
             if (result.registerIndex.data == 0)
                 return std::nullopt;
             // Get Data Register Type
-            if (isEndChar(parseinfo, *ptr)) {
-                switch (getGlobalInfo(parseinfo).dataRegisterMode) {
+            if (IsEndChar(parseunit)) {
+                switch (getGlobalInfo(parseunit.parseinfo).dataRegisterMode) {
                 case drm_multiply:
                     return std::nullopt;
                 case drm_dynamic:
@@ -155,21 +127,21 @@ namespace CVM
                 }
             }
             else {
-                switch (*ptr) {
+                switch (parseunit.currview[0]) {
                 case 'd':
                     result.registerType = rt_data_dynamic;
+                    parseunit.currview += 1;
                     break;
                 case 's':
                     result.registerType = rt_data_static;
+                    parseunit.currview += 1;
                     break;
                 default:
                     return std::nullopt;
                 }
-                if (!isEndChar(parseinfo, ptr[1]))
+                if (!IsEndChar(parseunit))
                     return std::nullopt;
             }
-            if (matchsize)
-                *matchsize = ptr - raw.get();
             return result;
         }
 
@@ -199,21 +171,18 @@ namespace CVM
         //---------------------------------------------------------------------------------------------
         // * Stack Pointer Register
         //---------------------------------------------------------------------------------------------
-        std::optional<StackPointerRegister> StackPointerRegister::Parse(ParseInfo &parseinfo, const PriLib::StringView &raw, ptrdiff_t *matchsize) {
+        std::optional<StackPointerRegister> StackPointerRegister::Parse(ParseUnit &parseunit) {
             StackPointerRegister result;
             // Get The Prefix
-            const char *ptr = nullptr;
-            if (!ParseStackRegisterPrefix(parseinfo, raw, ptr, result.scopeType))
+            if (!ParseStackRegisterPrefix(parseunit, result.scopeType))
                 return std::nullopt;
-            if (!isEndChar(parseinfo, *ptr)) {
+            if (!IsEndChar(parseunit)) {
                 // Get Offset
-                if (!ParseStackOffset(parseinfo, ptr, result.offset))
+                if (!ParseStackOffset(parseunit, result.offset))
                     return std::nullopt;
-                if (!isEndChar(parseinfo, *ptr))
+                if (!IsEndChar(parseunit))
                     return std::nullopt;
             }
-            if (matchsize)
-                *matchsize = ptr - raw.get();
             return result;
         }
 
@@ -234,42 +203,39 @@ namespace CVM
         //---------------------------------------------------------------------------------------------
         // * Stack Space Register
         //---------------------------------------------------------------------------------------------
-        std::optional<StackSpaceRegister> StackSpaceRegister::Parse(ParseInfo &parseinfo, const PriLib::StringView &raw, ptrdiff_t *matchsize) {
+        std::optional<StackSpaceRegister> StackSpaceRegister::Parse(ParseUnit &parseunit) {
             StackSpaceRegister result;
             // Get The Prefix
-            const char *ptr = nullptr;
-            if (!ParseStackRegisterPrefix(parseinfo, raw, ptr, result.scopeType))
+            if (!ParseStackRegisterPrefix(parseunit, result.scopeType))
                 return std::nullopt;
-            if (*ptr == '[') {
+            if (parseunit.currview[0] == '[') {
                 // Get Offset
-                if (!ParseStackOffset(parseinfo, ptr, result.offset))
+                if (!ParseStackOffset(parseunit, result.offset))
                     return std::nullopt;
             }
-            if (*ptr != '(')
+            if (!matchPrefix(parseunit, '('))
                 return std::nullopt;
-            ptr = ptr + 1;
-            if (*ptr == ')') {
+            if (parseunit.currview[0] == ')') {
                 result.registerType = rt_stack_space_full;
             }
-            else if (isdigit(*ptr)) {
+            else if (isdigit(parseunit.currview[0])) {
                 result.registerType = rt_stack_space_size;
                 // Get Size
-                if (!ParseNumber(parseinfo, ptr, result.stacksize.data))
+                if (!ParseNumber(parseunit, result.stacksize.data))
                     return std::nullopt;
             }
-            else if (hasIdentifierPrefix(parseinfo, ptr)) {
+            else if (hasIdentifierPrefix(parseunit.parseinfo, parseunit.currview.get())) {
                 result.registerType = rt_stack_space_type;
                 // Get Type
-                const char *endptr = ptr;
-                while (isIdentifierChar(parseinfo, *endptr))
+                const char *endptr = parseunit.currview.get();
+                while (isIdentifierChar(parseunit.parseinfo, *endptr))
                     ++endptr;
-                result.typehashid = getGlobalInfo(parseinfo).hashStringPool.insert(std::string(ptr, endptr));
-                ptr = endptr;
+                result.typehashid = getGlobalInfo(parseunit.parseinfo).hashStringPool.insert(std::string(parseunit.currview.get(), endptr));
+                parseunit.currview = PriLib::StringView(endptr);
             }
-            if (*ptr != ')')
+            if (!matchPrefix(parseunit, ')'))
                 return std::nullopt;
-            ptr = ptr + 1;
-            if (*ptr == '!') {
+            if (matchPrefix(parseunit, '!')) {
                 if (result.offset.data != 0) {
                     return std::nullopt;
                 }
@@ -279,12 +245,9 @@ namespace CVM
                     result.registerType = rt_stack_space_type_decrease;
                 else
                     return std::nullopt;
-                ptr = ptr + 1;
             }
-            if (!isEndChar(parseinfo, *ptr))
+            if (!IsEndChar(parseunit))
                 return std::nullopt;
-            if (matchsize)
-                *matchsize = ptr - raw.get();
             return result;
         }
 
