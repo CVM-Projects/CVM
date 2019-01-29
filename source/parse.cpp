@@ -283,6 +283,24 @@ namespace CVM
 	    return isIdentifierChar(parseinfo, c);
 	}
 
+	bool matchPrefix(ParseUnit &parseunit, const PriLib::StringView &substr) {
+		PriLib::StringView::OffsetType offset = 0;
+		while (parseunit.currview[offset] && substr[offset]) {
+			if (parseunit.currview[offset] != substr[offset])
+				return false;
+			++offset;
+		}
+		parseunit.currview += offset;
+		return true;
+	}
+
+	bool matchPrefix(ParseUnit &parseunit, char subchar) {
+		if (parseunit.currview[0] != subchar)
+			return false;
+		parseunit.currview += 1;
+		return true;
+	}
+
 	template <typename T>
 	T parseNumber(ParseInfo &parseinfo, const std::string &word) {
 		if (!std::numeric_limits<T>::is_signed) {
@@ -307,8 +325,10 @@ namespace CVM
 	TypeIndex parseType(ParseInfo &parseinfo, const std::string &word);
 
 	InstStruct::Register parseRegister(ParseInfo &parseinfo, const std::string &word) {
-		auto result = InstStruct::Register::Parse(parseinfo, word);
+		ParseUnit parseunit(parseinfo, word);
+		auto result = InstStruct::Register::Parse(parseunit);
 		if (result) {
+//			println(word, ":", PriLib::toSubString(parseunit.raw, parseunit.currview), ":", result.value().ToString(getGlobalInfo(parseinfo)));
 			return result.value();
 		} else {
 			parseinfo.putErrorLine(PEC_URReg, word);

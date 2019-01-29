@@ -8,11 +8,10 @@
 #include "inststruct/identkeytable.h"
 #include "datapool.h"
 #include "inststruct/info.h"
+#include "parseunit.h"
 
 namespace CVM
 {
-	class ParseInfo;
-
 	PriLib::StorePtr<ParseInfo> createParseInfo(TypeInfoMap &tim);
 	void parseFile(ParseInfo &parseinfo, PriLib::TextFile &file);
 
@@ -25,4 +24,6 @@ namespace CVM
 	bool isEndChar(ParseInfo &parseinfo, char c);
 	bool isIdentifierChar(ParseInfo &parseinfo, char c);
 	bool hasIdentifierPrefix(ParseInfo &parseinfo, const char *str);
+	bool matchPrefix(ParseUnit &parseunit, const PriLib::StringView &substr);
+	bool matchPrefix(ParseUnit &parseunit, char subchar);
 }
