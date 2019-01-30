@@ -5,7 +5,7 @@
 #include "runtime/function.h"
 #include "runtime/environment.h"
 #include "virtualmachine.h"
-#include "parse.h"
+#include "parser/parse.h"
 
 namespace CVM
 {

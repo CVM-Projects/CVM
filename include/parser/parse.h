@@ -1,7 +1,6 @@
 #pragma once
 #include <memory>
-#include "../prilib/include/file.h"
-#include "../prilib/include/storeptr.h"
+#include "basic.h"
 #include "typeinfo.h"
 #include "inststruct/function.h"
 #include "inststruct/instpart.h"

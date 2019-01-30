@@ -10,8 +10,10 @@ include_directories(include)
 aux_source_directory(source SOURCE_FILES)
 aux_source_directory(source/runtime SOURCE_RUNTIME_FILES)
 aux_source_directory(source/inststruct SOURCE_INSTSTRUCT_FILES)
+aux_source_directory(source/parser SOURCE_PARSER_FILES)
+aux_source_directory(source/compiler SOURCE_COMPILER_FILES)
 
-add_executable(cvm ${SOURCE_FILES} ${SOURCE_RUNTIME_FILES} ${SOURCE_INSTSTRUCT_FILES} include)
+add_executable(cvm ${SOURCE_FILES} ${SOURCE_RUNTIME_FILES} ${SOURCE_INSTSTRUCT_FILES} ${SOURCE_PARSER_FILES} ${SOURCE_COMPILER_FILES} include)
 set_property(TARGET cvm PROPERTY CXX_STANDARD 17)
 
 target_link_libraries(cvm prilib)
