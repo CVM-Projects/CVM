@@ -14,6 +14,22 @@ namespace CVM
 
 	namespace InstStruct
 	{
+		struct Identifier {
+			using Type = HashID;
+
+			explicit Identifier(const HashID &hashid)
+				: _data(hashid) {}
+			explicit Identifier(const PriLib::StringViewRange &str, HashStringPool &hsp)
+				: _data(hsp.insert(str)) {}
+
+			std::string ToString(GlobalInfo &ginfo) const {
+				return ginfo.hashStringPool.get(_data);
+			}
+
+		private:
+			HashID _data;
+		};
+
 		struct FuncIdentifier
 		{
 		public:
@@ -87,11 +103,11 @@ namespace CVM
 				return _data;
 			}
 
-			std::string toString() const {
+			std::string ToString(GlobalInfo &ginfo) const {
 				std::string result;
 				result += "[";
 				for (auto &dat : _data) {
-					result += dat.toString() + ", ";
+					result += dat.ToString(ginfo) + ", ";
 				}
 				result.pop_back();
 				result.pop_back();

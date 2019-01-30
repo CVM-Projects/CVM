@@ -1,12 +1,12 @@
 #include "basic.h"
-#include "parse.h"
+#include "parser/parse.h"
 #include "inststruct/instcode.h"
 #include "inststruct/function.h"
 #include "inststruct/instpart.h"
 #include "inststruct/identkeytable.h"
 #include "bignumber.h"
 #include "inststruct/info.h"
-#include "inststruct/register.h"
+#include "parser/parse-inststruct.h"
 #include <regex>
 
 namespace CVM
@@ -326,9 +326,8 @@ namespace CVM
 
 	InstStruct::Register parseRegister(ParseInfo &parseinfo, const std::string &word) {
 		ParseUnit parseunit(parseinfo, word);
-		auto result = InstStruct::Register::Parse(parseunit);
+		auto result = Parse::Parse<InstStruct::Register>(parseunit);
 		if (result) {
-//			println(word, ":", PriLib::toSubString(parseunit.raw, parseunit.currview), ":", result.value().ToString(getGlobalInfo(parseinfo)));
 			return result.value();
 		} else {
 			parseinfo.putErrorLine(PEC_URReg, word);

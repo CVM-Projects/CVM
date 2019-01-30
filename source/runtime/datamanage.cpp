@@ -1,6 +1,6 @@
  #include "basic.h"
 #include "runtime/datamanage.h"
-#include "compile.h"
+#include "compiler/compile.h"
 
 namespace CVM
 {

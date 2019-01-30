@@ -1,5 +1,5 @@
 #include "basic.h"
-#include "compile.h"
+#include "compiler/compile.h"
 #include "inststruct/instpart.h"
 #include "inststruct/instdef.h"
 #include "runtime/environment.h"
@@ -273,7 +273,7 @@ namespace CVM
 	}
 }
 
-#include "parse.h"
+#include "parser/parse.h"
 #include "inststruct/identkeytable.h"
 
 namespace CVM

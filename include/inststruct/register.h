@@ -5,7 +5,7 @@
 #include <variant>
 #include "config.h"
 #include "info.h"
-#include "parseunit.h"
+#include "parser/parseunit.h"
 
 namespace CVM
 {
@@ -91,7 +91,6 @@ namespace CVM
 
             ZeroRegister() : RegisterInfo(rt_zero, rst_local) {}
 
-            static std::optional<ZeroRegister> Parse(ParseUnit &parseunit);
             std::string ToString(GlobalInfo &ginfo) const;
         };
 
@@ -108,7 +107,6 @@ namespace CVM
 
             ResultRegister() : RegisterInfo(rt_result, rst_local) {}
 
-            static std::optional<ResultRegister> Parse(ParseUnit &parseunit);
             std::string ToString(GlobalInfo &ginfo) const;
         };
 
@@ -128,7 +126,6 @@ namespace CVM
         struct DataRegister : public RegisterInfo, public DataRegisterBase {
             using BaseType = DataRegisterBase;
 
-            static std::optional<DataRegister> Parse(ParseUnit &parseunit);
             std::string ToString(GlobalInfo &ginfo) const;
         };
 
@@ -150,7 +147,6 @@ namespace CVM
 
             StackPointerRegister() : RegisterInfo(rt_stack_pointer, rst_unknown) {}
 
-            static std::optional<StackPointerRegister> Parse(ParseUnit &parseunit);
             std::string ToString(GlobalInfo &ginfo) const;
         };
 
@@ -181,7 +177,6 @@ namespace CVM
         struct StackSpaceRegister : public RegisterInfo, public StackSpaceRegisterBase {
             using BaseType = StackSpaceRegisterBase;
 
-            static std::optional<StackSpaceRegister> Parse(ParseUnit &parseunit);
             std::string ToString(GlobalInfo &ginfo) const;
         };
 
@@ -220,26 +215,6 @@ namespace CVM
 				return std::get<DataRegisterBase>(this->data).registerIndex.data;
 			}
 
-            static std::optional<Register> Parse(ParseUnit &parseunit) {
-                using Func = std::optional<Register> (ParseUnit &parseunit);
-                static Func* funcs[] = {
-                    _parseBase<ZeroRegister>,
-                    _parseBase<ResultRegister>,
-                    _parseBase<DataRegister>,
-                    _parseBase<StackPointerRegister>,
-                    _parseBase<StackSpaceRegister>
-                };
-                for (auto func : funcs) {
-                    ParseUnit record(parseunit);
-                    auto result = func(record);
-                    if (result) {
-                        parseunit = record;
-                        return result;
-                    }
-                }
-                return std::nullopt;
-            }
-
             std::string ToString(GlobalInfo &ginfo) const {
                 if (this->registerType == rt_zero)
                     return _toString<ZeroRegister>(ginfo);
@@ -257,22 +232,7 @@ namespace CVM
                 }
             }
 
-            std::string toString() const {
-                // TODO
-                assert(false);
-                GlobalInfo ginfo;
-                return this->ToString(ginfo);
-            }
-
         private:
-            template <typename RT>
-            static std::optional<Register> _parseBase(ParseUnit &parseunit) {
-                auto parseresult = RT::Parse(parseunit);
-                if (parseresult)
-                    return Register(parseresult.value());
-                else
-                    return std::nullopt;
-            }
             template <typename RBT>
             static std::string _toString(const RBT &registerbasetype, GlobalInfo &ginfo, const RegisterInfo &rinfo) {
                 typename RBT::ImplType impl;

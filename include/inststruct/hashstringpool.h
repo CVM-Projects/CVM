@@ -3,6 +3,7 @@
 #include <map>
 #include <cassert>
 #include "../prilib/include/explicittype.h"
+#include "../prilib/include/stringview.h"
 
 namespace CVM
 {
@@ -51,6 +52,10 @@ namespace CVM
 				assert(_data.at(id) == value);
 			}
 			return HashID(id);
+		}
+
+		HashID insert(const PriLib::StringViewRange &value) {
+			return insert(value.toString());
 		}
 
 	private:
