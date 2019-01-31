@@ -14,10 +14,7 @@ namespace CVM {
                 : parseinfo(parseunit.parseinfo), raw(parseunit.raw), currview(parseunit.currview), errorcode(parseunit.errorcode) {}
 
         ParseUnit& operator=(const ParseUnit &parseunit) {
-            assert(&parseinfo == &parseunit.parseinfo);
-            assert(&raw == &parseunit.raw);
-            this->currview = parseunit.currview;
-            this->errorcode = parseunit.errorcode;
+            new (this) ParseUnit(parseunit);
             return *this;
         }
 

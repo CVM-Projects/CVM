@@ -15,7 +15,7 @@ namespace CVM
 		TypeInfo ninfo(info);
 		assert(_data.size() < std::numeric_limits<Config::TypeIndexType>::max());
 		ninfo.index.data = static_cast<Config::TypeIndexType>(_data.size());
-		ninfo.name.data = nameid;
+		ninfo.name = nameid;
 		// Insert
 		if (_keymap.find(nameid) != _keymap.end()) {
 			return false;
@@ -44,7 +44,7 @@ namespace CVM
 		};
 
 		for (auto &ti : tis) {
-			tim.insert(ti.name.data, ti);
+			tim.insert(ti.name, ti);
 		}
 	}
 }

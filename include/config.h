@@ -4,6 +4,7 @@
 #pragma once
 #include <cstdint>
 #include <cstdio>
+#include <cstdlib>
 
 namespace CVM
 {
@@ -21,11 +22,12 @@ namespace CVM
 		using FuncIndexType = std::uint32_t;
 		using StackOffsetType = std::int32_t;
 		using LineCountType = std::uint32_t;
+		using FileIndexType = std::uint32_t;
 
 		constexpr bool isCheckMemorySizeOverflow = true;
 		inline void ThrowMemorySizeOverflowError() {
-			puts("Error occur while plusing two MemorySize.");
-			exit(1);
+			std::puts("Error occur while plusing two MemorySize.");
+			std::exit(1);
 		}
 		inline void CheckMemorySizeOverflow(bool pass) {
 			if (isCheckMemorySizeOverflow && !pass) {

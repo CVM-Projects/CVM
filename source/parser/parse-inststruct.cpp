@@ -43,6 +43,18 @@ namespace CVM
         static bool IsEndChar(const ParseUnit &parseunit) {
             return isEndChar(parseunit.parseinfo, parseunit.currview[0]);
         }
+        static bool ParseIdentifier(ParseUnit &parseunit, HashID &result) {
+            if (!hasIdentifierPrefix(parseunit.parseinfo, parseunit.currview.get()))
+                return false;
+            PriLib::StringView::OffsetType begin = isIdentifierEscapePrefixChar(parseunit.parseinfo, parseunit.currview[0]) ? 1 : 0;
+            PriLib::StringView::OffsetType end = begin;
+            while (isIdentifierChar(parseunit.parseinfo, parseunit.currview[end]))
+                ++end;
+            PriLib::StringViewRange identstr(parseunit.currview, begin, end);
+            result = getGlobalInfo(parseunit.parseinfo).hashStringPool.insert(identstr);
+            parseunit.currview += end;
+            return false;
+        }
 
         //---------------------------------------------------------------------------------------------
         // * Register
@@ -146,14 +158,8 @@ namespace CVM
                 if (!ParseNumber(parseunit, result.stacksize.data))
                     return std::nullopt;
             }
-            else if (hasIdentifierPrefix(parseunit.parseinfo, parseunit.currview.get())) {
+            else if (ParseIdentifier(parseunit, result.typehashid)) {
                 result.registerType = rt_stack_space_type;
-                // Get Type
-                const char *endptr = parseunit.currview.get();
-                while (isIdentifierChar(parseunit.parseinfo, *endptr))
-                    ++endptr;
-                result.typehashid = getGlobalInfo(parseunit.parseinfo).hashStringPool.insert(PriLib::StringViewRange(parseunit.currview.get(), endptr));
-                parseunit.currview = PriLib::StringView(endptr);
             }
             if (!matchPrefix(parseunit, ')'))
                 return std::nullopt;
@@ -203,14 +209,10 @@ namespace CVM
         //---------------------------------------------------------------------------------------------
         template <>
         std::optional<Identifier> Parse<Identifier>(ParseUnit &parseunit) {
-            if (!hasIdentifierPrefix(parseunit.parseinfo, parseunit.currview.get()))
-                return std::nullopt;
-            // Get Type
-            const char *endptr = parseunit.currview.get();
-            while (isIdentifierChar(parseunit.parseinfo, *endptr))
-                ++endptr;
-            getGlobalInfo(parseunit.parseinfo).hashStringPool.insert(PriLib::StringViewRange(parseunit.currview.get(), endptr));
-            parseunit.currview = PriLib::StringView(endptr);
+            HashID hashid;
+            if (ParseIdentifier(parseunit, hashid)) {
+                return Identifier(hashid);
+            }
             return std::nullopt;
         }
     }

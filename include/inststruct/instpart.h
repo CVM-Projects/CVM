@@ -2,8 +2,6 @@
 #include <cstdint>
 #include <cassert>
 #include <string>
-#include <bitset>
-#include "../prilib/include/prints.h"
 #include "config.h"
 #include "typeinfo.h"
 #include "register.h"
@@ -19,8 +17,6 @@ namespace CVM
 
 			explicit Identifier(const HashID &hashid)
 				: _data(hashid) {}
-			explicit Identifier(const PriLib::StringViewRange &str, HashStringPool &hsp)
-				: _data(hsp.insert(str)) {}
 
 			std::string ToString(GlobalInfo &ginfo) const {
 				return ginfo.hashStringPool.get(_data);

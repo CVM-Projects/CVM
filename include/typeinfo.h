@@ -2,6 +2,8 @@
 #include "../prilib/include/explicittype.h"
 #include <cstdint>
 #include <map>
+#include <vector>
+#include <limits>
 #include "config.h"
 #include "typebase.h"
 #include "inststruct/hashstringpool.h"
@@ -22,6 +24,22 @@ namespace CVM
 	public:
 		explicit MemorySize(Config::MemorySizeType value = 0)
 			: PriLib::ExplicitType<Config::MemorySizeType, 0>(value) {}
+//
+//		explicit MemorySize(size_t value)
+//			: PriLib::ExplicitType<Config::MemorySizeType, 0>(static_cast<Config::MemorySizeType>(value)) {
+//			assert(value <= std::numeric_limits<Config::MemorySizeType>::max());
+//		}
+//
+//		explicit MemorySize(ssize_t value)
+//			: PriLib::ExplicitType<Config::MemorySizeType, 0>(static_cast<Config::MemorySizeType>(value)) {
+//			assert(0 <= value && value <= std::numeric_limits<Config::MemorySizeType>::max());
+//		}
+//
+//		explicit MemorySize(int value)
+//			: PriLib::ExplicitType<Config::MemorySizeType, 0>(static_cast<Config::MemorySizeType>(value)) {
+//			assert(0 <= value && value <= std::numeric_limits<Config::MemorySizeType>::max());
+//		}
+
 
 		MemorySize& operator+=(const MemorySize &other) {
 			Config::MemorySizeType result;
@@ -92,7 +110,7 @@ namespace CVM
 	inline bool operator<=(const MemorySize &lhs, const MemorySize &rhs) { return lhs.compare(rhs) <= 0; }
 	inline bool operator==(const MemorySize &lhs, const MemorySize &rhs) { return lhs.compare(rhs) == 0; }
 
-	DefineExplicitType(TypeNameID, HashID);
+	using TypeNameID = HashID;
 
 	struct TypeInfo
 	{
