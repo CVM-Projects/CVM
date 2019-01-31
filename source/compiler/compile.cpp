@@ -355,7 +355,7 @@ namespace CVM
 			return new Runtime::LocalEnvironment(drs, func);
 		}
 
-		Runtime::GlobalEnvironment* CreateGlobalEnvironment(Config::RegisterIndexType dysize, const TypeInfoMap *tim, const LiteralDataPool *datasmap, const Runtime::FuncTable *functable, HashStringPool *hashStringPool) {
+		Runtime::GlobalEnvironment* CreateGlobalEnvironment(Config::RegisterIndexType dysize, const TypeInfoMap *tim, const NewLiteralDataPool *datasmap, const Runtime::FuncTable *functable, HashStringPool *hashStringPool) {
 			Runtime::DataRegisterSet::DyDatRegSize _dysize(dysize);
 			Runtime::DataRegisterSet drs(_dysize);
 

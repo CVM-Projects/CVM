@@ -39,8 +39,10 @@ namespace CVM
 	class ParseInfo
 	{
 	public:
-		explicit ParseInfo(TypeInfoMap &tim)
-			: tim(tim), currfunc_creater(*this) {}
+		explicit ParseInfo(InstStruct::GlobalInfo &globalInfo)
+			: info(globalInfo), tim(info.typeInfoMap), currfunc_creater(*this), literalDataPool(globalInfo.literalDataPool) {
+			literalDataPool.dataPoolMap().insert(FileID(0));
+		}
 
 		~ParseInfo() {
 			//println("~ParseInfo();");
@@ -170,10 +172,11 @@ namespace CVM
 			return info.hashStringPool.get(id);
 		}
 
-		InstStruct::GlobalInfo info;
+		InstStruct::GlobalInfo &info;
 		InstStruct::IdentKeyTable functable;
 		TypeInfoMap &tim;
-		LiteralDataPoolCreater datamap;
+		NewLiteralDataPool &literalDataPool;
+//		LiteralDataPoolCreater datamap;
 		size_t lcount = 0;
 		ParsedIdentifier currtype;
 		int currsection = 0;
@@ -243,15 +246,15 @@ namespace CVM
 		return parseinfo.getFromHashStringPool(id);
 	}
 
-	PriLib::StorePtr<ParseInfo> createParseInfo(TypeInfoMap &tim) {
-		return PriLib::StorePtr<ParseInfo>(new ParseInfo(tim));
+	PriLib::StorePtr<ParseInfo> createParseInfo(InstStruct::GlobalInfo &ginfo) {
+		return PriLib::StorePtr<ParseInfo>(new ParseInfo(ginfo));
 	}
 
 	ParsedIdentifier getEntry(ParseInfo &parseinfo) {
 		return parseinfo.info.entry;
 	}
-	LiteralDataPoolCreater& getDataSectionMap(ParseInfo &parseinfo) {
-		return parseinfo.datamap;
+	NewLiteralDataPool& getDataSectionMap(ParseInfo &parseinfo) {
+		return parseinfo.literalDataPool;
 	}
 	InstStruct::IdentKeyTable& getFunctionTable(ParseInfo &parseinfo) {
 		return parseinfo.functable;
@@ -274,13 +277,15 @@ namespace CVM
         return isalnum(c) || (identcharset.find(c) != identcharset.npos);
 	}
 
+	bool isIdentifierEscapePrefixChar(ParseInfo &parseinfo, char c) {
+		return c == '%' || c == '#';
+	}
+
 	bool hasIdentifierPrefix(ParseInfo &parseinfo, const char *str) {
-	    char c = *str;
-	    if (c == '\0')
-	        return false;
-	    if (c == '%' || c == '#')
-	        return str[1] == c;
-	    return isIdentifierChar(parseinfo, c);
+		if (isIdentifierEscapePrefixChar(parseinfo, str[0]))
+			return str[0] == str[1];
+		else
+			return isIdentifierChar(parseinfo, str[0]);
 	}
 
 	bool matchPrefix(ParseUnit &parseunit, const PriLib::StringView &substr) {
@@ -701,8 +706,8 @@ namespace CVM
 		}
 	}
 
-	static uint8_t* createMemory(size_t size) {
-		return new uint8_t[size]();
+	static uint8_t* createMemory(ParseInfo &parseinfo, size_t size) {
+		return parseinfo.literalDataPool.allocClear(size);
 	}
 
 	void parseSectionInside(ParseInfo &parseinfo, const std::string &code, const std::vector<std::string> &list) {
@@ -850,23 +855,23 @@ namespace CVM
 						[](ParseInfo &parseinfo, const std::vector<std::string> &list) {
 							if (list.size() == 2 || list.size() == 3) {
 								InstStruct::DataIndex di = parseDataIndex(parseinfo, list[0]);
-								auto iter = parseinfo.datamap.find(di.index());
-								if (iter == parseinfo.datamap.end()) {
+								if (!parseinfo.literalDataPool.dataPoolMap()[FileID(0)].has(DataID(di.index()))) {
 									uint8_t *buffer = nullptr;
 									size_t msize = 0;
 									if (list.size() == 3) {
 										msize = parseNumber<size_t>(parseinfo, list[2]);
-										buffer = createMemory(msize);
+										buffer = createMemory(parseinfo, msize);
 										parseDataLarge(parseinfo, list[1], buffer, msize);
 									}
 									else {
 										if (!parseDataLarge(parseinfo, list[1], [&](size_t size) {
 											msize = size;
-											return buffer = createMemory(size);
+											return buffer = createMemory(parseinfo, size);
 										}))
 											delete[] buffer;
 									}
-									parseinfo.datamap[di.index()] = std::make_pair(buffer, static_cast<uint32_t>(msize));
+									parseinfo.literalDataPool.dataPoolMap().insert(FileID(0), DataID(di.index()), std::make_pair(MemorySize(msize), buffer)); // TODO
+//									parseinfo.datamap[di.index()] = std::make_pair(buffer, static_cast<uint32_t>(msize));
 								}
 								else {
 									parseinfo.putErrorLine(PEC_DUDataId);
@@ -882,8 +887,7 @@ namespace CVM
 						[](ParseInfo &parseinfo, const std::vector<std::string> &list) {
 							if (list.size() >= 2) {
 								InstStruct::DataIndex di = parseDataIndex(parseinfo, list[0]);
-								auto iter = parseinfo.datamap.find(di.index());
-								if (iter == parseinfo.datamap.end()) {
+								if (!parseinfo.literalDataPool.dataPoolMap()[FileID(0)].has(DataID(di.index()))) {
 									std::vector<uint8_t> vec;
 									for (auto &word : PriLib::rangei(list.begin() + 1, list.end())) {
 										BigInteger bi;
@@ -914,9 +918,10 @@ namespace CVM
 										}
 									}
 
-									uint8_t *buffer = createMemory(vec.size());
+									uint8_t *buffer = createMemory(parseinfo, vec.size());
 									PriLib::Memory::copyTo(buffer, vec.data(), vec.size());
-									parseinfo.datamap[di.index()] = std::make_pair(buffer, static_cast<uint32_t>(vec.size())); // TODO
+									parseinfo.literalDataPool.dataPoolMap().insert(FileID(0), DataID(di.index()), std::make_pair(MemorySize(static_cast<uint32_t>(vec.size())), buffer)); // TODO
+//									parseinfo.datamap[di.index()] = std::make_pair(buffer, static_cast<uint32_t>(vec.size())); // TODO
 								}
 								else {
 									parseinfo.putErrorLine(PEC_DUDataId);
@@ -933,17 +938,17 @@ namespace CVM
 						[](ParseInfo &parseinfo, const std::vector<std::string> &list) {
 							if (list.size() == 2) {
 								InstStruct::DataIndex di = parseDataIndex(parseinfo, list[0]);
-								auto iter = parseinfo.datamap.find(di.index());
-								if (iter == parseinfo.datamap.end()) {
+								if (!parseinfo.literalDataPool.dataPoolMap()[FileID(0)].has(DataID(di.index()))) {
 									std::string nword = list[1].substr(1, list[1].size() - 2);
 
 									if (parse_string_escape(nword, nword)) {
 										size_t msize = nword.size() + 1;
-										uint8_t *buffer = createMemory(msize);
+										uint8_t *buffer = createMemory(parseinfo, msize);
 										for (size_t i = 0; i < nword.size(); ++i) {
 											buffer[i] = (uint8_t)nword[i];
 										}
-										parseinfo.datamap[di.index()] = std::make_pair(buffer, static_cast<uint32_t>(msize));
+									parseinfo.literalDataPool.dataPoolMap().insert(FileID(0), DataID(di.index()), std::make_pair(MemorySize(msize), buffer)); // TODO
+//										parseinfo.datamap[di.index()] = std::make_pair(buffer, static_cast<uint32_t>(msize));
 									}
 									else {
 										parseinfo.putErrorLine(PEC_UREscape);

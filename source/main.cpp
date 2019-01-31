@@ -138,12 +138,9 @@ void pause() {
 
 CVM::Runtime::LocalEnvironment * createVM(PriLib::TextFile &cmsfile, CVM::VirtualMachine &VM)
 {
-	// Init HashStringPool
-	CVM::HashStringPool *hashstringpool = new CVM::HashStringPool();  // TODO: Use smart pointer.
+	// Init GlobalInfo
 
-	// Init TypeInfoMap
-
-	CVM::TypeInfoMap *tim = new CVM::TypeInfoMap(*hashstringpool);
+	CVM::InstStruct::GlobalInfo *globalinfo = new CVM::InstStruct::GlobalInfo();
 
 	// Parse File
 
@@ -151,11 +148,11 @@ CVM::Runtime::LocalEnvironment * createVM(PriLib::TextFile &cmsfile, CVM::Virtua
 
 	Compiler compiler;
 	Runtime::FuncTable *functable;
-	LiteralDataPool *ldp;
+	NewLiteralDataPool *ldp;
 
 	{
 		// Parse File
-		auto parseinfo = createParseInfo(*tim);
+		auto parseinfo = createParseInfo(*globalinfo);
 		parseFile(parseinfo, cmsfile);
 		cmsfile.close();
 		pause();
@@ -165,25 +162,25 @@ CVM::Runtime::LocalEnvironment * createVM(PriLib::TextFile &cmsfile, CVM::Virtua
 		}
 
 		// Create LiteralDataPool
-		LiteralDataPoolCreater &datasmap = getDataSectionMap(parseinfo);
-		ldp = new LiteralDataPool(datasmap);
+		NewLiteralDataPool &datasmap = getDataSectionMap(parseinfo);
+		ldp = &datasmap;
 		println(ldp->toString());
 
 		// Create FuncTable
 		functable = new Runtime::FuncTable();
 
 		// Compile
-		if (!compiler.compile(parseinfo, getInsidePtrFuncMap(*hashstringpool), *functable)) {
+		if (!compiler.compile(parseinfo, getInsidePtrFuncMap(globalinfo->hashStringPool), *functable)) {
 			println("Compiled Error.");
 			exit(-1);
 		}
 	}
 
-	VM.addGlobalEnvironment(Compile::CreateGlobalEnvironment(0xff, tim, ldp, functable, hashstringpool));
+	VM.addGlobalEnvironment(Compile::CreateGlobalEnvironment(0xff, &globalinfo->typeInfoMap, ldp, functable, &globalinfo->hashStringPool));
 
 	Config::FuncIndexType entry_id = compiler.getEntryID();
 	Runtime::InstFunction &entry_func = static_cast<Runtime::InstFunction&>(*functable->at(entry_id));
-	Runtime::LocalEnvironment *lenv = Compile::CreateLoaclEnvironment(entry_func, *tim);
+	Runtime::LocalEnvironment *lenv = Compile::CreateLoaclEnvironment(entry_func, globalinfo->typeInfoMap);
 
 	VM.Genv().addSubEnvironment(lenv);
 	pause();
