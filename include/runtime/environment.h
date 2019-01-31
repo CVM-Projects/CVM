@@ -128,8 +128,6 @@ namespace CVM
 			~GlobalEnvironment() {
 				// TODO
 				delete _functable;
-				delete _datasmap;
-				delete _tim;
 			}
 
 			virtual void addSubEnvironment(Environment *envp) {
