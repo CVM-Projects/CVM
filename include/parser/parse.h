@@ -16,7 +16,6 @@ namespace CVM
 
 	HashID getEntry(ParseInfo &parseinfo);
 	const std::string& getFromHashStringPool(ParseInfo &parseinfo, HashID id);
-	NewLiteralDataPool& getDataSectionMap(ParseInfo &parseinfo);
 	InstStruct::IdentKeyTable& getFunctionTable(ParseInfo &parseinfo);
 	bool haveError(const ParseInfo &parseinfo);
 	InstStruct::GlobalInfo& getGlobalInfo(ParseInfo &parseinfo);
