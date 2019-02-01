@@ -40,9 +40,7 @@ namespace CVM
 	{
 	public:
 		explicit ParseInfo(InstStruct::GlobalInfo &globalInfo)
-			: info(globalInfo), tim(info.typeInfoMap), currfunc_creater(*this), literalDataPool(globalInfo.literalDataPool) {
-			literalDataPool.dataPoolMap().insert(FileID(0));
-		}
+			: info(globalInfo), tim(info.typeInfoMap), currfunc_creater(*this), literalDataPoolCreator(*globalInfo.literalDataPoolCreator) {}
 
 		~ParseInfo() {
 			//println("~ParseInfo();");
@@ -175,7 +173,7 @@ namespace CVM
 		InstStruct::GlobalInfo &info;
 		InstStruct::IdentKeyTable functable;
 		TypeInfoMap &tim;
-		NewLiteralDataPool &literalDataPool;
+		LiteralDataPoolCreator &literalDataPoolCreator;
 //		LiteralDataPoolCreater datamap;
 		size_t lcount = 0;
 		ParsedIdentifier currtype;
@@ -252,9 +250,6 @@ namespace CVM
 
 	ParsedIdentifier getEntry(ParseInfo &parseinfo) {
 		return parseinfo.info.entry;
-	}
-	NewLiteralDataPool& getDataSectionMap(ParseInfo &parseinfo) {
-		return parseinfo.literalDataPool;
 	}
 	InstStruct::IdentKeyTable& getFunctionTable(ParseInfo &parseinfo) {
 		return parseinfo.functable;
@@ -706,8 +701,8 @@ namespace CVM
 		}
 	}
 
-	static uint8_t* createMemory(ParseInfo &parseinfo, size_t size) {
-		return parseinfo.literalDataPool.allocClear(size);
+	static uint8_t* createMemory(ParseInfo &parseinfo, MemorySize size) {
+		return parseinfo.literalDataPoolCreator.alloc(size);
 	}
 
 	void parseSectionInside(ParseInfo &parseinfo, const std::string &code, const std::vector<std::string> &list) {
@@ -855,22 +850,22 @@ namespace CVM
 						[](ParseInfo &parseinfo, const std::vector<std::string> &list) {
 							if (list.size() == 2 || list.size() == 3) {
 								InstStruct::DataIndex di = parseDataIndex(parseinfo, list[0]);
-								if (!parseinfo.literalDataPool.dataPoolMap()[FileID(0)].has(DataID(di.index()))) {
+								if (!parseinfo.literalDataPoolCreator.has(FileID(0), DataID(di.index()))) {
 									uint8_t *buffer = nullptr;
 									size_t msize = 0;
 									if (list.size() == 3) {
 										msize = parseNumber<size_t>(parseinfo, list[2]);
-										buffer = createMemory(parseinfo, msize);
+										buffer = createMemory(parseinfo, MemorySize(msize));
 										parseDataLarge(parseinfo, list[1], buffer, msize);
 									}
 									else {
 										if (!parseDataLarge(parseinfo, list[1], [&](size_t size) {
 											msize = size;
-											return buffer = createMemory(parseinfo, size);
+											return buffer = createMemory(parseinfo, MemorySize(size));
 										}))
 											delete[] buffer;
 									}
-									parseinfo.literalDataPool.dataPoolMap().insert(FileID(0), DataID(di.index()), std::make_pair(MemorySize(msize), buffer)); // TODO
+									parseinfo.literalDataPoolCreator.insert((FileID(0), DataID(di.index())), std::make_pair(MemorySize(msize), buffer)); // TODO
 //									parseinfo.datamap[di.index()] = std::make_pair(buffer, static_cast<uint32_t>(msize));
 								}
 								else {
@@ -887,7 +882,7 @@ namespace CVM
 						[](ParseInfo &parseinfo, const std::vector<std::string> &list) {
 							if (list.size() >= 2) {
 								InstStruct::DataIndex di = parseDataIndex(parseinfo, list[0]);
-								if (!parseinfo.literalDataPool.dataPoolMap()[FileID(0)].has(DataID(di.index()))) {
+								if (!parseinfo.literalDataPoolCreator.has(FileID(0), DataID(di.index()))) {
 									std::vector<uint8_t> vec;
 									for (auto &word : PriLib::rangei(list.begin() + 1, list.end())) {
 										BigInteger bi;
@@ -918,9 +913,9 @@ namespace CVM
 										}
 									}
 
-									uint8_t *buffer = createMemory(parseinfo, vec.size());
+									uint8_t *buffer = createMemory(parseinfo, MemorySize(vec.size()));
 									PriLib::Memory::copyTo(buffer, vec.data(), vec.size());
-									parseinfo.literalDataPool.dataPoolMap().insert(FileID(0), DataID(di.index()), std::make_pair(MemorySize(static_cast<uint32_t>(vec.size())), buffer)); // TODO
+									parseinfo.literalDataPoolCreator.insert((FileID(0), DataID(di.index())), std::make_pair(MemorySize(static_cast<uint32_t>(vec.size())), buffer)); // TODO
 //									parseinfo.datamap[di.index()] = std::make_pair(buffer, static_cast<uint32_t>(vec.size())); // TODO
 								}
 								else {
@@ -938,17 +933,16 @@ namespace CVM
 						[](ParseInfo &parseinfo, const std::vector<std::string> &list) {
 							if (list.size() == 2) {
 								InstStruct::DataIndex di = parseDataIndex(parseinfo, list[0]);
-								if (!parseinfo.literalDataPool.dataPoolMap()[FileID(0)].has(DataID(di.index()))) {
+								if (!parseinfo.literalDataPoolCreator.has(FileID(0), DataID(di.index()))) {
 									std::string nword = list[1].substr(1, list[1].size() - 2);
 
 									if (parse_string_escape(nword, nword)) {
 										size_t msize = nword.size() + 1;
-										uint8_t *buffer = createMemory(parseinfo, msize);
+										uint8_t *buffer = createMemory(parseinfo, MemorySize(msize));
 										for (size_t i = 0; i < nword.size(); ++i) {
 											buffer[i] = (uint8_t)nword[i];
 										}
-									parseinfo.literalDataPool.dataPoolMap().insert(FileID(0), DataID(di.index()), std::make_pair(MemorySize(msize), buffer)); // TODO
-//										parseinfo.datamap[di.index()] = std::make_pair(buffer, static_cast<uint32_t>(msize));
+									parseinfo.literalDataPoolCreator.insert((FileID(0), DataID(di.index())), std::make_pair(MemorySize(msize), buffer)); // TODO
 									}
 									else {
 										parseinfo.putErrorLine(PEC_UREscape);

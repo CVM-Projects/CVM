@@ -148,7 +148,7 @@ CVM::Runtime::LocalEnvironment * createVM(PriLib::TextFile &cmsfile, CVM::Virtua
 
 	Compiler compiler;
 	Runtime::FuncTable *functable;
-	NewLiteralDataPool *ldp;
+	LiteralDataPool *ldp;
 
 	{
 		// Parse File
@@ -162,8 +162,10 @@ CVM::Runtime::LocalEnvironment * createVM(PriLib::TextFile &cmsfile, CVM::Virtua
 		}
 
 		// Create LiteralDataPool
-		NewLiteralDataPool &datasmap = getDataSectionMap(parseinfo);
-		ldp = &datasmap;
+		LiteralDataPoolCreator &creator = *getGlobalInfo(parseinfo).literalDataPoolCreator;
+		creator.merge(getGlobalInfo(parseinfo).literalDataPool);
+		getGlobalInfo(parseinfo).literalDataPoolCreator.release();
+		ldp = &getGlobalInfo(parseinfo).literalDataPool;
 		println(ldp->toString());
 
 		// Create FuncTable

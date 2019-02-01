@@ -113,7 +113,7 @@ namespace CVM
 		class GlobalEnvironment : public Environment
 		{
 		public:
-			using DataSectionMap = NewLiteralDataPool;
+			using DataSectionMap = LiteralDataPool;
 			explicit GlobalEnvironment(
 				const DataRegisterSet &drs,
 				const TypeInfoMap *tim,

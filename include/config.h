@@ -12,17 +12,21 @@ namespace CVM
 	{
 		// Type Define
 
-		using MemorySizeType = std::uint32_t;
+		using MemorySizeType = std::size_t;
 		using MemoryCountType = std::uint32_t;
 		using RegisterIndexType = std::uint32_t;
 		using TypeIndexType = std::uint32_t;
 		using DataInstType = std::uint32_t;
-		using DataIndexType = std::uint32_t;
 		using StackSizeType = std::uint32_t;
-		using FuncIndexType = std::uint32_t;
 		using StackOffsetType = std::int32_t;
+		using FuncIndexType = std::uint32_t;
 		using LineCountType = std::uint32_t;
-		using FileIndexType = std::uint32_t;
+		using DataIndexType = std::uint32_t;  // Index in DataPool
+		using FileIndexType = std::uint32_t;  // Index for File
+		using FileDataIndexType = std::uint64_t;  // (FileIndex, DataIndex)
+
+		static_assert(sizeof(FileIndexType) + sizeof(DataIndexType) == sizeof(FileDataIndexType),
+		        "FileDataIndexType must be equal (FileIndexType, DataIndexType).");
 
 		constexpr bool isCheckMemorySizeOverflow = true;
 		inline void ThrowMemorySizeOverflowError() {

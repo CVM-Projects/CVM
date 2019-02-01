@@ -2,6 +2,7 @@
 #include "hashstringpool.h"
 #include "typeinfo.h"
 #include "datapool.h"
+#include "parser/datapool-creator.h"
 #include "filenamemap.h"
 
 namespace CVM
@@ -15,13 +16,14 @@ namespace CVM
 	    };
 
 		struct GlobalInfo {
-			GlobalInfo() : typeInfoMap(hashStringPool) {}
+			GlobalInfo() : typeInfoMap(hashStringPool), literalDataPoolCreator(new LiteralDataPoolCreator()) {}
 
 			HashID entry;
 			HashStringPool hashStringPool;
 			DataRegisterMode dataRegisterMode = drm_multiply;
 			TypeInfoMap typeInfoMap;
-			NewLiteralDataPool literalDataPool;
+			std::unique_ptr<LiteralDataPoolCreator> literalDataPoolCreator;  // TODO: Remove from GlobalInfo
+			LiteralDataPool literalDataPool;
 			FileNameMap fileNameMap;
 		};
 

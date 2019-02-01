@@ -24,22 +24,6 @@ namespace CVM
 	public:
 		explicit MemorySize(Config::MemorySizeType value = 0)
 			: PriLib::ExplicitType<Config::MemorySizeType, 0>(value) {}
-//
-//		explicit MemorySize(size_t value)
-//			: PriLib::ExplicitType<Config::MemorySizeType, 0>(static_cast<Config::MemorySizeType>(value)) {
-//			assert(value <= std::numeric_limits<Config::MemorySizeType>::max());
-//		}
-//
-//		explicit MemorySize(ssize_t value)
-//			: PriLib::ExplicitType<Config::MemorySizeType, 0>(static_cast<Config::MemorySizeType>(value)) {
-//			assert(0 <= value && value <= std::numeric_limits<Config::MemorySizeType>::max());
-//		}
-//
-//		explicit MemorySize(int value)
-//			: PriLib::ExplicitType<Config::MemorySizeType, 0>(static_cast<Config::MemorySizeType>(value)) {
-//			assert(0 <= value && value <= std::numeric_limits<Config::MemorySizeType>::max());
-//		}
-
 
 		MemorySize& operator+=(const MemorySize &other) {
 			Config::MemorySizeType result;
