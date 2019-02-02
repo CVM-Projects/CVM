@@ -162,11 +162,10 @@ CVM::Runtime::LocalEnvironment * createVM(PriLib::TextFile &cmsfile, CVM::Virtua
 		}
 
 		// Create LiteralDataPool
-		LiteralDataPoolCreator &creator = *getGlobalInfo(parseinfo).literalDataPoolCreator;
-		creator.merge(getGlobalInfo(parseinfo).literalDataPool);
-		getGlobalInfo(parseinfo).literalDataPoolCreator.release();
-		ldp = &getGlobalInfo(parseinfo).literalDataPool;
-		println(ldp->toString());
+		LiteralDataPoolCreator &creator = *globalinfo->literalDataPoolCreator;
+		creator.merge(globalinfo->literalDataPool);
+		globalinfo->literalDataPoolCreator.release();
+		println(globalinfo->literalDataPool.toString());
 
 		// Create FuncTable
 		functable = new Runtime::FuncTable();
@@ -178,7 +177,7 @@ CVM::Runtime::LocalEnvironment * createVM(PriLib::TextFile &cmsfile, CVM::Virtua
 		}
 	}
 
-	VM.addGlobalEnvironment(Compile::CreateGlobalEnvironment(0xff, &globalinfo->typeInfoMap, ldp, functable, &globalinfo->hashStringPool));
+	VM.addGlobalEnvironment(Compile::CreateGlobalEnvironment(0xff, &globalinfo->typeInfoMap, &globalinfo->literalDataPool, functable, &globalinfo->hashStringPool));
 
 	Config::FuncIndexType entry_id = compiler.getEntryID();
 	Runtime::InstFunction &entry_func = static_cast<Runtime::InstFunction&>(*functable->at(entry_id));
