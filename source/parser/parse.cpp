@@ -15,25 +15,8 @@ namespace CVM
 
 	enum ParseErrorCode
 	{
-		PEC_NumTooLarge,
-		PEC_NumIsSigned,
-		PEC_URDid,
-		PEC_URNum,
-		PEC_URIns,
-		PEC_URCmd,
-		PEC_UREnv,
-		PEC_URReg,
-		PEC_URLabel,
-		PEC_UREscape,
-		PEC_UFType,
-		PEC_UFFunc,
-		PEC_UMArgs,
-		PEC_DUType,
-		PEC_DUFunc,
-		PEC_DUDataId,
-		PEC_NotFuncReg,
-		PEC_IllegalFormat,
-		PEC_ModeNotAllow,
+#define ParseErrorCode(PEC_Code, Message) PEC_Code,
+#include "parse-errorcode.def"
 	};
 
 	class ParseInfo
@@ -216,25 +199,8 @@ namespace CVM
 
 		const char* geterrmsg(ParseErrorCode pec) const {
 			static std::map<ParseErrorCode, const char*> pecmap = {
-				{ PEC_NumTooLarge, "Number too large" },
-				{ PEC_NumIsSigned, "Number is signed" },
-				{ PEC_URDid, "Unrecognized data index" },
-				{ PEC_URNum, "Unrecognized number" },
-				{ PEC_URCmd, "Unrecognized command" },
-				{ PEC_URIns, "Unrecognized instruction" },
-				{ PEC_UREnv, "Unrecognized environment" },
-				{ PEC_URReg, "Unrecognized register" },
-				{ PEC_URLabel, "Unrecognized label" },
-				{ PEC_UREscape, "Unrecognized escape" },
-				{ PEC_UFType, "Unfind type" },
-				{ PEC_UFFunc, "Unfind function" },
-				{ PEC_UMArgs, "Unmatch arguments" },
-				{ PEC_DUType, "type name duplicate" },
-				{ PEC_DUFunc, "func name duplicate" },
-				{ PEC_DUDataId, "data index duplicate" },
-				{ PEC_NotFuncReg, "not function's register" },
-				{ PEC_IllegalFormat, "Illegal format" },
-				{ PEC_ModeNotAllow, "Mode not allow" }
+#define ParseErrorCode(PEC_Code, Message) { PEC_Code, Message },
+#include "parse-errorcode.def"
 			};
 			return pecmap.at(pec);
 		}
@@ -260,16 +226,16 @@ namespace CVM
 	}
 
 	InstStruct::GlobalInfo& getGlobalInfo(ParseInfo &parseinfo) {
-	    return parseinfo.info;
+		return parseinfo.info;
 	}
 
 	bool isEndChar(ParseInfo &parseinfo, char c) {
-	    return c == '\0' || std::isspace(c) || c == ',';
+		return c == '\0' || std::isspace(c) || c == ',';
 	}
 
 	bool isIdentifierChar(ParseInfo &parseinfo, char c) {
-        static std::string identcharset("!#$%&*+-./:<=>?@^_~");
-        return isalnum(c) || (identcharset.find(c) != identcharset.npos);
+		static std::string identcharset("!#$%&*+-./:<=>?@^_~");
+		return isalnum(c) || (identcharset.find(c) != identcharset.npos);
 	}
 
 	bool isIdentifierEscapePrefixChar(ParseInfo &parseinfo, char c) {
@@ -332,6 +298,17 @@ namespace CVM
 		} else {
 			parseinfo.putErrorLine(PEC_URReg, word);
 			return InstStruct::Register();
+		}
+	}
+
+	InstStruct::String parseString(ParseInfo &parseinfo, const std::string &word) {
+		ParseUnit parseunit(parseinfo, word);
+		auto result = Parse::Parse<InstStruct::String>(parseunit);
+		if (result) {
+			return result.value();
+		} else {
+			parseinfo.putErrorLine(PEC_URString, word);
+			return InstStruct::String("");
 		}
 	}
 
@@ -454,113 +431,6 @@ namespace CVM
 		}
 
 		return std::make_pair(i, j);
-	}
-
-	static bool parse_string_escape(const std::string &word, std::string &result) {
-		const static auto get_xchar = [](const char *w, const int mode) {
-			int c = 0;
-			int count = 0;
-			const char *p = w;
-			while (*p++) count++;
-			int i = 1;
-			while (count--) {
-				char cc = w[count];
-				if (mode == 0x10) {
-					c += (isdigit(cc) ? (cc - '0') : (isupper(cc) ? (cc - 'A' + 10) : (cc - 'a' + 10))) * i;
-					i *= 0x10;
-				}
-				else if (mode == 010) {
-					c += (cc - '0') * i;
-					i *= 010;
-				}
-			}
-
-			return c;
-		};
-		const static auto get_escape_char = [](char c) {
-			switch (c) {
-			case '\'': return '\'';
-			case '"':  return '"';
-			case '?':  return '?';
-			case '\\': return '\\';
-			case 'a':  return '\a';
-			case 'b':  return '\b';
-			case 'f':  return '\f';
-			case 'n':  return '\n';
-			case 'r':  return '\r';
-			case 't':  return '\t';
-			case 'v':  return '\v';
-			default:   return '\0';
-			}
-		};
-
-		std::string nword;
-		char num[4] = "";
-		int num_i = 0;
-		int mode = 0;
-		for (size_t i = 0; i < word.size(); ++i) {
-			char c = word[i];
-			if (mode == 0) {
-				if (c == '\\') {
-					mode = 1;
-				}
-				else {
-					nword.push_back(c);
-				}
-			}
-			else if (mode == 1) {
-				if (c >= '0' && c <= '7') {
-					mode = 2;
-					i--;
-				}
-				else if (c == 'x') {
-					mode = 3;
-				}
-				else if ((c = get_escape_char(c)) != '\0') {
-					nword.push_back(c);
-					mode = 0;
-				}
-				else {
-					return false;
-				}
-			}
-			else if (mode == 2 || mode == 3) {
-				if ((mode == 2 && (c >= '0' && c <= '7')) || (mode == 3 && isxdigit(c))) {
-					num[num_i++] = c;
-					if (num_i == ((mode == 2) ? 3 : 2)) {
-						mode = 0;
-					}
-				}
-				else {
-					mode = 0;
-					i--;
-				}
-				if (mode == 0) {
-					if (num_i == 0) {
-						return false;
-					}
-					else {
-						char cc = get_xchar(num, ((mode == 2) ? 010 : 0x10));
-						nword.push_back(cc);
-						num[0] = num[1] = num[2] = '\0';
-						num_i = 0;
-					}
-				}
-			}
-		}
-		if (mode == 1) {
-			return false;
-		}
-		else if (mode == 2) {
-			nword.push_back(get_xchar(num, 010));
-		}
-		else if (mode == 3) {
-			nword.push_back(get_xchar(num, 0x10));
-		}
-
-		result = nword;
-
-		return true;
 	}
 
 	void parseLineBase(
@@ -808,13 +678,13 @@ namespace CVM
 						[](ParseInfo &parseinfo, const std::vector<std::string> &list) {
 							if (list.size() == 1) {
 								if (list[0] == "multiply") {
-								    parseinfo.info.dataRegisterMode = InstStruct::drm_multiply;
+									parseinfo.info.dataRegisterMode = InstStruct::drm_multiply;
 								}
 								else if (list[0] == "dynamic") {
-								    parseinfo.info.dataRegisterMode = InstStruct::drm_dynamic;
+									parseinfo.info.dataRegisterMode = InstStruct::drm_dynamic;
 								}
 								else if (list[0] == "static") {
-								    parseinfo.info.dataRegisterMode = InstStruct::drm_static;
+									parseinfo.info.dataRegisterMode = InstStruct::drm_static;
 								}
 							}
 							else {
@@ -934,19 +804,14 @@ namespace CVM
 							if (list.size() == 2) {
 								InstStruct::DataIndex di = parseDataIndex(parseinfo, list[0]);
 								if (!parseinfo.literalDataPoolCreator.has(FileID(0), DataID(di.index()))) {
-									std::string nword = list[1].substr(1, list[1].size() - 2);
-
-									if (parse_string_escape(nword, nword)) {
-										size_t msize = nword.size() + 1;
-										uint8_t *buffer = createMemory(parseinfo, MemorySize(msize));
-										for (size_t i = 0; i < nword.size(); ++i) {
-											buffer[i] = (uint8_t)nword[i];
-										}
+									InstStruct::String str = parseString(parseinfo, list[1]);
+									std::string nword = str.ToString(getGlobalInfo(parseinfo));
+									size_t msize = nword.size() + 1;
+									uint8_t *buffer = createMemory(parseinfo, MemorySize(msize));
+									for (size_t i = 0; i < nword.size(); ++i) {
+										buffer[i] = (uint8_t)nword[i];
+									}
 									parseinfo.literalDataPoolCreator.insert((FileID(0), DataID(di.index())), std::make_pair(MemorySize(msize), buffer)); // TODO
-									}
-									else {
-										parseinfo.putErrorLine(PEC_UREscape);
-									}
 								}
 								else {
 									parseinfo.putErrorLine(PEC_DUDataId);

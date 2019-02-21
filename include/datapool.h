@@ -31,7 +31,7 @@ namespace CVM
 		FileDataIDConverter converter;
 		converter.fileid = fileid.data;
 		converter.dataid = dataid.data;
-	    return FileDataID(converter.data);
+		return FileDataID(converter.data);
 	}
 	inline std::pair<FileID, DataID> operator*(const FileDataID &filedataid) {
 		FileDataIDConverter converter;
@@ -75,8 +75,8 @@ namespace CVM
 
 		// TODO: This function is temp.
 		std::pair<const uint8_t*, uint32_t> at(Config::DataIndexType index) const {
-		    const auto &result = (*_dataPoolMap)[(FileID(0), DataID(index))];
-		    return std::make_pair(result.second, result.first.data);
+			const auto &result = (*_dataPoolMap)[(FileID(0), DataID(index))];
+			return std::make_pair(result.second, result.first.data);
 		}
 
 		bool has(const FileDataID &filedataid) const {
