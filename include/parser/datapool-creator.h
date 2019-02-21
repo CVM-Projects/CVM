@@ -24,7 +24,7 @@ namespace CVM
 		void insert(const DataID &dataid, const DataType &data) {
 			assert(!has(dataid));
 			while (this->_data.size() < dataid.data) {
-			    this->_data.push_back(std::nullopt);
+				this->_data.push_back(std::nullopt);
 			}
 			this->_data[dataid.data - 1] = data;
 		}

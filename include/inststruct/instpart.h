@@ -26,6 +26,20 @@ namespace CVM
 			HashID _data;
 		};
 
+		struct String {
+			using Type = std::string;
+
+			explicit String(const std::string &data)
+				: _data(data) {}
+
+			std::string ToString(GlobalInfo &ginfo) const {
+				return _data;
+			}
+
+		private:
+			std::string _data;
+		};
+
 		struct FuncIdentifier
 		{
 		public:

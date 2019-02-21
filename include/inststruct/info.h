@@ -4,16 +4,17 @@
 #include "datapool.h"
 #include "parser/datapool-creator.h"
 #include "filenamemap.h"
+#include <memory>
 
 namespace CVM
 {
 	namespace InstStruct
 	{
-	    enum DataRegisterMode {
-	        drm_multiply = 0,
-	        drm_dynamic,
-	        drm_static,
-	    };
+		enum DataRegisterMode {
+			drm_multiply = 0,
+			drm_dynamic,
+			drm_static,
+		};
 
 		struct GlobalInfo {
 			GlobalInfo() : typeInfoMap(hashStringPool), literalDataPoolCreator(new LiteralDataPoolCreator()) {}
