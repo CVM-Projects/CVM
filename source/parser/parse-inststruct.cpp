@@ -1,6 +1,7 @@
 #include "basic.h"
 #include "parser/parse-inststruct.h"
 #include "parser/parse.h"
+#include <climits>
 
 namespace CVM
 {
@@ -252,26 +253,6 @@ namespace CVM
 		// * String
 		//---------------------------------------------------------------------------------------------
 		static bool parse_string_escape(ParseInfo &parseinfo, const char *word, std::string &result) {
-			const static auto get_xchar = [](const char *w, const int mode) {
-				int c = 0;
-				int count = 0;
-				const char *p = w;
-				while (*p++) count++;
-				int i = 1;
-				while (count--) {
-					char cc = w[count];
-					if (mode == 0x10) {
-						c += (isdigit(cc) ? (cc - '0') : (isupper(cc) ? (cc - 'A' + 10) : (cc - 'a' + 10))) * i;
-						i *= 0x10;
-					}
-					else if (mode == 010) {
-						c += (cc - '0') * i;
-						i *= 010;
-					}
-				}
-
-				return c;
-			};
 			const static auto get_escape_char = [](char c) {
 				switch (c) {
 				case '\'': return '\'';
@@ -290,7 +271,6 @@ namespace CVM
 			};
 
 			std::string nword;
-			char num[4] = "";
 			int num_i = 0;
 			int mode = 0;
 			const char *record = word;
@@ -325,38 +305,53 @@ namespace CVM
 						return false;
 					}
 				}
-				else if (mode == 2 || mode == 3) {
-					if ((mode == 2 && (c >= '0' && c <= '7')) || (mode == 3 && isxdigit(c))) {
-						num[num_i++] = c;
-						if (num_i == ((mode == 2) ? 3 : 2)) {
-							mode = 0;
-						}
-					}
-					else {
-						mode = 0;
-						word--;
-					}
-					if (mode == 0) {
-						if (num_i == 0) {
-							return false;
+				else if (mode == 2) {
+					// \X
+					// \XX
+					// \XXX
+					unsigned int num = 0;
+					int pos = -1;
+					unsigned int pow = 1;
+					for (int i = 0; i != 3; ++i) {
+						if ('0' <= word[i] && word[i] <= '7') {
+							unsigned int res = num + (word[i] - '0') * pow;
+							pow *= 010;
+							if (res > 0xff) {
+								break;
+							}
+							num = res;
+							pos = i;
 						}
 						else {
-							char cc = get_xchar(num, ((mode == 2) ? 010 : 0x10));
-							nword.push_back(cc);
-							num[0] = num[1] = num[2] = '\0';
-							num_i = 0;
+							break;
 						}
+					}
+					if (pos == -1) {
+						return false;
+					}
+					assert(num <= 0xff);
+					nword.push_back(static_cast<char>(num));
+					word += pos;
+					mode = 0;
+				}
+				else if (mode == 3) {
+					// \xXX
+					if (std::isxdigit(word[0]) && std::isxdigit(word[1])) {
+						int a = std::isdigit(word[0]) ? (word[0] - '0') : (std::tolower(word[0]) - 'a' + 0xa);
+						int b = std::isdigit(word[1]) ? (word[1] - '0') : (std::tolower(word[1]) - 'a' + 0xa);
+						int num = a * 0x10 + b;
+						assert(0 <= num && num <= 0xff);
+						nword.push_back(static_cast<char>(num));
+						word += 2 - 1;
+						mode = 0;
+					}
+					else {
+						return false;
 					}
 				}
 			}
-			if (mode == 1) {
+			if (mode != 0) {
 				return false;
-			}
-			else if (mode == 2) {
-				nword.push_back(get_xchar(num, 010));
-			}
-			else if (mode == 3) {
-				nword.push_back(get_xchar(num, 0x10));
 			}
 
 			result = nword;
