@@ -15,12 +15,8 @@ namespace CVM
 		struct Identifier {
 			using Type = HashID;
 
-			explicit Identifier(const Type &data)
-				: _data(data) {}
-
-			const Type &data() const {
-				return _data;
-			}
+			explicit Identifier(const Type &data) : _data(data) {}
+			const Type &data() const { return _data; }
 
 		private:
 			Type _data;
@@ -29,12 +25,8 @@ namespace CVM
 		struct String {
 			using Type = std::string;
 
-			explicit String(Type data)
-				: _data(std::move(data)) {}
-
-			const Type &data() const {
-				return _data;
-			}
+			explicit String(Type data) : _data(std::move(data)) {}
+			const Type &data() const { return _data; }
 
 		private:
 			Type _data;

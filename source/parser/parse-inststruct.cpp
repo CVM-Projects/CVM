@@ -28,7 +28,7 @@ namespace CVM
 		static bool ParseNumber(ParseUnit &parseunit, NumType &result, bool allow_negative = false) {
 			const char *ptr = parseunit.currview.get();
 			const char *endptr = parseunit.currview.get();
-			if (allow_negative && (*ptr == '-') || (*ptr == '+'))
+			if ((allow_negative && (*ptr == '-')) || (*ptr == '+'))
 				++endptr;
 			while (isdigit(*endptr))
 				++endptr;

@@ -15,7 +15,7 @@ namespace CVM
 			explicit Function(const Function &info) = default;
 
 			explicit Function(Function &&func)
-				: instdata(func.instdata), info(std::move(func.info)) {}
+				: info(std::move(func.info)), instdata(func.instdata) {}
 
 			~Function() {
 				for (auto &p : instdata)

@@ -23,7 +23,7 @@ namespace CVM
 	{
 	public:
 		explicit ParseInfo(InstStruct::GlobalInfo &globalInfo)
-			: info(globalInfo), tim(info.typeInfoMap), currfunc_creater(*this), literalDataPoolCreator(*globalInfo.literalDataPoolCreator) {}
+			: currfunc_creater(*this), info(globalInfo), tim(info.typeInfoMap), literalDataPoolCreator(*globalInfo.literalDataPoolCreator) {}
 
 		~ParseInfo() {
 			//println("~ParseInfo();");
