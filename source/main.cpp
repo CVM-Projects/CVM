@@ -148,7 +148,6 @@ CVM::Runtime::LocalEnvironment * createVM(PriLib::TextFile &cmsfile, CVM::Virtua
 
 	Compiler compiler;
 	Runtime::FuncTable *functable;
-	LiteralDataPool *ldp;
 
 	{
 		// Parse File

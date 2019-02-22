@@ -382,7 +382,6 @@ namespace CVM
 					CheckLocalEnv(env);
 					const auto &typelist = ((Runtime::LocalEnvironment&)(env))._func.info().sttypelist();
 					auto typelist_count = env.getDataRegisterSet().stsize();
-					Config::RegisterIndexType regcount = 0;
 					auto &regset = env.getDataRegisterSet();
 					PriLib::Output::println("=======================");
 					if (regset.dysize() != 0) {
