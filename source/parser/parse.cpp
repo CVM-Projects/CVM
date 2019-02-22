@@ -23,7 +23,7 @@ namespace CVM
 	{
 	public:
 		explicit ParseInfo(InstStruct::GlobalInfo &globalInfo)
-			: currfunc_creater(*this), info(globalInfo), tim(info.typeInfoMap), literalDataPoolCreator(*globalInfo.literalDataPoolCreator) {}
+			: currfunc_creater(*this), info(globalInfo), functable(info.funcTable), tim(info.typeInfoMap), literalDataPoolCreator(*globalInfo.literalDataPoolCreator) {}
 
 		~ParseInfo() {
 			//println("~ParseInfo();");
@@ -35,7 +35,7 @@ namespace CVM
 			class LabelKeyTable
 			{
 			public:
-				size_t operator[](const std::string &key) {
+				size_t operator[](const HashID &key) {
 					auto iter = _data.find(key);
 					if (iter == _data.end()) {
 						size_t id = _data.size();
@@ -68,7 +68,7 @@ namespace CVM
 				}
 
 			private:
-				std::map<std::string, size_t> _data;
+				std::map<HashID, size_t> _data;
 				std::vector<Config::LineCountType> _linedata;
 			};
 
@@ -154,10 +154,9 @@ namespace CVM
 		}
 
 		InstStruct::GlobalInfo &info;
-		InstStruct::IdentKeyTable functable;
+		InstStruct::IdentKeyTable &functable;
 		TypeInfoMap &tim;
 		LiteralDataPoolCreator &literalDataPoolCreator;
-//		LiteralDataPoolCreater datamap;
 		size_t lcount = 0;
 		ParsedIdentifier currtype;
 		int currsection = 0;
@@ -294,10 +293,22 @@ namespace CVM
 		ParseUnit parseunit(parseinfo, word);
 		auto result = Parse::Parse<InstStruct::Register>(parseunit);
 		if (result) {
-			return result.value();
+			return *result;
 		} else {
 			parseinfo.putErrorLine(PEC_URReg, word);
 			return InstStruct::Register();
+		}
+	}
+
+	InstStruct::Identifier parseIdentifier(ParseInfo &parseinfo, const std::string &word) {
+		ParseUnit parseunit(parseinfo, word);
+		auto result = Parse::Parse<InstStruct::Identifier>(parseunit);
+		if (result) {
+			return *result;
+		}
+		else {
+			parseinfo.putErrorLine(PEC_UREscape, word);
+			return InstStruct::Identifier(HashID(0));
 		}
 	}
 
@@ -305,10 +316,34 @@ namespace CVM
 		ParseUnit parseunit(parseinfo, word);
 		auto result = Parse::Parse<InstStruct::String>(parseunit);
 		if (result) {
-			return result.value();
+			return *result;
 		} else {
 			parseinfo.putErrorLine(PEC_URString, word);
 			return InstStruct::String("");
+		}
+	}
+
+	InstStruct::DataLabel parseDataLabel(ParseInfo &parseinfo, const std::string &word) {
+		ParseUnit parseunit(parseinfo, word);
+		auto result = Parse::Parse<InstStruct::DataLabel>(parseunit);
+		if (result) {
+			return *result;
+		}
+		else {
+			parseinfo.putErrorLine(PEC_URDid, word);
+			return InstStruct::DataLabel(0);
+		}
+	}
+
+	InstStruct::LineLabel parseLineLabel(ParseInfo &parseinfo, const std::string &word) {
+		ParseUnit parseunit(parseinfo, word);
+		auto result = Parse::Parse<InstStruct::LineLabel>(parseunit);
+		if (result) {
+			return *result;
+		}
+		else {
+			parseinfo.putErrorLine(PEC_URLabel, word);
+			return InstStruct::LineLabel(HashID(0));
 		}
 	}
 
@@ -327,13 +362,6 @@ namespace CVM
 		}
 
 		return InstStruct::Data(PriLib::Convert::to_integer<InstStruct::Data::Type>(nword, errfunc, base));
-	}
-
-	InstStruct::DataIndex parseDataIndex(ParseInfo &parseinfo, const std::string &word) {
-		if (word.empty() || word[0] != '#')
-			parseinfo.putErrorLine(PEC_URDid, word);
-
-		return InstStruct::DataIndex(parseNumber<InstStruct::DataIndex::Type>(parseinfo, word.substr(1)));
 	}
 
 	void parseDataLarge(ParseInfo &parseinfo, const std::string &word, uint8_t *buffer, size_t size) {
@@ -376,29 +404,6 @@ namespace CVM
 				parseinfo.putErrorLine(PEC_URNum, word);
 		}
 		return false;
-	}
-
-	ParsedIdentifier parseIdentifier(ParseInfo &parseinfo, const std::string &word) {
-		if (!word.empty()) {
-			bool escape = false;
-			if (word[0] == '%' || word[0] == '#') {
-				escape = true;
-			}
-			if (escape) {
-				if (word.size() == 1 || word[1] != word[0]) {
-					parseinfo.putErrorLine(PEC_UREscape, word);
-				}
-				return parseinfo.addParsedIdentifier(word.substr(1));
-			}
-		}
-		return parseinfo.addParsedIdentifier(word);
-	}
-
-	ParsedIdentifier parseLabelKey(ParseInfo &parseinfo, const std::string &word) {
-		if (word.size() <= 1 || word[0] != '#' || word[1] == '#' || std::isdigit(word[1])) {
-			parseinfo.putErrorLine(PEC_URLabel, word);
-		}
-		return parseinfo.addParsedIdentifier(word.substr(1));
 	}
 
 	static std::pair<size_t, size_t> get_substring(const std::string &line, size_t offset = 0)
@@ -499,7 +504,7 @@ namespace CVM
 
 	TypeIndex parseType(ParseInfo &parseinfo, const std::string &word) {
 		TypeIndex index;
-		if (parseinfo.tim.find(parseIdentifier(parseinfo, word), index)) {
+		if (parseinfo.tim.find(parseIdentifier(parseinfo, word).data(), index)) {
 			return index;
 		}
 		else {
@@ -541,7 +546,7 @@ namespace CVM
 			if (list.size() != 1) {
 				parseinfo.putErrorLine();
 			}
-			const auto &namekey = parseIdentifier(parseinfo, list.at(0));
+			const auto &namekey = parseIdentifier(parseinfo, list.at(0)).data();
 			auto &data = parseinfo.functable.getData(namekey);
 			if (data == nullptr) {
 				data.reset(new InstStruct::Function());
@@ -557,7 +562,7 @@ namespace CVM
 			if (list.size() != 1) {
 				parseinfo.putErrorLine();
 			}
-			const auto &nameid = parseIdentifier(parseinfo, list.at(0));
+			const auto &nameid = parseIdentifier(parseinfo, list.at(0)).data();
 			TypeIndex tid;
 			if (parseinfo.tim.find(nameid, tid)) {
 				parseinfo.putErrorLine(PEC_DUType);
@@ -666,7 +671,7 @@ namespace CVM
 						"entry",
 						[](ParseInfo &parseinfo, const std::vector<std::string> &list) {
 							if (list.size() == 1) {
-								parseinfo.info.entry = parseIdentifier(parseinfo, list[0]);
+								parseinfo.info.entry = parseIdentifier(parseinfo, list[0]).data();
 							}
 							else {
 								parseinfo.putErrorLine();
@@ -719,8 +724,8 @@ namespace CVM
 						"data",
 						[](ParseInfo &parseinfo, const std::vector<std::string> &list) {
 							if (list.size() == 2 || list.size() == 3) {
-								InstStruct::DataIndex di = parseDataIndex(parseinfo, list[0]);
-								if (!parseinfo.literalDataPoolCreator.has(FileID(0), DataID(di.index()))) {
+								InstStruct::DataLabel di = parseDataLabel(parseinfo, list[0]);
+								if (!parseinfo.literalDataPoolCreator.has(FileID(0), DataID(di.data()))) {
 									uint8_t *buffer = nullptr;
 									size_t msize = 0;
 									if (list.size() == 3) {
@@ -735,7 +740,7 @@ namespace CVM
 										}))
 											delete[] buffer;
 									}
-									parseinfo.literalDataPoolCreator.insert((FileID(0), DataID(di.index())), std::make_pair(MemorySize(msize), buffer)); // TODO
+									parseinfo.literalDataPoolCreator.insert((FileID(0), DataID(di.data())), std::make_pair(MemorySize(msize), buffer)); // TODO
 //									parseinfo.datamap[di.index()] = std::make_pair(buffer, static_cast<uint32_t>(msize));
 								}
 								else {
@@ -751,8 +756,8 @@ namespace CVM
 						"array",
 						[](ParseInfo &parseinfo, const std::vector<std::string> &list) {
 							if (list.size() >= 2) {
-								InstStruct::DataIndex di = parseDataIndex(parseinfo, list[0]);
-								if (!parseinfo.literalDataPoolCreator.has(FileID(0), DataID(di.index()))) {
+								InstStruct::DataLabel di = parseDataLabel(parseinfo, list[0]);
+								if (!parseinfo.literalDataPoolCreator.has(FileID(0), DataID(di.data()))) {
 									std::vector<uint8_t> vec;
 									for (auto &word : PriLib::rangei(list.begin() + 1, list.end())) {
 										BigInteger bi;
@@ -785,7 +790,7 @@ namespace CVM
 
 									uint8_t *buffer = createMemory(parseinfo, MemorySize(vec.size()));
 									PriLib::Memory::copyTo(buffer, vec.data(), vec.size());
-									parseinfo.literalDataPoolCreator.insert((FileID(0), DataID(di.index())), std::make_pair(MemorySize(static_cast<uint32_t>(vec.size())), buffer)); // TODO
+									parseinfo.literalDataPoolCreator.insert((FileID(0), DataID(di.data())), std::make_pair(MemorySize(static_cast<uint32_t>(vec.size())), buffer)); // TODO
 //									parseinfo.datamap[di.index()] = std::make_pair(buffer, static_cast<uint32_t>(vec.size())); // TODO
 								}
 								else {
@@ -802,8 +807,8 @@ namespace CVM
 						"string",
 						[](ParseInfo &parseinfo, const std::vector<std::string> &list) {
 							if (list.size() == 2) {
-								InstStruct::DataIndex di = parseDataIndex(parseinfo, list[0]);
-								if (!parseinfo.literalDataPoolCreator.has(FileID(0), DataID(di.index()))) {
+								InstStruct::DataLabel di = parseDataLabel(parseinfo, list[0]);
+								if (!parseinfo.literalDataPoolCreator.has(FileID(0), DataID(di.data()))) {
 									InstStruct::String str = parseString(parseinfo, list[1]);
 									const std::string &nword = str.data();
 									size_t msize = nword.size() + 1;
@@ -811,7 +816,7 @@ namespace CVM
 									for (size_t i = 0; i < nword.size(); ++i) {
 										buffer[i] = (uint8_t)nword[i];
 									}
-									parseinfo.literalDataPoolCreator.insert((FileID(0), DataID(di.index())), std::make_pair(MemorySize(msize), buffer)); // TODO
+									parseinfo.literalDataPoolCreator.insert((FileID(0), DataID(di.data())), std::make_pair(MemorySize(msize), buffer)); // TODO
 								}
 								else {
 									parseinfo.putErrorLine(PEC_DUDataId);
@@ -873,8 +878,8 @@ namespace CVM
 			if (parseinfo.currfunc_creater.get() == nullptr) {
 				parseinfo.putErrorLine(PEC_URCmd, line);
 			}
-			ParsedIdentifier labelkey = parseLabelKey(parseinfo, line);
-			size_t id = parseinfo.currfunc_creater.labelkeytable[parseinfo.info.hashStringPool.get(labelkey)];
+			InstStruct::LineLabel labelkey = parseLineLabel(parseinfo, line);
+			size_t id = parseinfo.currfunc_creater.labelkeytable[labelkey.data()];
 			Config::LineCountType line = parseinfo.currfunc_creater.current_line;
 			parseinfo.currfunc_creater.labelkeytable.setLine(id, line);
 		}
@@ -959,7 +964,7 @@ namespace CVM
 					else {
 						return new Insts::Load2(
 							parseRegister(parseinfo, list[0]),
-							parseDataIndex(parseinfo, list[1]),
+							parseDataLabel(parseinfo, list[1]),
 							parseType(parseinfo, list[2]));
 					}
 				}
@@ -970,7 +975,7 @@ namespace CVM
 					if (list.size() == 2 && (!list[1].empty() && list[1][0] == '#')) {
 						return new Insts::LoadPointer(
 							parseRegister(parseinfo, list[0]),
-							parseDataIndex(parseinfo, list[1]));
+							parseDataLabel(parseinfo, list[1]));
 						/*if (!list[1].empty() && list[1][0] != '#') {
 							return new Insts::LoadPointer1(
 								parseRegister(parseinfo, list[0]),
@@ -979,7 +984,7 @@ namespace CVM
 						else {
 							return new Insts::LoadPointer2(
 								parseRegister(parseinfo, list[0]),
-								parseDataIndex(parseinfo, list[1]));
+								parseDataLabel(parseinfo, list[1]));
 						}*/
 					}
 					else {
@@ -993,7 +998,7 @@ namespace CVM
 				[](ParseInfo &parseinfo, const std::vector<std::string> &list) -> InstStruct::Instruction* {
 					if (list.size() >= 2) {
 						auto res = parseRegister(parseinfo, list[0]);
-						const auto &namekey = parseIdentifier(parseinfo, list[1]);
+						const auto &namekey = parseIdentifier(parseinfo, list[1]).data();
 						auto id = parseinfo.functable.getID(namekey);
 						FuncIdentifier func(id);
 						ArgumentList::Creater arglist_creater(list.size() - 2);
@@ -1018,8 +1023,8 @@ namespace CVM
 				"jump",
 				[](ParseInfo &parseinfo, const std::vector<std::string> &list) -> InstStruct::Instruction* {
 					if (list.size() == 1) {
-						ParsedIdentifier label = parseLabelKey(parseinfo, list[0]);
-						size_t id = parseinfo.currfunc_creater.labelkeytable[parseinfo.info.hashStringPool.get(label)];
+						InstStruct::LineLabel label = parseLineLabel(parseinfo, list[0]);
+						size_t id = parseinfo.currfunc_creater.labelkeytable[label.data()];
 						assert(id < std::numeric_limits<Config::LineCountType>::max());
 						auto *inst = new Insts::Jump(static_cast<Config::LineCountType>(id));
 						parseinfo.currfunc_creater.rec_line.push_back(&inst->line);

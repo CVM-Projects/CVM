@@ -55,7 +55,7 @@ namespace CVM
 			PriLib::StringViewRange identstr(parseunit.currview, begin, end);
 			result = getGlobalInfo(parseunit.parseinfo).hashStringPool.insert(identstr);
 			parseunit.currview += end;
-			return false;
+			return true;
 		}
 		static bool ParseString(ParseUnit &parseunit, std::string &result) {
 			const static auto get_escape_char = [](char c) {
@@ -371,6 +371,41 @@ namespace CVM
 				return String(std::move(result));
 			}
 			return std::nullopt;
+		}
+
+		//---------------------------------------------------------------------------------------------
+		// * DataLabel
+		//---------------------------------------------------------------------------------------------
+		template <>
+		std::optional<DataLabel> Parse<DataLabel>(ParseUnit &parseunit) {
+			// Parse '#'
+			if (!matchPrefix(parseunit, "#"))
+				return std::nullopt;
+			DataLabel::Type result;
+			if (ParseNumber(parseunit, result)) {
+				return DataLabel(result);
+			}
+			return std::nullopt;
+		}
+
+		//---------------------------------------------------------------------------------------------
+		// * LineLabel
+		//---------------------------------------------------------------------------------------------
+		template <>
+		std::optional<LineLabel> Parse<LineLabel>(ParseUnit &parseunit) {
+			// Parse '#'
+			if (!matchPrefix(parseunit, "#"))
+				return std::nullopt;
+			if (!(std::isalpha(parseunit.currview[0]) || (parseunit.currview[0] == '_')))
+				return std::nullopt;
+			const char *endptr = parseunit.currview.get();
+			while (isalnum(*endptr) || (*endptr == '_'))
+				++endptr;
+			PriLib::StringViewRange result(parseunit.currview, PriLib::StringView(endptr));
+			parseunit.currview = PriLib::StringView(endptr);
+			if (!IsEndChar(parseunit))
+				return std::nullopt;
+			return LineLabel(getGlobalInfo(parseunit.parseinfo).hashStringPool.insert(result));
 		}
 	}
 }

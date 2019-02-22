@@ -4,6 +4,7 @@
 #include "datapool.h"
 #include "parser/datapool-creator.h"
 #include "filenamemap.h"
+#include "identkeytable.h"
 #include <memory>
 
 namespace CVM
@@ -26,6 +27,7 @@ namespace CVM
 			std::unique_ptr<LiteralDataPoolCreator> literalDataPoolCreator;  // TODO: Remove from GlobalInfo
 			LiteralDataPool literalDataPool;
 			FileNameMap fileNameMap;
+			IdentKeyTable funcTable;
 		};
 
 		struct FileContext {

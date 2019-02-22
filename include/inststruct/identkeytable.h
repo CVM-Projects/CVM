@@ -2,6 +2,7 @@
 #include "basic.h"
 #include "function.h"
 #include "hashstringpool.h"
+#include <mutex>
 
 namespace CVM
 {
@@ -11,7 +12,7 @@ namespace CVM
 		{
 			using FuncPtr = std::shared_ptr<InstStruct::Function>;
 
-			bool hasKey(const HashID &keyid) {
+			bool hasKey(const HashID &keyid) const {
 				return keytable.find(keyid) != keytable.end();
 			}
 			bool insert(const HashID &keyid) {
@@ -51,8 +52,10 @@ namespace CVM
 		private:
 			std::map<HashID, Config::FuncIndexType> keytable;
 			std::vector<FuncPtr> functable;
+			std::mutex _mutex;
 
 			Config::FuncIndexType _insert(const HashID &keyid) {
+				std::lock_guard<std::mutex> lock(_mutex);
 				assert(keytable.size() < std::numeric_limits<Config::FuncIndexType>::max());
 				Config::FuncIndexType id = static_cast<Config::FuncIndexType>(keytable.size());
 				keytable.insert({ keyid, id });

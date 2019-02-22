@@ -127,7 +127,7 @@ namespace CVM
 
 				TypeIndex type = Inst.type;
 
-				auto index = Inst.src.index();
+				auto index = Inst.src.data();
 
 				if (Inst.dst.isPrivateDataRegister()) {
 					auto dst_id = Inst.dst.index();
@@ -163,7 +163,7 @@ namespace CVM
 				return NopeInst;
 			}
 
-			auto index = Inst.src.index();
+			auto index = Inst.src.data();
 
 			if (Inst.dst.isPrivateDataRegister()) {
 				auto dst_id = Inst.dst.index();
@@ -290,22 +290,22 @@ namespace CVM
 		return Runtime::InstFunction(std::move(dst), std::move(info));
 	}
 
-	bool Compiler::compile(ParseInfo &parseinfo, const Runtime::PtrFuncMap &pfm, Runtime::FuncTable &functable) {
-		InstStruct::IdentKeyTable &ikt = getFunctionTable(parseinfo);
+	bool Compiler::compile(InstStruct::GlobalInfo &globalinfo, const Runtime::PtrFuncMap &pfm, Runtime::FuncTable &functable) {
+		InstStruct::IdentKeyTable &ikt = globalinfo.funcTable;
 
 		// Get entry func
 
-		auto entry = getFromHashStringPool(parseinfo, getEntry(parseinfo));
-		if (entry.empty()) {
+		if (!globalinfo.hashStringPool.has(globalinfo.entry)) {
 			println("Undeclared entry function.");
 			return false;
 		}
-		if (!ikt.hasKey(getEntry(parseinfo))) {
+		if (!ikt.hasKey(globalinfo.entry)) {
+			auto entry = globalinfo.hashStringPool.get(globalinfo.entry);
 			println("Not find '" + entry + "' function.");
 			return false;
 		}
 
-		this->entry_index = ikt.getID(getEntry(parseinfo));
+		this->entry_index = ikt.getID(globalinfo.entry);
 
 		// Compile All Functions
 

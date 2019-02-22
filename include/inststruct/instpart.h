@@ -16,7 +16,7 @@ namespace CVM
 			using Type = HashID;
 
 			explicit Identifier(const Type &data) : _data(data) {}
-			const Type &data() const { return _data; }
+			const Type& data() const { return _data; }
 
 		private:
 			Type _data;
@@ -26,7 +26,27 @@ namespace CVM
 			using Type = std::string;
 
 			explicit String(Type data) : _data(std::move(data)) {}
-			const Type &data() const { return _data; }
+			const Type& data() const { return _data; }
+
+		private:
+			Type _data;
+		};
+
+		struct DataLabel {
+			using Type = Config::DataIndexType;
+
+			explicit DataLabel(Type data) : _data(data) {}
+			const Type& data() const { return _data; }
+
+		private:
+			Type _data;
+		};
+
+		struct LineLabel {
+			using Type = HashID;
+
+			explicit LineLabel(const Type &data) : _data(data) {}
+			const Type& data() const { return _data; }
 
 		private:
 			Type _data;
@@ -50,26 +70,6 @@ namespace CVM
 
 		private:
 			Type _data;
-		};
-
-		struct DataIndex
-		{
-		public:
-			using Type = Config::DataIndexType;
-
-			explicit DataIndex(Type index)
-				: _index(index) {}
-
-			Type index() const {
-				return _index;
-			}
-//
-//			std::string toString() const {
-//				return "#" + std::to_string(_index);
-//			}
-
-		private:
-			Type _index;
 		};
 
 		struct Data
