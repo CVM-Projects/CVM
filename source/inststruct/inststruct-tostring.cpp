@@ -173,5 +173,21 @@ namespace CVM
 			result += '"';
 			return result;
 		}
+
+		//---------------------------------------------------------------------------------------------
+		// * DataLabel
+		//---------------------------------------------------------------------------------------------
+		template <>
+		std::string ToString<DataLabel>(const DataLabel &data, GlobalInfo &ginfo) {
+			return "#" + std::to_string(data.data());
+		}
+
+		//---------------------------------------------------------------------------------------------
+		// * LineLabel
+		//---------------------------------------------------------------------------------------------
+		template <>
+		std::string ToString<LineLabel>(const LineLabel &data, GlobalInfo &ginfo) {
+			return "#" + ginfo.hashStringPool.get(data.data());
+		}
 	}
 }

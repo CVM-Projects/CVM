@@ -14,7 +14,7 @@ namespace CVM
 	public:
 		explicit Compiler() {}
 
-		bool compile(ParseInfo &parseinfo, const Runtime::PtrFuncMap &pfm, Runtime::FuncTable &functable);
+		bool compile(InstStruct::GlobalInfo &globalinfo, const Runtime::PtrFuncMap &pfm, Runtime::FuncTable &functable);
 
 		Config::FuncIndexType getEntryID() {
 			return entry_index;

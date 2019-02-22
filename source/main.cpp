@@ -170,7 +170,7 @@ CVM::Runtime::LocalEnvironment * createVM(PriLib::TextFile &cmsfile, CVM::Virtua
 		functable = new Runtime::FuncTable();
 
 		// Compile
-		if (!compiler.compile(parseinfo, getInsidePtrFuncMap(globalinfo->hashStringPool), *functable)) {
+		if (!compiler.compile(getGlobalInfo(parseinfo), getInsidePtrFuncMap(globalinfo->hashStringPool), *functable)) {
 			println("Compiled Error.");
 			exit(-1);
 		}

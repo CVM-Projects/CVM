@@ -35,6 +35,11 @@ namespace CVM
 		const std::string& get(const HashID &id) const {
 			return _data.at(id.data);
 		}
+
+		bool has(const HashID &id) const {
+			return _data.find(id.data) != _data.end();
+		}
+
 		HashIDGetter getIDGetter(const HashID &id) const {
 			return HashIDGetter(id, *this);
 		}

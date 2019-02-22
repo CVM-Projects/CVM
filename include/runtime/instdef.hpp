@@ -177,7 +177,7 @@ namespace CVM
 			};
 			template <>
 			struct LoadData<2> : public Instruction {
-				using DataType = InstStruct::DataIndex::Type;
+				using DataType = InstStruct::DataLabel::Type;
 				TypeIndex dsttype;
 				DataType data;
 
@@ -236,7 +236,7 @@ namespace CVM
 			//--------------------------------------
 
 			struct LoadDataPointer : public Instruction {
-				using DataType = InstStruct::DataIndex::Type;
+				using DataType = InstStruct::DataLabel::Type;
 				DataType data;
 
 				LoadDataPointer(DataType data)
