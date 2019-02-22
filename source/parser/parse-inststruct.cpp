@@ -57,6 +57,118 @@ namespace CVM
 			parseunit.currview += end;
 			return false;
 		}
+		static bool ParseString(ParseUnit &parseunit, std::string &result) {
+			const static auto get_escape_char = [](char c) {
+				switch (c) {
+				case '\'': return '\'';
+				case '"':  return '"';
+				case '?':  return '?';
+				case '\\': return '\\';
+				case 'a':  return '\a';
+				case 'b':  return '\b';
+				case 'f':  return '\f';
+				case 'n':  return '\n';
+				case 'r':  return '\r';
+				case 't':  return '\t';
+				case 'v':  return '\v';
+				default:   return '\0';
+				}
+			};
+
+			const char *word = parseunit.currview.get();
+			std::string nword;
+			int mode = 0;
+			if (word[0] != '"')
+				return false;
+			++word;
+			for (char c = *word; c != '\"'; c = *(++word)) {
+				if (c == '\0') {
+					return false;
+				}
+				if (mode == 0) {
+					if (c == '\\') {
+						if (word[1] == '"') {
+							nword.push_back('"');
+							++word;
+						}
+						else {
+							mode = 1;
+						}
+					}
+					else {
+						nword.push_back(c);
+					}
+				}
+				else if (mode == 1) {
+					if (c >= '0' && c <= '7') {
+						mode = 2;
+						word--;
+					}
+					else if (c == 'x') {
+						mode = 3;
+					}
+					else if ((c = get_escape_char(c)) != '\0') {
+						nword.push_back(c);
+						mode = 0;
+					}
+					else {
+						return false;
+					}
+				}
+				else if (mode == 2) {
+					// \X
+					// \XX
+					// \XXX
+					unsigned int num = 0;
+					int pos = -1;
+					unsigned int pow = 1;
+					for (int i = 0; i != 3; ++i) {
+						if ('0' <= word[i] && word[i] <= '7') {
+							unsigned int res = num + (word[i] - '0') * pow;
+							pow *= 010;
+							if (res > 0xff) {
+								break;
+							}
+							num = res;
+							pos = i;
+						}
+						else {
+							break;
+						}
+					}
+					if (pos == -1) {
+						return false;
+					}
+					assert(num <= 0xff);
+					nword.push_back(static_cast<char>(num));
+					word += pos;
+					mode = 0;
+				}
+				else if (mode == 3) {
+					// \xXX
+					if (std::isxdigit(word[0]) && std::isxdigit(word[1])) {
+						int a = std::isdigit(word[0]) ? (word[0] - '0') : (std::tolower(word[0]) - 'a' + 0xa);
+						int b = std::isdigit(word[1]) ? (word[1] - '0') : (std::tolower(word[1]) - 'a' + 0xa);
+						int num = a * 0x10 + b;
+						assert(0 <= num && num <= 0xff);
+						nword.push_back(static_cast<char>(num));
+						word += 2 - 1;
+						mode = 0;
+					}
+					else {
+						return false;
+					}
+				}
+			}
+			if (mode != 0) {
+				return false;
+			}
+
+			result = nword;
+			parseunit.currview = PriLib::StringView(word);
+
+			return true;
+		}
 
 		//---------------------------------------------------------------------------------------------
 		// * Register
@@ -252,117 +364,11 @@ namespace CVM
 		//---------------------------------------------------------------------------------------------
 		// * String
 		//---------------------------------------------------------------------------------------------
-		static bool parse_string_escape(ParseInfo &parseinfo, const char *word, std::string &result) {
-			const static auto get_escape_char = [](char c) {
-				switch (c) {
-				case '\'': return '\'';
-				case '"':  return '"';
-				case '?':  return '?';
-				case '\\': return '\\';
-				case 'a':  return '\a';
-				case 'b':  return '\b';
-				case 'f':  return '\f';
-				case 'n':  return '\n';
-				case 'r':  return '\r';
-				case 't':  return '\t';
-				case 'v':  return '\v';
-				default:   return '\0';
-				}
-			};
-
-			std::string nword;
-			int num_i = 0;
-			int mode = 0;
-			const char *record = word;
-			if (word[0] != '"')
-				return false;
-			++word;
-			for (char c = *word; c != '\"'; c = *(++word)) {
-				if (c == '\0') {
-					return false;
-				}
-				if (mode == 0) {
-					if (c == '\\') {
-						mode = 1;
-					}
-					else {
-						nword.push_back(c);
-					}
-				}
-				else if (mode == 1) {
-					if (c >= '0' && c <= '7') {
-						mode = 2;
-						word--;
-					}
-					else if (c == 'x') {
-						mode = 3;
-					}
-					else if ((c = get_escape_char(c)) != '\0') {
-						nword.push_back(c);
-						mode = 0;
-					}
-					else {
-						return false;
-					}
-				}
-				else if (mode == 2) {
-					// \X
-					// \XX
-					// \XXX
-					unsigned int num = 0;
-					int pos = -1;
-					unsigned int pow = 1;
-					for (int i = 0; i != 3; ++i) {
-						if ('0' <= word[i] && word[i] <= '7') {
-							unsigned int res = num + (word[i] - '0') * pow;
-							pow *= 010;
-							if (res > 0xff) {
-								break;
-							}
-							num = res;
-							pos = i;
-						}
-						else {
-							break;
-						}
-					}
-					if (pos == -1) {
-						return false;
-					}
-					assert(num <= 0xff);
-					nword.push_back(static_cast<char>(num));
-					word += pos;
-					mode = 0;
-				}
-				else if (mode == 3) {
-					// \xXX
-					if (std::isxdigit(word[0]) && std::isxdigit(word[1])) {
-						int a = std::isdigit(word[0]) ? (word[0] - '0') : (std::tolower(word[0]) - 'a' + 0xa);
-						int b = std::isdigit(word[1]) ? (word[1] - '0') : (std::tolower(word[1]) - 'a' + 0xa);
-						int num = a * 0x10 + b;
-						assert(0 <= num && num <= 0xff);
-						nword.push_back(static_cast<char>(num));
-						word += 2 - 1;
-						mode = 0;
-					}
-					else {
-						return false;
-					}
-				}
-			}
-			if (mode != 0) {
-				return false;
-			}
-
-			result = nword;
-
-			return true;
-		}
 		template <>
 		std::optional<String> Parse<String>(ParseUnit &parseunit) {
 			std::string result;
-			if (parse_string_escape(parseunit.parseinfo, parseunit.currview.get(), result)) {
-				return String(result);
+			if (ParseString(parseunit, result)) {
+				return String(std::move(result));
 			}
 			return std::nullopt;
 		}

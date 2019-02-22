@@ -805,7 +805,7 @@ namespace CVM
 								InstStruct::DataIndex di = parseDataIndex(parseinfo, list[0]);
 								if (!parseinfo.literalDataPoolCreator.has(FileID(0), DataID(di.index()))) {
 									InstStruct::String str = parseString(parseinfo, list[1]);
-									std::string nword = str.ToString(getGlobalInfo(parseinfo));
+									const std::string &nword = str.data();
 									size_t msize = nword.size() + 1;
 									uint8_t *buffer = createMemory(parseinfo, MemorySize(msize));
 									for (size_t i = 0; i < nword.size(); ++i) {

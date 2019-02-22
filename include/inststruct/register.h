@@ -90,8 +90,6 @@ namespace CVM
 			using BaseType = ZeroRegisterBase;
 
 			ZeroRegister() : RegisterInfo(rt_zero, rst_local) {}
-
-			std::string ToString(GlobalInfo &ginfo) const;
 		};
 
 		//---------------------------------------------------------------------------------------------
@@ -106,8 +104,6 @@ namespace CVM
 			using BaseType = ResultRegisterBase;
 
 			ResultRegister() : RegisterInfo(rt_result, rst_local) {}
-
-			std::string ToString(GlobalInfo &ginfo) const;
 		};
 
 		//---------------------------------------------------------------------------------------------
@@ -125,8 +121,6 @@ namespace CVM
 		};
 		struct DataRegister : public RegisterInfo, public DataRegisterBase {
 			using BaseType = DataRegisterBase;
-
-			std::string ToString(GlobalInfo &ginfo) const;
 		};
 
 		//---------------------------------------------------------------------------------------------
@@ -146,8 +140,6 @@ namespace CVM
 			using BaseType = StackPointerRegisterBase;
 
 			StackPointerRegister() : RegisterInfo(rt_stack_pointer, rst_unknown) {}
-
-			std::string ToString(GlobalInfo &ginfo) const;
 		};
 
 		//---------------------------------------------------------------------------------------------
@@ -179,6 +171,9 @@ namespace CVM
 
 			std::string ToString(GlobalInfo &ginfo) const;
 		};
+
+		template <typename T>
+		std::string ToString(const T &data, GlobalInfo &ginfo);
 
 		//---------------------------------------------------------------------------------------------
 		// * Register
@@ -213,36 +208,6 @@ namespace CVM
 			RegisterIndex::Type index() const {
 				assert(isPrivateDataRegister());
 				return std::get<DataRegisterBase>(this->data).registerIndex.data;
-			}
-
-			std::string ToString(GlobalInfo &ginfo) const {
-				if (this->registerType == rt_zero)
-					return _toString<ZeroRegister>(ginfo);
-				else if (this->registerType == rt_result)
-					return _toString<ResultRegister>(ginfo);
-				else if (is_rt_data(this->registerType))
-					return _toString<DataRegister>(ginfo);
-				else if (is_rt_stack_pointer(this->registerType))
-					return _toString<StackPointerRegister>(ginfo);
-				else if (is_rt_stack_space(this->registerType))
-					return _toString<StackSpaceRegister>(ginfo);
-				else {
-					assert(false && "Invalid data for Register.");
-					return "";
-				}
-			}
-
-		private:
-			template <typename RBT>
-			static std::string _toString(const RBT &registerbasetype, GlobalInfo &ginfo, const RegisterInfo &rinfo) {
-				typename RBT::ImplType impl;
-				static_cast<RegisterInfo&>(impl) = rinfo;
-				static_cast<RBT&>(impl) = registerbasetype;
-				return impl.ToString(ginfo);
-			}
-			template <typename RT>
-			std::string _toString(GlobalInfo &ginfo) const {
-				return _toString(std::get<typename RT::BaseType>(data), ginfo, static_cast<const RegisterInfo&>(*this));
 			}
 		};
 	}
