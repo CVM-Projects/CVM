@@ -15,29 +15,29 @@ namespace CVM
 		struct Identifier {
 			using Type = HashID;
 
-			explicit Identifier(const HashID &hashid)
-				: _data(hashid) {}
+			explicit Identifier(const Type &data)
+				: _data(data) {}
 
-			std::string ToString(GlobalInfo &ginfo) const {
-				return ginfo.hashStringPool.get(_data);
+			const Type &data() const {
+				return _data;
 			}
 
 		private:
-			HashID _data;
+			Type _data;
 		};
 
 		struct String {
 			using Type = std::string;
 
-			explicit String(const std::string &data)
-				: _data(data) {}
+			explicit String(Type data)
+				: _data(std::move(data)) {}
 
-			std::string ToString(GlobalInfo &ginfo) const {
+			const Type &data() const {
 				return _data;
 			}
 
 		private:
-			std::string _data;
+			Type _data;
 		};
 
 		struct FuncIdentifier
@@ -51,10 +51,10 @@ namespace CVM
 			Type data() const {
 				return _data;
 			}
-
-			std::string toString() const {
-				return "i" + std::to_string(_data);
-			}
+//
+//			std::string toString() const {
+//				return "i" + std::to_string(_data);
+//			}
 
 		private:
 			Type _data;
@@ -71,10 +71,10 @@ namespace CVM
 			Type index() const {
 				return _index;
 			}
-
-			std::string toString() const {
-				return "#" + std::to_string(_index);
-			}
+//
+//			std::string toString() const {
+//				return "#" + std::to_string(_index);
+//			}
 
 		private:
 			Type _index;
@@ -91,10 +91,10 @@ namespace CVM
 			Type data() const {
 				return _data;
 			}
-
-			std::string toString() const {
-				return "0x" + PriLib::Convert::to_hex(_data);
-			}
+//
+//			std::string toString() const {
+//				return "0x" + PriLib::Convert::to_hex(_data);
+//			}
 
 		private:
 			Type _data;
@@ -113,20 +113,23 @@ namespace CVM
 				return _data;
 			}
 
-			std::string ToString(GlobalInfo &ginfo) const {
-				std::string result;
-				result += "[";
-				for (auto &dat : _data) {
-					result += dat.ToString(ginfo) + ", ";
-				}
-				result.pop_back();
-				result.pop_back();
-				result += "]";
-				return result;
-			}
+//			std::string ToString(GlobalInfo &ginfo) const {
+//				std::string result;
+//				result += "[";
+//				for (auto &dat : _data) {
+//					result += dat.ToString(ginfo) + ", ";
+//				}
+//				result.pop_back();
+//				result.pop_back();
+//				result += "]";
+//				return result;
+//			}
 
 		private:
 			Type _data;
 		};
+
+		template <typename T>
+		std::string ToString(const T &data, GlobalInfo &ginfo);
 	}
 }

@@ -4,7 +4,7 @@ namespace CVM
 {
 	namespace Parse
 	{
-		template <typename RT>
-		std::optional<RT> Parse(ParseUnit &parseunit);
+		template <typename T>
+		std::optional<T> Parse(ParseUnit &parseunit);
 	}
 }
