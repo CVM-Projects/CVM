@@ -57,6 +57,17 @@ namespace CVM
 			parseunit.currview += end;
 			return true;
 		}
+		static bool ParseByte(char c1, char c2, uint8_t &result) {
+			if (std::isxdigit(c1) && std::isxdigit(c2)) {
+				int a = std::isdigit(c1) ? (c1 - '0') : (std::tolower(c1) - 'a' + 0xa);
+				int b = std::isdigit(c2) ? (c2 - '0') : (std::tolower(c2) - 'a' + 0xa);
+				int num = a * 0x10 + b;
+				assert(0 <= num && num <= 0xff);
+				result = static_cast<uint8_t>(num);
+				return true;
+			}
+			return false;
+		}
 		static bool ParseString(ParseUnit &parseunit, std::string &result) {
 			const static auto get_escape_char = [](char c) {
 				switch (c) {
@@ -146,11 +157,8 @@ namespace CVM
 				}
 				else if (mode == 3) {
 					// \xXX
-					if (std::isxdigit(word[0]) && std::isxdigit(word[1])) {
-						int a = std::isdigit(word[0]) ? (word[0] - '0') : (std::tolower(word[0]) - 'a' + 0xa);
-						int b = std::isdigit(word[1]) ? (word[1] - '0') : (std::tolower(word[1]) - 'a' + 0xa);
-						int num = a * 0x10 + b;
-						assert(0 <= num && num <= 0xff);
+					uint8_t num = 0;
+					if (ParseByte(word[0], word[1], num)) {
 						nword.push_back(static_cast<char>(num));
 						word += 2 - 1;
 						mode = 0;
@@ -293,9 +301,9 @@ namespace CVM
 			return result;
 		}
 		template <typename RT>
-		static std::optional<Register> _parseBase(ParseUnit &parseunit) {
+		static std::optional<Register> _parseRegisterBase(ParseUnit &parseunit) {
 			auto parseresult = Parse<RT>(parseunit);
-			return parseresult ? std::optional<Register>(Register(parseresult.value())) : std::nullopt;
+			return parseresult ? std::optional<Register>(Register(*parseresult)) : std::nullopt;
 		}
 		template <>
 		std::optional<Register> Parse<Register>(ParseUnit &parseunit) {
@@ -311,10 +319,10 @@ namespace CVM
 				ParseUnit record(parseunit);
 				std::optional<Register> result;
 				if (prefixchar == '0') {
-					result = _parseBase<ZeroRegister>(record);
+					result = _parseRegisterBase<ZeroRegister>(record);
 				}
 				else {
-					result = _parseBase<DataRegister>(record);
+					result = _parseRegisterBase<DataRegister>(record);
 				}
 				if (result) {
 					parseunit = record;
@@ -324,7 +332,7 @@ namespace CVM
 			}
 			else if (prefixchar == 'r') {
 				ParseUnit record(parseunit);
-				std::optional<Register> result = _parseBase<ResultRegister>(record);
+				std::optional<Register> result = _parseRegisterBase<ResultRegister>(record);
 				if (result) {
 					parseunit = record;
 					return result;
@@ -333,8 +341,8 @@ namespace CVM
 			}
 			else if (prefixchar == 's') {
 				static Func* funcs[] = {
-					_parseBase<StackPointerRegister>,
-					_parseBase<StackSpaceRegister>
+					_parseRegisterBase<StackPointerRegister>,
+					_parseRegisterBase<StackSpaceRegister>
 				};
 				for (auto func : funcs) {
 					ParseUnit record(parseunit);
@@ -406,6 +414,117 @@ namespace CVM
 			if (!IsEndChar(parseunit))
 				return std::nullopt;
 			return LineLabel(getGlobalInfo(parseunit.parseinfo).hashStringPool.insert(result));
+		}
+
+		//---------------------------------------------------------------------------------------------
+		// * ArrayData
+		//---------------------------------------------------------------------------------------------
+		template <>
+		std::optional<ArrayData> Parse<ArrayData>(ParseUnit &parseunit) {
+			// Parse '0:'
+			if (!matchPrefix(parseunit, "0:"))
+				return std::nullopt;
+			std::vector<uint8_t> data;
+			const char *endptr = parseunit.currview.get();
+			do {
+				uint8_t result = 0;
+				if (ParseByte(endptr[0], endptr[1], result)) {
+					data.push_back(result);
+					endptr += 2;
+				}
+				else {
+					return std::nullopt;
+				}
+			} while (*endptr == ':' && ++endptr);
+			parseunit.currview = PriLib::StringView(endptr);
+			if (!IsEndChar(parseunit))
+				return std::nullopt;
+			return ArrayData(std::move(data));
+		}
+
+		//---------------------------------------------------------------------------------------------
+		// * IntegerData
+		//---------------------------------------------------------------------------------------------
+		template <>
+		std::optional<IntegerData> Parse<IntegerData>(ParseUnit &parseunit) {
+			if (!hasSignedNumberPrefix(parseunit.parseinfo, parseunit.currview.get()))
+				return std::nullopt;
+			bool has_signed_prefix = false;
+			const char *endptr = parseunit.currview.get();
+			std::string word;
+			if (*endptr == '+' || *endptr == '-') {
+				has_signed_prefix = true;
+				word.push_back(*endptr);
+				endptr++;
+			}
+			if ((endptr[0] == '0') && ((endptr[1] == 'x' || endptr[1] == 'd' || endptr[1] == 'o' || endptr[1] == 'b') || std::isdigit(endptr[1]))) {
+				word.push_back(endptr[0]);
+				word.push_back(endptr[1]);
+				endptr += 2;
+			}
+			while (*endptr) {
+				if (std::isxdigit(*endptr)) {
+					word.push_back(*endptr);
+					endptr++;
+				}
+				else if (*endptr == '_') {  // Ignore '_' character
+					endptr++;
+				}
+				else {
+					break;
+				}
+			}
+			parseunit.currview = PriLib::StringView(endptr);
+			if (!IsEndChar(parseunit))
+				return std::nullopt;
+			BigInteger data;
+			if (has_signed_prefix)
+				data.parse(word);
+			else
+				data.parseu(word);
+			return IntegerData(std::move(data), has_signed_prefix);
+		}
+
+		//---------------------------------------------------------------------------------------------
+		// * Element
+		//---------------------------------------------------------------------------------------------
+		template <typename T>
+		static std::optional<Element> _parseElementBase(ParseUnit &parseunit) {
+			auto result = Parse<T>(parseunit);
+			if (!result) {
+				parseunit.errorcode = static_cast<int>(T::elementType);
+				return std::nullopt;
+			}
+			return Element(std::move(*result));
+		}
+		template <>
+		std::optional<Element> Parse<Element>(ParseUnit &parseunit) {
+			if (parseunit.currview[0] == '%' && parseunit.currview[1] != '%') {
+				return _parseElementBase<Register>(parseunit);
+			}
+			else if (parseunit.currview[0] == '#' && parseunit.currview[1] != '#') {
+				if (std::isdigit(parseunit.currview[1])) {
+					return _parseElementBase<DataLabel>(parseunit);
+				}
+				else {
+					return _parseElementBase<LineLabel>(parseunit);
+				}
+			}
+			else if (parseunit.currview[0] == '"') {
+				return _parseElementBase<String>(parseunit);
+			}
+			else if (hasSignedNumberPrefix(parseunit.parseinfo, parseunit.currview.get())) {
+				if (parseunit.currview[0] == '0' && parseunit.currview[1] == ':') {
+					return _parseElementBase<ArrayData>(parseunit);
+				}
+				else {
+					return _parseElementBase<IntegerData>(parseunit);
+				}
+			}
+			else if (hasIdentifierPrefix(parseunit.parseinfo, parseunit.currview.get())){
+				return _parseElementBase<Identifier>(parseunit);
+			}
+			return std::nullopt;
 		}
 	}
 }

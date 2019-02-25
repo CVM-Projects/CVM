@@ -189,6 +189,7 @@ CVM::Runtime::LocalEnvironment * createVM(PriLib::TextFile &cmsfile, CVM::Virtua
 }
 
 #include "inststruct/info.h"
+#include "parser/parse-inststruct.h"
 
 int main(int argc, char *argv[])
 {

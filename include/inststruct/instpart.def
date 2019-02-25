@@ -1,0 +1,10 @@
+
+InstPart(Register)
+InstPart(Identifier)
+InstPart(String)
+InstPart(DataLabel)
+InstPart(LineLabel)
+InstPart(ArrayData)
+InstPart(IntegerData)
+
+#undef InstPart

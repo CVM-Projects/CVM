@@ -5,7 +5,7 @@
     .mode multiply
 
 .datas
-    .array  #1, 0x12 0x34 0x56
+    .array  #1, 0:12:34:56
     .string #2, "Hello World!\n"
     .data   #3, 5
     .data   #4, 6

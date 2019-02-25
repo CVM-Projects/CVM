@@ -189,5 +189,45 @@ namespace CVM
 		std::string ToString<LineLabel>(const LineLabel &data, GlobalInfo &ginfo) {
 			return "#" + ginfo.hashStringPool.get(data.data());
 		}
+
+		//---------------------------------------------------------------------------------------------
+		// * ArrayData
+		//---------------------------------------------------------------------------------------------
+		template <>
+		std::string ToString<ArrayData>(const ArrayData &data, GlobalInfo &ginfo) {
+			std::string result = "0:";
+			for (uint8_t dat : data.data()) {
+				result += PriLib::Convert::to_hex(dat) + ":";
+			}
+			result.pop_back();
+			return result;
+		}
+
+		//---------------------------------------------------------------------------------------------
+		// * ArrayData
+		//---------------------------------------------------------------------------------------------
+		template <>
+		std::string ToString<IntegerData>(const IntegerData &data, GlobalInfo &ginfo) {
+			std::string result;
+			if (data.is_negative()) {
+				result.push_back('-');
+			}
+			result += "0x";
+			result += data.data().toStringUnsigned(16);
+			return result;
+		}
+
+		//---------------------------------------------------------------------------------------------
+		// * Element
+		//---------------------------------------------------------------------------------------------
+		template <>
+		std::string ToString<Element>(const Element &data, GlobalInfo &ginfo) {
+			ElementType type = data.type();
+			switch (type) {
+#define InstPart(key) case ET_##key: return ToString<key>(data.get<key>(), ginfo);
+#include "inststruct/instpart.def"
+			default: return "";
+			}
+		}
 	}
 }

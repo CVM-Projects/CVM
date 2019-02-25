@@ -13,8 +13,7 @@ namespace CVM
 {
 	using ParsedIdentifier = HashID;
 
-	enum ParseErrorCode
-	{
+	enum ParseErrorCode {
 #define ParseErrorCode(PEC_Code, Message) PEC_Code,
 #include "parse-errorcode.def"
 	};
@@ -23,7 +22,7 @@ namespace CVM
 	{
 	public:
 		explicit ParseInfo(InstStruct::GlobalInfo &globalInfo)
-			: currfunc_creater(*this), info(globalInfo), functable(info.funcTable), tim(info.typeInfoMap), literalDataPoolCreator(*globalInfo.literalDataPoolCreator) {}
+			: currfunc_creater(*this), info(globalInfo), literalDataPoolCreator(*globalInfo.literalDataPoolCreator) {}
 
 		~ParseInfo() {
 			//println("~ParseInfo();");
@@ -145,17 +144,7 @@ namespace CVM
 
 		} currfunc_creater;
 
-		ParsedIdentifier addParsedIdentifier(const std::string &value) {
-			return info.hashStringPool.insert(value);
-		}
-
-		const std::string& getFromHashStringPool(HashID id) {
-			return info.hashStringPool.get(id);
-		}
-
 		InstStruct::GlobalInfo &info;
-		InstStruct::IdentKeyTable &functable;
-		TypeInfoMap &tim;
 		LiteralDataPoolCreator &literalDataPoolCreator;
 		size_t lcount = 0;
 		ParsedIdentifier currtype;
@@ -205,19 +194,8 @@ namespace CVM
 		}
 	};
 
-	const std::string& getFromHashStringPool(ParseInfo &parseinfo, HashID id) {
-		return parseinfo.getFromHashStringPool(id);
-	}
-
 	PriLib::StorePtr<ParseInfo> createParseInfo(InstStruct::GlobalInfo &ginfo) {
 		return PriLib::StorePtr<ParseInfo>(new ParseInfo(ginfo));
-	}
-
-	ParsedIdentifier getEntry(ParseInfo &parseinfo) {
-		return parseinfo.info.entry;
-	}
-	InstStruct::IdentKeyTable& getFunctionTable(ParseInfo &parseinfo) {
-		return parseinfo.functable;
 	}
 
 	bool haveError(const ParseInfo &parseinfo) {
@@ -244,8 +222,14 @@ namespace CVM
 	bool hasIdentifierPrefix(ParseInfo &parseinfo, const char *str) {
 		if (isIdentifierEscapePrefixChar(parseinfo, str[0]))
 			return str[0] == str[1];
+		else if (str[0] == '+' || str[0] == '-')
+			return !std::isdigit(str[1]);
 		else
 			return isIdentifierChar(parseinfo, str[0]);
+	}
+
+	bool hasSignedNumberPrefix(ParseInfo &parseinfo, const char *str) {
+		return std::isdigit(str[0]) || ((str[0] == '+' || str[0] == '-') && std::isdigit(str[1]));
 	}
 
 	bool matchPrefix(ParseUnit &parseunit, const PriLib::StringView &substr) {
@@ -504,7 +488,7 @@ namespace CVM
 
 	TypeIndex parseType(ParseInfo &parseinfo, const std::string &word) {
 		TypeIndex index;
-		if (parseinfo.tim.find(parseIdentifier(parseinfo, word).data(), index)) {
+		if (parseinfo.info.typeInfoMap.find(parseIdentifier(parseinfo, word).data(), index)) {
 			return index;
 		}
 		else {
@@ -547,7 +531,7 @@ namespace CVM
 				parseinfo.putErrorLine();
 			}
 			const auto &namekey = parseIdentifier(parseinfo, list.at(0)).data();
-			auto &data = parseinfo.functable.getData(namekey);
+			auto &data = parseinfo.info.funcTable.getData(namekey);
 			if (data == nullptr) {
 				data.reset(new InstStruct::Function());
 				parseinfo.currfunc_creater.set(data.get());
@@ -564,12 +548,12 @@ namespace CVM
 			}
 			const auto &nameid = parseIdentifier(parseinfo, list.at(0)).data();
 			TypeIndex tid;
-			if (parseinfo.tim.find(nameid, tid)) {
+			if (parseinfo.info.typeInfoMap.find(nameid, tid)) {
 				parseinfo.putErrorLine(PEC_DUType);
 			}
 			else {
 				parseinfo.currtype = nameid;
-				parseinfo.tim.insert(nameid, TypeInfo());
+				parseinfo.info.typeInfoMap.insert(nameid, TypeInfo());
 			}
 			break;
 		}
@@ -706,7 +690,7 @@ namespace CVM
 						"size",
 						[](ParseInfo &parseinfo, const std::vector<std::string> &list) {
 							const auto &nameid = parseinfo.currtype;
-							auto &typeinfo = parseinfo.tim.at(nameid);
+							auto &typeinfo = parseinfo.info.typeInfoMap.at(nameid);
 							if (list.size() == 1) {
 								parseNumber(parseinfo, typeinfo.size.data, list[0]);
 							}
@@ -755,43 +739,21 @@ namespace CVM
 					{
 						"array",
 						[](ParseInfo &parseinfo, const std::vector<std::string> &list) {
-							if (list.size() >= 2) {
+							if (list.size() == 2) {
 								InstStruct::DataLabel di = parseDataLabel(parseinfo, list[0]);
 								if (!parseinfo.literalDataPoolCreator.has(FileID(0), DataID(di.data()))) {
-									std::vector<uint8_t> vec;
-									for (auto &word : PriLib::rangei(list.begin() + 1, list.end())) {
-										BigInteger bi;
-										if (bi.parseu(word)) {
-											bool is_large;
-											uint8_t v;
-											if (bi.toBuffer(&v, 1, is_large)) {
-												vec.push_back(v);
-											}
-											else {
-												if (is_large) {
-													parseinfo.putErrorLine(PEC_NumTooLarge, word);
-													parseinfo.putError("Only accept 1 byte for each data.");
-													return;
-												}
-												else {
-													parseinfo.putErrorLine(PEC_URNum, word);
-													return;
-												}
-											}
-										}
-										else {
-											if (word[0] == '-')
-												parseinfo.putErrorLine(PEC_NumIsSigned, word);
-											else
-												parseinfo.putErrorLine(PEC_URNum, word);
-											return;
-										}
+									ParseUnit parseunit(parseinfo,list[1]);
+									auto result = Parse::Parse<InstStruct::ArrayData>(parseunit);
+									if (result) {
+										auto &vec = result->data();
+										uint8_t *buffer = createMemory(parseinfo, MemorySize(vec.size()));
+										PriLib::Memory::copyTo(buffer, vec.data(), vec.size());
+										parseinfo.literalDataPoolCreator.insert((FileID(0), DataID(di.data())), std::make_pair(MemorySize(static_cast<uint32_t>(vec.size())), buffer)); // TODO
 									}
-
-									uint8_t *buffer = createMemory(parseinfo, MemorySize(vec.size()));
-									PriLib::Memory::copyTo(buffer, vec.data(), vec.size());
-									parseinfo.literalDataPoolCreator.insert((FileID(0), DataID(di.data())), std::make_pair(MemorySize(static_cast<uint32_t>(vec.size())), buffer)); // TODO
-//									parseinfo.datamap[di.index()] = std::make_pair(buffer, static_cast<uint32_t>(vec.size())); // TODO
+									else {
+										parseinfo.putErrorLine(PEC_URNum, list[1]);
+										return;
+									}
 								}
 								else {
 									parseinfo.putErrorLine(PEC_DUDataId);
@@ -827,6 +789,17 @@ namespace CVM
 							}
 						}
 					},
+					{
+						"test-parseinst",
+						[](ParseInfo &parseinfo, const std::vector<std::string> &list) {
+							println(list[0]);
+							ParseUnit parseunit(parseinfo, list[0]);
+							auto result = Parse::Parse<InstStruct::Element>(parseunit);
+							if (result) {
+								println("X)", InstStruct::ToString<InstStruct::Element>(*result, parseinfo.info));
+							}
+						}
+					}
 				},
 			},
 		};
@@ -999,7 +972,7 @@ namespace CVM
 					if (list.size() >= 2) {
 						auto res = parseRegister(parseinfo, list[0]);
 						const auto &namekey = parseIdentifier(parseinfo, list[1]).data();
-						auto id = parseinfo.functable.getID(namekey);
+						auto id = parseinfo.info.funcTable.getID(namekey);
 						FuncIdentifier func(id);
 						ArgumentList::Creater arglist_creater(list.size() - 2);
 						for (auto e : PriLib::rangei(list.begin() + 2, list.end())) {
