@@ -28,12 +28,23 @@ namespace CVM
 			return "";
 	}
 
+	std::string BigInteger::toStringUnsigned(int base) const {
+		if (base > 1 && base <= 36)
+			return mpz_class(abs(data->data)).get_str(base);
+		else
+			return "";
+	}
+
 	static size_t get_msize(const std::string &str) {
 		return str.size() / 2 + str.size() % 2;
 	}
 
 	size_t BigInteger::size() const {
 		return get_msize(toString(16));
+	}
+
+	bool BigInteger::is_negative() const {
+		return data->data < 0;
 	}
 
 	bool BigInteger::loadFromBufferLSB(const void *buffer, size_t memsize) {

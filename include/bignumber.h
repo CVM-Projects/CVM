@@ -9,11 +9,14 @@ namespace CVM
 		class Data;
 	public:
 		explicit BigInteger();
+		BigInteger(BigInteger &&bi) : data(std::move(bi.data)) {}
 
 		bool parse(const std::string &word, int base = 0);
 		bool parseu(const std::string &word, int base = 0);
 		std::string toString(int base = 10) const;
+		std::string toStringUnsigned(int base = 10) const;
 		size_t size() const;
+		bool is_negative() const;
 
 		template <typename T>
 		bool loadData(const T &src) {

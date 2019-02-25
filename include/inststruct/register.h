@@ -5,7 +5,7 @@
 #include <variant>
 #include "config.h"
 #include "info.h"
-#include "parser/parseunit.h"
+#include "instpart-enum.h"
 
 namespace CVM
 {
@@ -179,6 +179,8 @@ namespace CVM
 		// * Register
 		//---------------------------------------------------------------------------------------------
 		struct Register : public RegisterInfo {
+			static constexpr ElementType elementType = ET_Register;
+
 			std::variant<ZeroRegisterBase, ResultRegisterBase, DataRegisterBase, StackPointerRegisterBase, StackSpaceRegisterBase> data;
 
 			Register() = default;

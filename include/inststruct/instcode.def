@@ -1,0 +1,15 @@
+
+InstCode(nop)
+InstCode(mov)
+InstCode(load)
+InstCode(loadp)
+InstCode(tset)
+InstCode(cpyn)
+InstCode(call)
+InstCode(ret)
+InstCode(jump)
+
+InstCodeDebug(opreg)
+
+#undef InstCode
+#undef InstCodeDebug
