@@ -96,7 +96,7 @@ namespace CVM
 
 				TypeIndex type = Inst.type;
 
-				auto data = Inst.src.data();
+				auto data = Inst.src.data;
 
 				if (Inst.dst.isPrivateDataRegister()) {
 					auto dst_id = Inst.dst.index();
@@ -192,12 +192,12 @@ namespace CVM
 		static Runtime::Instruction* compile_Call(const InstStruct::Instruction &inst, const FunctionInfo &info) {
 			auto &Inst = static_cast<const InstStruct::Insts::Call&>(inst);
 
-			Config::FuncIndexType fid = Inst.func.data();
+			Config::FuncIndexType fid = Inst.func.data;
 
-			Runtime::Insts::Call::ArgListType::creater arglist_creater(Inst.arglist.data().size());
+			Runtime::Insts::Call::ArgListType::creater arglist_creater(Inst.arglist.size());
 
 			// TODO : More Compile Action
-			for (auto &arg : Inst.arglist.data()) {
+			for (auto &arg : Inst.arglist) {
 				if (arg.isPrivateDataRegister()) {
 					auto index = arg.index();
 					if (info.is_dyvarb(index) || info.is_stvarb(index)) {

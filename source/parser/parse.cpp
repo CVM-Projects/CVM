@@ -8,6 +8,7 @@
 #include "inststruct/info.h"
 #include "parser/parse-inststruct.h"
 #include <regex>
+#include <vector>
 
 namespace CVM
 {
@@ -262,7 +263,7 @@ namespace CVM
 			if (PriLib::Convert::is_integer(word))
 				parseinfo.putErrorLine(PEC_NumTooLarge);
 			else
-				parseinfo.putErrorLine(PEC_URNum);
+				parseinfo.putErrorLine(PEC_URIntegerData);
 			});
 	}
 
@@ -279,7 +280,7 @@ namespace CVM
 		if (result) {
 			return *result;
 		} else {
-			parseinfo.putErrorLine(PEC_URReg, word);
+			parseinfo.putErrorLine(PEC_URRegister, word);
 			return InstStruct::Register();
 		}
 	}
@@ -314,7 +315,7 @@ namespace CVM
 			return *result;
 		}
 		else {
-			parseinfo.putErrorLine(PEC_URDid, word);
+			parseinfo.putErrorLine(PEC_URDataLabel, word);
 			return InstStruct::DataLabel(0);
 		}
 	}
@@ -326,14 +327,14 @@ namespace CVM
 			return *result;
 		}
 		else {
-			parseinfo.putErrorLine(PEC_URLabel, word);
+			parseinfo.putErrorLine(PEC_URLineLabel, word);
 			return InstStruct::LineLabel(HashID(0));
 		}
 	}
 
 	InstStruct::Data parseDataInst(ParseInfo &parseinfo, const std::string &word) {
 		auto errfunc = [&]() {
-			parseinfo.putErrorLine(PEC_URNum, word);
+			parseinfo.putErrorLine(PEC_URIntegerData, word);
 			parseinfo.putError("The number must be unsigned integer and below " + std::to_string(8 * sizeof(InstStruct::Data::Type)) + "bits.");
 		};
 
@@ -358,7 +359,7 @@ namespace CVM
 					parseinfo.putError("The accepted size is " + std::to_string(size) + " byte(s).");
 				}
 				else {
-					parseinfo.putErrorLine(PEC_URNum, word);
+					parseinfo.putErrorLine(PEC_URIntegerData, word);
 				}
 			}
 		}
@@ -366,7 +367,7 @@ namespace CVM
 			if (word[0] == '-')
 				parseinfo.putErrorLine(PEC_NumIsSigned, word);
 			else
-				parseinfo.putErrorLine(PEC_URNum, word);
+				parseinfo.putErrorLine(PEC_URIntegerData, word);
 		}
 	}
 	bool parseDataLarge(ParseInfo &parseinfo, const std::string &word, std::function<uint8_t*(size_t)> creater) {
@@ -378,14 +379,14 @@ namespace CVM
 				return true;
 			}
 			else {
-				parseinfo.putErrorLine(PEC_URNum, word);
+				parseinfo.putErrorLine(PEC_URIntegerData, word);
 			}
 		}
 		else {
 			if (word[0] == '-')
 				parseinfo.putErrorLine(PEC_NumIsSigned, word);
 			else
-				parseinfo.putErrorLine(PEC_URNum, word);
+				parseinfo.putErrorLine(PEC_URIntegerData, word);
 		}
 		return false;
 	}
@@ -751,7 +752,7 @@ namespace CVM
 										parseinfo.literalDataPoolCreator.insert((FileID(0), DataID(di.data())), std::make_pair(MemorySize(static_cast<uint32_t>(vec.size())), buffer)); // TODO
 									}
 									else {
-										parseinfo.putErrorLine(PEC_URNum, list[1]);
+										parseinfo.putErrorLine(PEC_URArrayData, list[1]);
 										return;
 									}
 								}
@@ -907,9 +908,32 @@ namespace CVM
 
 namespace CVM
 {
+	template <typename ET>
+	const ET& getFromElement(const InstStruct::Element &elt) {
+		if (elt.type() != ET::elementType) {
+			assert(false);
+		}
+		return elt.get<ET>();
+	}
+
+	bool check(const std::vector<InstStruct::Element> &list, const std::vector<InstStruct::ElementType> &et) {
+		if (list.size() != et.size())
+			return false;
+		for (size_t i = 0; i != list.size(); ++i) {
+			if (list[i].type() != et[i])
+				return false;
+		}
+		return true;
+	}
+	void checkAndPutError(ParseInfo& parseinfo, ParseErrorCode pec, const std::vector<InstStruct::Element> &list, const std::vector<InstStruct::ElementType> &et) {
+		if (!check(list, et)) {
+			parseinfo.putErrorLine(pec);
+		}
+	}
+
 	InstStruct::Instruction* parseFuncInstBase(ParseInfo& parseinfo, const std::string &code, const std::vector<std::string> &list)
 	{
-		using ParseInstProcess = std::function<InstStruct::Instruction*(ParseInfo &, const std::vector<std::string> &)>;
+		using ParseInstProcess = std::function<InstStruct::Instruction*(ParseInfo &, const std::vector<InstStruct::Element> &)>;
 		using ParseInstMap = std::map<std::string, ParseInstProcess>;
 
 		using namespace InstStruct;
@@ -917,48 +941,39 @@ namespace CVM
 		const static ParseInstMap parsemap {
 			{
 				"mov",
-				[](ParseInfo &parseinfo, const std::vector<std::string> &list) {
-					return new Insts::Move(parseRegister(parseinfo, list[0]), parseRegister(parseinfo, list[1]));
+				[](ParseInfo &parseinfo, const std::vector<InstStruct::Element> &list) {
+					checkAndPutError(parseinfo, PEC_URIns, list, { ET_Register, ET_Register });
+					return new Insts::Move(getFromElement<InstStruct::Register>(list[0]), getFromElement<InstStruct::Register>(list[1]));
 				}
 			},
 			{
 				"load",
-				[](ParseInfo &parseinfo, const std::vector<std::string> &list) -> InstStruct::Instruction* {
-					if (list.size() != 3) {
-						parseinfo.putErrorLine(PEC_IllegalFormat, "load");
-						return nullptr;
-					}
-					if (!list[1].empty() && list[1][0] != '#') {
+				[](ParseInfo &parseinfo, const std::vector<InstStruct::Element> &list) -> InstStruct::Instruction* {
+					if (check(list, { ET_Register, ET_IntegerData, ET_Identifier })) {
 						return new Insts::Load1(
-							parseRegister(parseinfo, list[0]),
-							parseDataInst(parseinfo, list[1]),
-							parseType(parseinfo, list[2]));
+							getFromElement<InstStruct::Register>(list[0]),
+							parseDataInst(parseinfo, ToString(list[1], parseinfo.info)),
+							parseType(parseinfo, ToString(list[2], parseinfo.info)));
+					}
+					else if (check(list, { ET_Register, ET_DataLabel, ET_Identifier })) {
+						return new Insts::Load2(
+							getFromElement<InstStruct::Register>(list[0]),
+							getFromElement<InstStruct::DataLabel>(list[1]),
+							parseType(parseinfo, ToString(list[2], parseinfo.info)));
 					}
 					else {
-						return new Insts::Load2(
-							parseRegister(parseinfo, list[0]),
-							parseDataLabel(parseinfo, list[1]),
-							parseType(parseinfo, list[2]));
+						parseinfo.putErrorLine(PEC_IllegalFormat, "load");
+						return nullptr;
 					}
 				}
 			},
 			{
 				"loadp",
-				[](ParseInfo &parseinfo, const std::vector<std::string> &list) -> InstStruct::Instruction* {
-					if (list.size() == 2 && (!list[1].empty() && list[1][0] == '#')) {
+				[](ParseInfo &parseinfo, const std::vector<InstStruct::Element> &list) -> InstStruct::Instruction* {
+					if (check(list, { ET_Register, ET_DataLabel })) {
 						return new Insts::LoadPointer(
-							parseRegister(parseinfo, list[0]),
-							parseDataLabel(parseinfo, list[1]));
-						/*if (!list[1].empty() && list[1][0] != '#') {
-							return new Insts::LoadPointer1(
-								parseRegister(parseinfo, list[0]),
-								parseDataInst(parseinfo, list[1]));
-						}
-						else {
-							return new Insts::LoadPointer2(
-								parseRegister(parseinfo, list[0]),
-								parseDataLabel(parseinfo, list[1]));
-						}*/
+							getFromElement<InstStruct::Register>(list[0]),
+							getFromElement<InstStruct::DataLabel>(list[1]));
 					}
 					else {
 						parseinfo.putErrorLine(PEC_IllegalFormat, "loadp");
@@ -968,35 +983,39 @@ namespace CVM
 			},
 			{
 				"call",
-				[](ParseInfo &parseinfo, const std::vector<std::string> &list) -> InstStruct::Instruction* {
+				[](ParseInfo &parseinfo, const std::vector<InstStruct::Element> &list) -> InstStruct::Instruction* {
 					if (list.size() >= 2) {
-						auto res = parseRegister(parseinfo, list[0]);
-						const auto &namekey = parseIdentifier(parseinfo, list[1]).data();
-						auto id = parseinfo.info.funcTable.getID(namekey);
-						FuncIdentifier func(id);
-						ArgumentList::Creater arglist_creater(list.size() - 2);
-						for (auto e : PriLib::rangei(list.begin() + 2, list.end())) {
-							arglist_creater.push_back(parseRegister(parseinfo, e));
+						if (list[0].type() == ET_Register && list[1].type() == ET_Identifier) {
+							auto res = getFromElement<InstStruct::Register>(list[0]);
+							const auto &namekey = getFromElement<InstStruct::Identifier>(list[1]).data();
+							auto id = parseinfo.info.funcTable.getID(namekey);
+							FuncIdentifier func(id);
+							ArgumentList::creater arglist_creater(list.size() - 2);
+							for (auto &e : PriLib::rangei(list.begin() + 2, list.end())) {
+								if (e.type() != ET_Register) {
+									parseinfo.putErrorLine(PEC_URRegister, "Not register");
+									return nullptr;
+								}
+								arglist_creater.push_back(getFromElement<InstStruct::Register>(e));
+							}
+							return new Insts::Call(res, func, arglist_creater.data());
 						}
-						return new Insts::Call(res, func, arglist_creater.data());
 					}
-					else {
-						parseinfo.putErrorLine(PEC_IllegalFormat, "call");
-						return nullptr;
-					}
+					parseinfo.putErrorLine(PEC_IllegalFormat, "call");
+					return nullptr;
 				}
 			},
 			{
 				"ret",
-				[](ParseInfo &parseinfo, const std::vector<std::string> &list) {
+				[](ParseInfo &parseinfo, const std::vector<InstStruct::Element> &list) {
 					return new Insts::Return();
 				}
 			},
 			{
 				"jump",
-				[](ParseInfo &parseinfo, const std::vector<std::string> &list) -> InstStruct::Instruction* {
+				[](ParseInfo &parseinfo, const std::vector<InstStruct::Element> &list) -> InstStruct::Instruction* {
 					if (list.size() == 1) {
-						InstStruct::LineLabel label = parseLineLabel(parseinfo, list[0]);
+						InstStruct::LineLabel label = getFromElement<InstStruct::LineLabel>(list[0]);
 						size_t id = parseinfo.currfunc_creater.labelkeytable[label.data()];
 						assert(id < std::numeric_limits<Config::LineCountType>::max());
 						auto *inst = new Insts::Jump(static_cast<Config::LineCountType>(id));
@@ -1011,15 +1030,40 @@ namespace CVM
 			},
 			{
 				"db_opreg",
-				[](ParseInfo &parseinfo, const std::vector<std::string> &list) {
+				[](ParseInfo &parseinfo, const std::vector<InstStruct::Element> &list) {
 					return new Insts::Debug_OutputRegister();
 				}
 			},
 		};
 
+		std::vector<InstStruct::Element> eltlist;
+		bool success = true;
+
+		for (auto &elt : list) {
+			ParseUnit parseunit(parseinfo, elt);
+			auto result = Parse::Parse<InstStruct::Element>(parseunit);
+			if (!result) {
+				ParseErrorCode pec;
+				switch (parseunit.errorcode) {
+#define InstPart(key) case ET_##key: pec = PEC_UR##key; break;
+#include "inststruct/instpart.def"
+				default: pec = PEC_URElement; break;
+				}
+				parseinfo.putErrorLine(pec, elt);
+				success = false;
+			}
+			else {
+				eltlist.emplace_back(std::move(*result));
+			}
+		}
+
+		if (!success) {
+			return nullptr;
+		}
+
 		auto iter = parsemap.find(code);
 		if (iter != parsemap.end()) {
-			return iter->second(parseinfo, list);
+			return iter->second(parseinfo, eltlist);
 		}
 		else {
 			parseinfo.putErrorLine(PEC_URIns, code);
