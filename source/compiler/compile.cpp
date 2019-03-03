@@ -1,7 +1,6 @@
 #include "basic.h"
 #include "compiler/compile.h"
 #include "inststruct/instpart.h"
-#include "inststruct/instdef.h"
 #include "runtime/environment.h"
 #include "runtime/datamanage.h"
 #include "datapool.h"
@@ -19,20 +18,35 @@ namespace CVM
 		}
 	}
 
+	// Temp func
+	bool check(const std::vector<InstStruct::Element*> &list, const std::vector<InstStruct::ElementType> &et) {
+		if (list.size() != et.size())
+			return false;
+		for (size_t i = 0; i != list.size(); ++i) {
+			if (list[i]->type() != et[i])
+				return false;
+		}
+		return true;
+	}
+
 	namespace Compile {
 		static Runtime::Instruction* const NopeInst = new Runtime::Insts::Nope();
 
 		static Runtime::Instruction* compile_Move(const InstStruct::Instruction &inst, const FunctionInfo &info) {
-			auto &Inst = static_cast<const InstStruct::Insts::Move&>(inst);
+			if (!check(inst.data, { InstStruct::ET_Register, InstStruct::ET_Register }))
+				println("Error type for inst");
 
-			if (Inst.dst.isZeroRegister() || Inst.src.isZeroRegister()) {
+			auto &dst = inst.data[0]->get<InstStruct::Register>();
+			auto &src = inst.data[1]->get<InstStruct::Register>();
+
+			if (dst.isZeroRegister() || src.isZeroRegister()) {
 				println("Error compile with %0.");
 				return NopeInst;
 			}
 
-			if (Inst.dst.isPrivateDataRegister() && Inst.src.isPrivateDataRegister()) {
-				auto dst_id = Inst.dst.index();
-				auto src_id = Inst.src.index();
+			if (dst.isPrivateDataRegister() && src.isPrivateDataRegister()) {
+				auto dst_id = dst.index();
+				auto src_id = src.index();
 
 				if (info.is_dyvarb(dst_id) && info.is_dyvarb(src_id)) {
 					return new Runtime::Insts::MoveRegisterDdDd(dst_id, src_id);
@@ -51,8 +65,8 @@ namespace CVM
 					return new Runtime::Insts::MoveRegisterDsDs(dst_id, src_id, info.get_stvarb_type(src_id));
 				}
 			}
-			else if (Inst.dst.isResultRegister() && Inst.src.isPrivateDataRegister()) {
-				auto src_id = Inst.src.index();
+			else if (dst.isResultRegister() && src.isPrivateDataRegister()) {
+				auto src_id = src.index();
 
 				if (info.is_dyvarb(src_id)) {
 					return new Runtime::Insts::MoveRegisterDdRes(src_id, info.get_accesser().result_type());
@@ -61,8 +75,8 @@ namespace CVM
 					return new Runtime::Insts::MoveRegisterDsRes(src_id, info.get_accesser().result_type());
 				}
 			}
-			else if (Inst.dst.isPrivateDataRegister() && Inst.src.isResultRegister()) {
-				auto dst_id = Inst.dst.index();
+			else if (dst.isPrivateDataRegister() && src.isResultRegister()) {
+				auto dst_id = dst.index();
 
 				if (info.is_dyvarb(dst_id)) {
 					return new Runtime::Insts::MoveRegisterResDd(dst_id);
@@ -78,28 +92,56 @@ namespace CVM
 			return NopeInst;
 		}
 
-		template <typename LoadTy>
-		static bool check_Load_dst_Base(const LoadTy &inst) {
-			if (inst.dst.isZeroRegister()) {
+		static bool check_dst_is_not_zero(const InstStruct::Instruction &inst) {
+			if (inst.data[0]->get<InstStruct::Register>().isZeroRegister()) {
 				println("Error compile with %0.");
 				return false;
 			}
 			return true;
 		}
+		
+		// TEMP
+		TypeInfoMap *_ptypeInfoMap = nullptr;  // TODO!!
+		InstStruct::IdentKeyTable *_pfuncTable = nullptr;  // TODO!!
+
+		static TypeIndex parseType(TypeInfoMap &typeInfoMap, const InstStruct::Element &elt) {
+			TypeIndex index;
+			if (typeInfoMap.find(elt.get<InstStruct::Identifier>().data(), index)) {
+				return index;
+			}
+			else {
+				println("Type error");
+				return TypeIndex(0);
+			}
+		}
+
+		// TODO
+		static uint32_t parseData(const InstStruct::Element &elt) {
+			auto &data = elt.get<InstStruct::IntegerData>();
+			if (data.data().size() <= sizeof(uint32_t)) {
+				uint32_t result = 0;
+				if (data.data().toBuffer(&result, sizeof(result)))
+					return result;
+			}
+			println("Error parse uint32 data.");
+			return 0;
+		}
 
 		static Runtime::Instruction* compile_Load(const InstStruct::Instruction &inst, const FunctionInfo &info) {
-			if (inst._subid == 1) {
-				auto &Inst = static_cast<const InstStruct::Insts::Load1&>(inst);
-				if (!check_Load_dst_Base(Inst)) {
+			if (check(inst.data, { InstStruct::ET_Register, InstStruct::ET_IntegerData, InstStruct::ET_Identifier })) {
+
+				if (!check_dst_is_not_zero(inst)) {
 					return NopeInst;
 				}
 
-				TypeIndex type = Inst.type;
+				TypeIndex type = parseType(*_ptypeInfoMap, *inst.data[2]);
 
-				auto data = Inst.src.data;
+				auto data = parseData(*inst.data[1]);
 
-				if (Inst.dst.isPrivateDataRegister()) {
-					auto dst_id = Inst.dst.index();
+				auto &dst = inst.data[0]->get<InstStruct::Register>();
+
+				if (dst.isPrivateDataRegister()) {
+					auto dst_id = dst.index();
 					if (info.is_dyvarb(dst_id)) {
 						return new Runtime::Insts::LoadDataDd<1>(dst_id, type, data);
 					}
@@ -111,7 +153,7 @@ namespace CVM
 						assert(false);
 					}
 				}
-				else if (Inst.dst.isResultRegister()) {
+				else if (dst.isResultRegister()) {
 					// TODO!!! type & restype is different !
 					return new Runtime::Insts::LoadDataRes<1>(type, data);
 				}
@@ -119,18 +161,21 @@ namespace CVM
 					assert(false);
 				}
 			}
-			else if (inst._subid == 2) {
-				auto &Inst = static_cast<const InstStruct::Insts::Load2&>(inst);
-				if (!check_Load_dst_Base(Inst)) {
+			else if (check(inst.data, { InstStruct::ET_Register, InstStruct::ET_DataLabel, InstStruct::ET_Identifier })) {
+
+				if (!check_dst_is_not_zero(inst)) {
 					return NopeInst;
 				}
 
-				TypeIndex type = Inst.type;
+				TypeIndex type = parseType(*_ptypeInfoMap, *inst.data[2]);
 
-				auto index = Inst.src.data();
+				auto &src = inst.data[1]->get<InstStruct::DataLabel>();
+				auto &dst = inst.data[0]->get<InstStruct::Register>();
 
-				if (Inst.dst.isPrivateDataRegister()) {
-					auto dst_id = Inst.dst.index();
+				auto index = src.data();
+
+				if (dst.isPrivateDataRegister()) {
+					auto dst_id = dst.index();
 					if (info.is_dyvarb(dst_id)) {
 						return new Runtime::Insts::LoadDataDd<2>(dst_id, type, index);
 					}
@@ -142,7 +187,7 @@ namespace CVM
 						assert(false);
 					}
 				}
-				else if (Inst.dst.isResultRegister()) {
+				else if (dst.isResultRegister()) {
 					// TODO!!! type & restype is different !
 					return new Runtime::Insts::LoadDataRes<2>(type, index);
 				}
@@ -158,15 +203,20 @@ namespace CVM
 		}
 
 		static Runtime::Instruction* compile_LoadPointer(const InstStruct::Instruction &inst, const FunctionInfo &info) {
-			auto &Inst = static_cast<const InstStruct::Insts::LoadPointer&>(inst);
-			if (!check_Load_dst_Base(Inst)) {
+			if (!check(inst.data, { InstStruct::ET_Register, InstStruct::ET_DataLabel }))
+				return NopeInst;
+
+			if (!check_dst_is_not_zero(inst)) {
 				return NopeInst;
 			}
 
-			auto index = Inst.src.data();
+			auto &src = inst.data[1]->get<InstStruct::DataLabel>();
+			auto &dst = inst.data[0]->get<InstStruct::Register>();
 
-			if (Inst.dst.isPrivateDataRegister()) {
-				auto dst_id = Inst.dst.index();
+			auto index = src.data();
+
+			if (dst.isPrivateDataRegister()) {
+				auto dst_id = dst.index();
 				if (info.is_dyvarb(dst_id)) {
 					return new Runtime::Insts::LoadDataPointerDd(dst_id, index);
 				}
@@ -178,7 +228,7 @@ namespace CVM
 					assert(false);
 				}
 			}
-			else if (Inst.dst.isResultRegister()) {
+			else if (dst.isResultRegister()) {
 				const auto &type = info.get_accesser().result_type();
 				return new Runtime::Insts::LoadDataPointerRes(type, index);
 			}
@@ -190,14 +240,37 @@ namespace CVM
 		}
 
 		static Runtime::Instruction* compile_Call(const InstStruct::Instruction &inst, const FunctionInfo &info) {
-			auto &Inst = static_cast<const InstStruct::Insts::Call&>(inst);
+			Config::FuncIndexType fid;
+			InstStruct::ArgumentList arglist;
+			InstStruct::Register dst;
 
-			Config::FuncIndexType fid = Inst.func.data;
+			if (inst.data.size() >= 2) {
+				if (inst.data[0]->type() == InstStruct::ET_Register && inst.data[1]->type() == InstStruct::ET_Identifier) {
+					auto res = inst.data[0]->get<InstStruct::Register>();
+					const auto &namekey = inst.data[1]->get<InstStruct::Identifier>().data();
+					auto id = _pfuncTable->getID(namekey);
+					InstStruct::FuncIdentifier func(id);
+					InstStruct::ArgumentList::creater arglist_creater(inst.data.size() - 2);
+					for (auto &e : PriLib::rangei(inst.data.begin() + 2, inst.data.end())) {
+						if (e->type() != InstStruct::ET_Register) {
+							println("Not register");
+							return NopeInst;
+						}
+						arglist_creater.push_back(e->get<InstStruct::Register>());
+					}
+					fid = func.data;
+					arglist = arglist_creater.data();
+					dst = res;
+				}
+			}
+			else {
+				return NopeInst;
+			}
 
-			Runtime::Insts::Call::ArgListType::creater arglist_creater(Inst.arglist.size());
+			Runtime::Insts::Call::ArgListType::creater arglist_creater(arglist.size());
 
 			// TODO : More Compile Action
-			for (auto &arg : Inst.arglist) {
+			for (auto &arg : arglist) {
 				if (arg.isPrivateDataRegister()) {
 					auto index = arg.index();
 					if (info.is_dyvarb(index) || info.is_stvarb(index)) {
@@ -214,22 +287,37 @@ namespace CVM
 				}
 			}
 
-			if (Inst.dst.isPrivateDataRegister()) {
-				auto index = Inst.dst.index();
+			if (dst.isPrivateDataRegister()) {
+				auto index = dst.index();
 				assert(info.is_dyvarb(index) || info.is_stvarb(index));
 
 				return new Runtime::Insts::CallDds(index, fid, arglist_creater.data());
 			}
-			else if (Inst.dst.isResultRegister()) {
+			else if (dst.isResultRegister()) {
 				return new Runtime::Insts::CallRes(fid, arglist_creater.data());
 			}
-			else if (Inst.dst.isZeroRegister()) {
+			else if (dst.isZeroRegister()) {
 				return new Runtime::Insts::Call(fid, arglist_creater.data());
 			}
 			else {
 				assert(false);
 			}
 
+			return NopeInst;
+		}
+
+		static Runtime::Instruction* compile_Jump(const InstStruct::Instruction &inst, const FunctionInfo &info) {
+			//if (list.size() == 1) {
+			//	InstStruct::LineLabel label = getFromElement<InstStruct::LineLabel>(list[0]);
+			//	size_t id = parseinfo.currfunc_creater.labelkeytable[label.data()];
+			//	assert(id < std::numeric_limits<Config::LineCountType>::max());
+			//	auto *inst = new Insts::Jump(static_cast<Config::LineCountType>(id));
+			//	parseinfo.currfunc_creater.rec_line.push_back(&inst->line);
+			//	return new Runtime::Insts::Jump(Inst.line);
+			//}
+			//else {
+
+			// TODO
 			return NopeInst;
 		}
 	}
@@ -253,8 +341,7 @@ namespace CVM
 			return new Runtime::Insts::Return();
 		}
 		else if (inst.instcode == InstStruct::i_jump) {
-			auto &Inst = static_cast<const InstStruct::Insts::Jump&>(inst);
-			return new Runtime::Insts::Jump(Inst.line);
+			return compile_Jump(inst, info);
 		}
 		else if (inst.instcode == InstStruct::i_call) {
 			return compile_Call(inst, info);
@@ -306,6 +393,10 @@ namespace CVM
 		}
 
 		this->entry_index = ikt.getID(globalinfo.entry);
+
+		// TODO
+		Compile::_ptypeInfoMap = &globalinfo.typeInfoMap;  // TODO!!
+		Compile::_pfuncTable = &globalinfo.funcTable;  // TODO!!
 
 		// Compile All Functions
 

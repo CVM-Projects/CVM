@@ -85,6 +85,7 @@ namespace CVM::InstStruct
 
 	struct Element {
 		explicit Element() = default;
+		explicit Element(Element &&elt) : _type(elt._type), _data(std::move(elt._data)) {}
 
 #define InstPart(key) explicit Element(key data) : _type(ET_##key), _data(std::move(data)) {}
 #include "instpart.def"

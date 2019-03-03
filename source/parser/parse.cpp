@@ -907,8 +907,6 @@ namespace CVM
 	}
 }
 
-#include "inststruct/instdef.h"
-
 namespace CVM
 {
 	InstStruct::Instruction* parseFuncInstBase(ParseInfo& parseinfo, const std::string &code, const std::vector<std::string> &list)
@@ -918,117 +916,20 @@ namespace CVM
 
 		using namespace InstStruct;
 
-		const static ParseInstMap parsemap {
-			{
-				"mov",
-				[](ParseInfo &parseinfo, const std::vector<InstStruct::Element> &list) {
-					checkAndPutError(parseinfo, PEC_URIns, list, { ET_Register, ET_Register });
-					return new Insts::Move(getFromElement<InstStruct::Register>(list[0]), getFromElement<InstStruct::Register>(list[1]));
-				}
-			},
-			{
-				"load",
-				[](ParseInfo &parseinfo, const std::vector<InstStruct::Element> &list) -> InstStruct::Instruction* {
-					if (check(list, { ET_Register, ET_IntegerData, ET_Identifier })) {
-						return new Insts::Load1(
-							getFromElement<InstStruct::Register>(list[0]),
-							InstStruct::Data(parseNumber<InstStruct::Data::Type>(parseinfo, list[1])),
-							parseType(parseinfo, ToString(list[2], parseinfo.info)));
-					}
-					else if (check(list, { ET_Register, ET_DataLabel, ET_Identifier })) {
-						return new Insts::Load2(
-							getFromElement<InstStruct::Register>(list[0]),
-							getFromElement<InstStruct::DataLabel>(list[1]),
-							parseType(parseinfo, ToString(list[2], parseinfo.info)));
-					}
-					else {
-						parseinfo.putErrorLine(PEC_IllegalFormat, "load");
-						return nullptr;
-					}
-				}
-			},
-			{
-				"loadp",
-				[](ParseInfo &parseinfo, const std::vector<InstStruct::Element> &list) -> InstStruct::Instruction* {
-					if (check(list, { ET_Register, ET_DataLabel })) {
-						return new Insts::LoadPointer(
-							getFromElement<InstStruct::Register>(list[0]),
-							getFromElement<InstStruct::DataLabel>(list[1]));
-					}
-					else {
-						parseinfo.putErrorLine(PEC_IllegalFormat, "loadp");
-						return nullptr;
-					}
-				}
-			},
-			{
-				"call",
-				[](ParseInfo &parseinfo, const std::vector<InstStruct::Element> &list) -> InstStruct::Instruction* {
-					if (list.size() >= 2) {
-						if (list[0].type() == ET_Register && list[1].type() == ET_Identifier) {
-							auto res = getFromElement<InstStruct::Register>(list[0]);
-							const auto &namekey = getFromElement<InstStruct::Identifier>(list[1]).data();
-							auto id = parseinfo.info.funcTable.getID(namekey);
-							FuncIdentifier func(id);
-							ArgumentList::creater arglist_creater(list.size() - 2);
-							for (auto &e : PriLib::rangei(list.begin() + 2, list.end())) {
-								if (e.type() != ET_Register) {
-									parseinfo.putErrorLine(PEC_URRegister, "Not register");
-									return nullptr;
-								}
-								arglist_creater.push_back(getFromElement<InstStruct::Register>(e));
-							}
-							return new Insts::Call(res, func, arglist_creater.data());
-						}
-					}
-					parseinfo.putErrorLine(PEC_IllegalFormat, "call");
-					return nullptr;
-				}
-			},
-			{
-				"ret",
-				[](ParseInfo &parseinfo, const std::vector<InstStruct::Element> &list) {
-					return new Insts::Return();
-				}
-			},
-			{
-				"jump",
-				[](ParseInfo &parseinfo, const std::vector<InstStruct::Element> &list) -> InstStruct::Instruction* {
-					if (list.size() == 1) {
-						InstStruct::LineLabel label = getFromElement<InstStruct::LineLabel>(list[0]);
-						size_t id = parseinfo.currfunc_creater.labelkeytable[label.data()];
-						assert(id < std::numeric_limits<Config::LineCountType>::max());
-						auto *inst = new Insts::Jump(static_cast<Config::LineCountType>(id));
-						parseinfo.currfunc_creater.rec_line.push_back(&inst->line);
-						return inst;
-					}
-					else {
-						parseinfo.putErrorLine(PEC_IllegalFormat, "jump");
-						return nullptr;
-					}
-				}
-			},
-			{
-				"db_opreg",
-				[](ParseInfo &parseinfo, const std::vector<InstStruct::Element> &list) {
-					return new Insts::Debug_OutputRegister();
-				}
-			},
-		};
-
 		// Convert to InstStruct::Element
 		std::vector<InstStruct::Element> eltlist;
 
 		if (!convert(parseinfo, list, eltlist))
 			return nullptr;
 
-		auto iter = parsemap.find(code);
-		if (iter != parsemap.end()) {
-			return iter->second(parseinfo, eltlist);
+		std::vector<InstStruct::Element*> newlist;
+		for (auto &e : eltlist) {
+			newlist.emplace_back(new Element(std::move(e)));
 		}
-		else {
-			parseinfo.putErrorLine(PEC_URIns, code);
-			return nullptr;
-		}
+
+#define InstCode(key) if (code == #key) return new Instruction(i_##key, newlist);
+#define InstCodeDebug(key) if (code == ("db_" #key)) return new Instruction(id_##key, newlist);
+#include "inststruct/instcode.def"
+		return nullptr;
 	}
 }
