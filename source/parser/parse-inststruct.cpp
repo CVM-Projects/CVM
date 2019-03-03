@@ -495,7 +495,7 @@ namespace CVM
 				parseunit.errorcode = static_cast<int>(T::elementType);
 				return std::nullopt;
 			}
-			return Element(std::move(*result));
+			return std::optional<Element>(Element(std::move(*result)));
 		}
 		template <>
 		std::optional<Element> Parse<Element>(ParseUnit &parseunit) {

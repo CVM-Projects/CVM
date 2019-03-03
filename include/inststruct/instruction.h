@@ -5,15 +5,17 @@ namespace CVM
 {
 	namespace InstStruct
 	{
-		struct Instruction
-		{
-			explicit Instruction(InstCode ic, uint8_t id = 0)
-				: instcode(ic), _subid(id) {}
+		struct Element;
+		
+		// TODO
+		struct Instruction {
+			explicit Instruction(InstCode ic, std::vector<Element*> data)
+				: instcode(ic), data(std::move(data)) {}
 
 			virtual ~Instruction() {}
 
 			InstCode instcode;
-			uint8_t _subid;
+			std::vector<Element*> data;
 		};
 	}
 }
