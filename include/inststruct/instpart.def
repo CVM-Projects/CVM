@@ -1,3 +1,6 @@
+#ifndef InstPart
+#define InstPart(x)
+#endif
 
 InstPart(Register)
 InstPart(Identifier)

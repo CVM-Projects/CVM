@@ -1,21 +1,15 @@
 #pragma once
 #include "instcode.h"
 
-namespace CVM
+namespace CVM::InstStruct
 {
-	namespace InstStruct
-	{
-		struct Element;
-		
-		// TODO
-		struct Instruction {
-			explicit Instruction(InstCode ic, std::vector<Element*> data)
-				: instcode(ic), data(std::move(data)) {}
+	struct Element;
 
-			virtual ~Instruction() {}
+	struct Instruction final {
+		explicit Instruction(InstCode ic, std::vector<Element> data)
+			: instcode(ic), data(std::move(data)) {}
 
-			InstCode instcode;
-			std::vector<Element*> data;
-		};
-	}
+		InstCode instcode;
+		std::vector<Element> data;
+	};
 }

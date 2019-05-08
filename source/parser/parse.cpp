@@ -25,17 +25,9 @@ namespace CVM
 		explicit ParseInfo(InstStruct::GlobalInfo &globalInfo)
 			: currfunc_creater(*this), info(globalInfo), literalDataPoolCreator(*globalInfo.literalDataPoolCreator) {}
 
-		~ParseInfo() {
-			//println("~ParseInfo();");
-		}
-
-		class FunctionInfoCreater
-		{
+		class FunctionInfoCreater {
 		public:
-
-		public:
-			FunctionInfoCreater(ParseInfo &parseinfo)
-				: parseinfo(parseinfo) {}
+			explicit FunctionInfoCreater(ParseInfo &parseinfo) : parseinfo(parseinfo) {}
 
 			void set(InstStruct::Function *fip) {
 				over();
@@ -51,6 +43,9 @@ namespace CVM
 					clear();
 				}
 			}
+			void setLabelLine(const InstStruct::LineLabel &label) {
+				this->currfunc->labelkeytable[label.data()] = this->current_line;
+			}
 
 		public:
 			Config::LineCountType current_line = 0;
@@ -60,8 +55,8 @@ namespace CVM
 			ParseInfo &parseinfo;
 			TypeIndex restype;
 
-			InstStruct::Function *currfunc = nullptr;  // TODO
 		private:
+			InstStruct::Function *currfunc = nullptr;
 
 			void create_funcinfo() {
 				assert(sttypelist.size() <= std::numeric_limits<Config::RegisterIndexType>::max());
@@ -335,20 +330,17 @@ namespace CVM
 		return std::make_pair(i, j);
 	}
 
-	void parseLineBase(
-		ParseInfo &parseinfo,
-		const std::string &xline,
-		std::function<int(const char*)> f1,
-		std::function<void(ParseInfo&, int, const std::vector<std::string>&)> f2)
+	void parseLineBase(ParseInfo &parseinfo,
+	                   const std::string &line,
+	                   const std::function<int(const char*)> &f1,
+	                   const std::function<void(ParseInfo&, int, const std::vector<std::string>&)> &f2)
 	{
-		std::string line = xline;
-
 		const char *blanks = " \t,";
 		std::vector<std::string> list;
 
 		// Match '"'
 
-		if (line.find('"') != line.npos) {
+		if (line.find('"') != std::string::npos) {
 			std::vector<size_t> rec;
 
 			std::pair<size_t, size_t> p;
@@ -428,6 +420,7 @@ namespace CVM
 	bool convert(ParseInfo &parseinfo, const std::vector<std::string> &list, std::vector<InstStruct::Element> &result) {
 		bool success = true;
 
+		result.reserve(list.size());
 		for (auto &elt : list) {
 			ParseUnit parseunit(parseinfo, elt);
 			auto res = Parse::Parse<InstStruct::Element>(parseunit);
@@ -767,8 +760,10 @@ namespace CVM
 		}
 	}
 
-	InstStruct::Instruction* parseFuncInstBase(ParseInfo& parseinfo, const std::string &code, const std::vector<std::string> &list)
+	void parseFuncInst(ParseInfo &parseinfo, const std::string &code, const std::vector<std::string> &list)
 	{
+		parseinfo.currfunc_creater.current_line++;
+
 		static const std::map<std::string, InstStruct::InstCode> instcodemap = {
 #define InstCode(key) { #key, InstStruct::i_##key },
 #define InstCodeDebug(key) { ("db_" #key), InstStruct::id_##key },
@@ -778,25 +773,11 @@ namespace CVM
 		if (instcodemap.find(code) != instcodemap.end()) {
 			// Convert to InstStruct::Element
 			std::vector<InstStruct::Element> eltlist;
-
-			if (!convert(parseinfo, list, eltlist))
-				return nullptr;
-
-			std::vector<InstStruct::Element*> newlist;
-			for (auto &e : eltlist) {
-				newlist.emplace_back(new InstStruct::Element(std::move(e)));
+			if (convert(parseinfo, list, eltlist)) {  // Skip fail inst
+				auto inst = new InstStruct::Instruction(instcodemap.at(code), std::move(eltlist));
+				parseinfo.currfunc_creater.get()->instdata.push_back(inst);
 			}
-
-			return new InstStruct::Instruction(instcodemap.at(code), newlist);
 		}
-
-		return nullptr;
-	}
-
-	void parseFuncInst(ParseInfo &parseinfo, const std::string &code, const std::vector<std::string> &list)
-	{
-		parseinfo.currfunc_creater.current_line++;
-		parseinfo.currfunc_creater.get()->instdata.push_back(parseFuncInstBase(parseinfo, code, list));
 	}
 
 	void parseLine(ParseInfo &parseinfo, const std::string &line)
@@ -824,9 +805,7 @@ namespace CVM
 				parseinfo.putErrorLine(PEC_URCmd, line);
 			}
 			InstStruct::LineLabel labelkey = parseLineLabel(parseinfo, line);
-			size_t id = parseinfo.currfunc_creater.currfunc->labelkeytable[labelkey.data()];
-			Config::LineCountType xline = parseinfo.currfunc_creater.current_line;
-			parseinfo.currfunc_creater.currfunc->labelkeytable.setLine(id, xline);
+			parseinfo.currfunc_creater.setLabelLine(labelkey);
 		}
 		else if (std::isblank(fc)) {
 			std::string cmd;

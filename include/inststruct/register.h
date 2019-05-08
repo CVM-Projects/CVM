@@ -9,8 +9,6 @@
 
 namespace CVM
 {
-	struct ParseUnit;
-
 	namespace InstStruct
 	{
 		//---------------------------------------------------------------------------------------------
@@ -168,8 +166,6 @@ namespace CVM
 		};
 		struct StackSpaceRegister : public RegisterInfo, public StackSpaceRegisterBase {
 			using BaseType = StackSpaceRegisterBase;
-
-			std::string ToString(GlobalInfo &ginfo) const;
 		};
 
 		template <typename T>
