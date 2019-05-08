@@ -1,3 +1,7 @@
+#ifndef ParseErrorCode
+#define ParseErrorCode(x, y)
+#endif
+
 ParseErrorCode(PEC_NumTooLarge, "Number too large")
 ParseErrorCode(PEC_NumIsSigned, "Number is signed")
 ParseErrorCode(PEC_URCmd, "Unrecognized command")

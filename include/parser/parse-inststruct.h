@@ -2,6 +2,8 @@
 
 namespace CVM
 {
+	struct ParseUnit;
+
 	namespace Parse
 	{
 		template <typename T>

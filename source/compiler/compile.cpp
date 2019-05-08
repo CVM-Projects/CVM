@@ -18,11 +18,11 @@ namespace CVM
 	}
 
 	// Temp func
-	bool check(const std::vector<InstStruct::Element*> &list, const std::vector<InstStruct::ElementType> &et) {
+	static bool check(const std::vector<InstStruct::Element> &list, const std::vector<InstStruct::ElementType> &et) {
 		if (list.size() != et.size())
 			return false;
 		for (size_t i = 0; i != list.size(); ++i) {
-			if (list[i]->type() != et[i])
+			if (list[i].type() != et[i])
 				return false;
 		}
 		return true;
@@ -35,8 +35,8 @@ namespace CVM
 			if (!check(inst.data, { InstStruct::ET_Register, InstStruct::ET_Register }))
 				println("Error type for inst");
 
-			auto &dst = inst.data[0]->get<InstStruct::Register>();
-			auto &src = inst.data[1]->get<InstStruct::Register>();
+			auto &dst = inst.data[0].get<InstStruct::Register>();
+			auto &src = inst.data[1].get<InstStruct::Register>();
 
 			if (dst.isZeroRegister() || src.isZeroRegister()) {
 				println("Error compile with %0.");
@@ -92,7 +92,7 @@ namespace CVM
 		}
 
 		static bool check_dst_is_not_zero(const InstStruct::Instruction &inst) {
-			if (inst.data[0]->get<InstStruct::Register>().isZeroRegister()) {
+			if (inst.data[0].get<InstStruct::Register>().isZeroRegister()) {
 				println("Error compile with %0.");
 				return false;
 			}
@@ -133,11 +133,11 @@ namespace CVM
 					return NopeInst;
 				}
 
-				TypeIndex type = parseType(*_ptypeInfoMap, *inst.data[2]);
+				TypeIndex type = parseType(*_ptypeInfoMap, inst.data[2]);
 
-				auto data = parseData(*inst.data[1]);
+				auto data = parseData(inst.data[1]);
 
-				auto &dst = inst.data[0]->get<InstStruct::Register>();
+				auto &dst = inst.data[0].get<InstStruct::Register>();
 
 				if (dst.isPrivateDataRegister()) {
 					auto dst_id = dst.index();
@@ -166,10 +166,10 @@ namespace CVM
 					return NopeInst;
 				}
 
-				TypeIndex type = parseType(*_ptypeInfoMap, *inst.data[2]);
+				TypeIndex type = parseType(*_ptypeInfoMap, inst.data[2]);
 
-				auto &src = inst.data[1]->get<InstStruct::DataLabel>();
-				auto &dst = inst.data[0]->get<InstStruct::Register>();
+				auto &src = inst.data[1].get<InstStruct::DataLabel>();
+				auto &dst = inst.data[0].get<InstStruct::Register>();
 
 				auto index = src.data();
 
@@ -209,8 +209,8 @@ namespace CVM
 				return NopeInst;
 			}
 
-			auto &src = inst.data[1]->get<InstStruct::DataLabel>();
-			auto &dst = inst.data[0]->get<InstStruct::Register>();
+			auto &src = inst.data[1].get<InstStruct::DataLabel>();
+			auto &dst = inst.data[0].get<InstStruct::Register>();
 
 			auto index = src.data();
 
@@ -244,18 +244,18 @@ namespace CVM
 			InstStruct::Register dst;
 
 			if (inst.data.size() >= 2) {
-				if (inst.data[0]->type() == InstStruct::ET_Register && inst.data[1]->type() == InstStruct::ET_Identifier) {
-					auto res = inst.data[0]->get<InstStruct::Register>();
-					const auto &namekey = inst.data[1]->get<InstStruct::Identifier>().data();
+				if (inst.data[0].type() == InstStruct::ET_Register && inst.data[1].type() == InstStruct::ET_Identifier) {
+					auto res = inst.data[0].get<InstStruct::Register>();
+					const auto &namekey = inst.data[1].get<InstStruct::Identifier>().data();
 					auto id = _pfuncTable->getID(namekey);
 					InstStruct::FuncIdentifier func(id);
 					InstStruct::ArgumentList::creater arglist_creater(inst.data.size() - 2);
 					for (auto &e : PriLib::rangei(inst.data.begin() + 2, inst.data.end())) {
-						if (e->type() != InstStruct::ET_Register) {
+						if (e.type() != InstStruct::ET_Register) {
 							println("Not register");
 							return NopeInst;
 						}
-						arglist_creater.push_back(e->get<InstStruct::Register>());
+						arglist_creater.push_back(e.get<InstStruct::Register>());
 					}
 					fid = func.data;
 					arglist = arglist_creater.data();
@@ -305,18 +305,13 @@ namespace CVM
 			return NopeInst;
 		}
 
-
 		InstStruct::LabelKeyTable *labelkeytable = nullptr;   // TODO
-		std::list<Config::LineCountType*> rec_line;
 
 		static Runtime::Instruction* compile_Jump(const InstStruct::Instruction &inst, const FunctionInfo &info) {
 			if (check(inst.data, { InstStruct::ET_LineLabel })) {
-				InstStruct::LineLabel label = inst.data[0]->get<InstStruct::LineLabel>();
-				size_t id = (*labelkeytable)[label.data()];
-				assert(id < std::numeric_limits<Config::LineCountType>::max());
-				auto *instx = new Runtime::Insts::Jump(static_cast<Config::LineCountType>(id));
-				rec_line.push_back(&instx->line);
-				return instx;
+				InstStruct::LineLabel label = inst.data[0].get<InstStruct::LineLabel>();
+				size_t line = (*labelkeytable)[label.data()];
+				return new Runtime::Insts::Jump(static_cast<Config::LineCountType>(line));
 			}
 			return NopeInst;
 		}
@@ -370,25 +365,11 @@ namespace CVM
 		Runtime::InstFunction::InstList dst;
 		FunctionInfo&info = const_cast<FunctionInfo&>(func.info); // TODO
 
-		CVM::Compile::labelkeytable = (InstStruct::LabelKeyTable*)&func.labelkeytable;
+		CVM::Compile::labelkeytable = (InstStruct::LabelKeyTable*)&func.labelkeytable; // TODO
 
 		std::transform(src.begin(), src.end(), std::back_inserter(dst), [&](const InstStruct::Instruction *inst) {
 			return compile(*inst, info);
 		});
-
-		// TODO!!
-		{
-			for (Config::LineCountType* p : CVM::Compile::rec_line) {
-				if (CVM::Compile::labelkeytable->hasValue(*p)) {
-					*p = CVM::Compile::labelkeytable->getLine(*p);
-				}
-				else {
-					assert(false);  // TODO
-//					parseinfo.putErrorLine();
-				}
-			}
-			CVM::Compile::rec_line.clear();
-		}
 
 		return Runtime::InstFunction(std::move(dst), std::move(info));
 	}
