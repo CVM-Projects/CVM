@@ -10,8 +10,7 @@ namespace CVM {
 		explicit ParseUnit(ParseInfo &parseinfo, const PriLib::StringView &raw)
 				: parseinfo(parseinfo), raw(raw), currview(raw) {}
 
-		explicit ParseUnit(const ParseUnit &parseunit)
-				: parseinfo(parseunit.parseinfo), raw(parseunit.raw), currview(parseunit.currview), errorcode(parseunit.errorcode) {}
+		ParseUnit(const ParseUnit &parseunit) = default;
 
 		ParseUnit& operator=(const ParseUnit &parseunit) {
 			new (this) ParseUnit(parseunit);

@@ -1,6 +1,5 @@
 #include "basic.h"
 #include "compiler/compile.h"
-#include "inststruct/instpart.h"
 #include "runtime/environment.h"
 #include "runtime/datamanage.h"
 #include "datapool.h"
@@ -240,7 +239,7 @@ namespace CVM
 		}
 
 		static Runtime::Instruction* compile_Call(const InstStruct::Instruction &inst, const FunctionInfo &info) {
-			Config::FuncIndexType fid;
+			Config::FuncIndexType fid = 0;
 			InstStruct::ArgumentList arglist;
 			InstStruct::Register dst;
 
@@ -306,18 +305,19 @@ namespace CVM
 			return NopeInst;
 		}
 
-		static Runtime::Instruction* compile_Jump(const InstStruct::Instruction &inst, const FunctionInfo &info) {
-			//if (list.size() == 1) {
-			//	InstStruct::LineLabel label = getFromElement<InstStruct::LineLabel>(list[0]);
-			//	size_t id = parseinfo.currfunc_creater.labelkeytable[label.data()];
-			//	assert(id < std::numeric_limits<Config::LineCountType>::max());
-			//	auto *inst = new Insts::Jump(static_cast<Config::LineCountType>(id));
-			//	parseinfo.currfunc_creater.rec_line.push_back(&inst->line);
-			//	return new Runtime::Insts::Jump(Inst.line);
-			//}
-			//else {
 
-			// TODO
+		InstStruct::LabelKeyTable *labelkeytable = nullptr;   // TODO
+		std::list<Config::LineCountType*> rec_line;
+
+		static Runtime::Instruction* compile_Jump(const InstStruct::Instruction &inst, const FunctionInfo &info) {
+			if (check(inst.data, { InstStruct::ET_LineLabel })) {
+				InstStruct::LineLabel label = inst.data[0]->get<InstStruct::LineLabel>();
+				size_t id = (*labelkeytable)[label.data()];
+				assert(id < std::numeric_limits<Config::LineCountType>::max());
+				auto *instx = new Runtime::Insts::Jump(static_cast<Config::LineCountType>(id));
+				rec_line.push_back(&instx->line);
+				return instx;
+			}
 			return NopeInst;
 		}
 	}
@@ -370,9 +370,25 @@ namespace CVM
 		Runtime::InstFunction::InstList dst;
 		FunctionInfo&info = const_cast<FunctionInfo&>(func.info); // TODO
 
+		CVM::Compile::labelkeytable = (InstStruct::LabelKeyTable*)&func.labelkeytable;
+
 		std::transform(src.begin(), src.end(), std::back_inserter(dst), [&](const InstStruct::Instruction *inst) {
 			return compile(*inst, info);
 		});
+
+		// TODO!!
+		{
+			for (Config::LineCountType* p : CVM::Compile::rec_line) {
+				if (CVM::Compile::labelkeytable->hasValue(*p)) {
+					*p = CVM::Compile::labelkeytable->getLine(*p);
+				}
+				else {
+					assert(false);  // TODO
+//					parseinfo.putErrorLine();
+				}
+			}
+			CVM::Compile::rec_line.clear();
+		}
 
 		return Runtime::InstFunction(std::move(dst), std::move(info));
 	}
