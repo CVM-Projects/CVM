@@ -32,45 +32,6 @@ namespace CVM
 		class FunctionInfoCreater
 		{
 		public:
-			class LabelKeyTable
-			{
-			public:
-				size_t operator[](const HashID &key) {
-					auto iter = _data.find(key);
-					if (iter == _data.end()) {
-						size_t id = _data.size();
-						_data.insert({ key, id });
-						_linedata.push_back(std::numeric_limits<Config::LineCountType>::max());
-						return id;
-					}
-					else {
-						return iter->second;
-					}
-				}
-				void setLine(size_t id, Config::LineCountType value) {
-					Config::LineCountType &line = _linedata[id];
-					assert(!hasValue(id));
-					line = value;
-				}
-				Config::LineCountType getLine(size_t id) {
-					Config::LineCountType line = _linedata[id];
-					assert(hasValue(id));
-					return line;
-				}
-				bool hasValue(size_t id) {
-					Config::LineCountType line = _linedata[id];
-					return line != std::numeric_limits<Config::LineCountType>::max();
-				}
-
-				void clear() {
-					_data.clear();
-					_linedata.clear();
-				}
-
-			private:
-				std::map<HashID, size_t> _data;
-				std::vector<Config::LineCountType> _linedata;
-			};
 
 		public:
 			FunctionInfoCreater(ParseInfo &parseinfo)
@@ -87,7 +48,6 @@ namespace CVM
 			void over() {
 				if (currfunc) {
 					create_funcinfo();
-					adjust_linelabel();
 					clear();
 				}
 			}
@@ -97,13 +57,11 @@ namespace CVM
 			std::vector<FunctionInfoAccesser::ArgumentTypeType> arglist;
 			std::vector<FunctionInfoAccesser::StvarbTypeType> sttypelist;
 			Config::RegisterIndexType dyvarb_count = 0;
-			LabelKeyTable labelkeytable;
-			std::list<Config::LineCountType*> rec_line;
 			ParseInfo &parseinfo;
 			TypeIndex restype;
 
+			InstStruct::Function *currfunc = nullptr;  // TODO
 		private:
-			InstStruct::Function *currfunc = nullptr;
 
 			void create_funcinfo() {
 				assert(sttypelist.size() <= std::numeric_limits<Config::RegisterIndexType>::max());
@@ -122,16 +80,6 @@ namespace CVM
 				PriLib::Memory::copyTo(accesser.arglist(), arglist.data(), arglist.size());
 				PriLib::Memory::copyTo(accesser.sttypelist(), sttypelist.data(), sttypelist.size());
 			}
-			void adjust_linelabel() {
-				for (Config::LineCountType* p : rec_line) {
-					if (labelkeytable.hasValue(*p)) {
-						*p = labelkeytable.getLine(*p);
-					}
-					else {
-						parseinfo.putErrorLine();
-					}
-				}
-			}
 			void clear() {
 				currfunc = nullptr;
 				arglist.clear();
@@ -139,8 +87,6 @@ namespace CVM
 				dyvarb_count = 0;
 				current_line = 0;
 				restype = TypeIndex();
-				labelkeytable.clear();
-				rec_line.clear();
 			}
 
 		} currfunc_creater;
@@ -161,9 +107,7 @@ namespace CVM
 					}
 				}
 			}*/
-			if (haveerror)
-				return false;
-			return true;
+			return !haveerror;
 		}
 
 		void putErrorLine() const {
@@ -213,7 +157,7 @@ namespace CVM
 
 	bool isIdentifierChar(ParseInfo &parseinfo, char c) {
 		static std::string identcharset("!#$%&*+-./:<=>?@^_~");
-		return isalnum(c) || (identcharset.find(c) != identcharset.npos);
+		return isalnum(c) || (identcharset.find(c) != std::string::npos);
 	}
 
 	bool isIdentifierEscapePrefixChar(ParseInfo &parseinfo, char c) {
@@ -332,7 +276,7 @@ namespace CVM
 			}
 		}
 	}
-	bool parseDataLarge(ParseInfo &parseinfo, const InstStruct::IntegerData &data, std::function<uint8_t*(size_t)> creater) {
+	bool parseDataLarge(ParseInfo &parseinfo, const InstStruct::IntegerData &data, const std::function<uint8_t*(size_t)>& creater) {
 		if (data.has_signed_prefix()) {
 			parseinfo.putErrorLine(PEC_NumIsSigned, InstStruct::ToString(data, parseinfo.info));
 			return false;
@@ -363,7 +307,7 @@ namespace CVM
 	{
 		size_t i = line.find('"', offset);
 		size_t j = i + 1;
-		if (i == line.npos) {
+		if (i == std::string::npos) {
 			return std::make_pair(0, 0);
 		}
 
@@ -438,13 +382,13 @@ namespace CVM
 				else {
 					xline = line.substr(reci, v - reci);
 					reci = v;
-					PriLib::Convert::split(xline, blanks, [&](const char *s) { if (*s) list.push_back(s); });
+					PriLib::Convert::split(xline, blanks, [&](const char *s) { if (*s) list.emplace_back(s); });
 				}
 				is_string = !is_string;
 			}
 		}
 		else {
-			PriLib::Convert::split(line, blanks, [&](const char *s) { if (*s) list.push_back(s); });
+			PriLib::Convert::split(line, blanks, [&](const char *s) { if (*s) list.emplace_back(s); });
 		}
 
 		//
@@ -823,7 +767,31 @@ namespace CVM
 		}
 	}
 
-	InstStruct::Instruction* parseFuncInstBase(ParseInfo& parseinfo, const std::string &code, const std::vector<std::string> &list);
+	InstStruct::Instruction* parseFuncInstBase(ParseInfo& parseinfo, const std::string &code, const std::vector<std::string> &list)
+	{
+		static const std::map<std::string, InstStruct::InstCode> instcodemap = {
+#define InstCode(key) { #key, InstStruct::i_##key },
+#define InstCodeDebug(key) { ("db_" #key), InstStruct::id_##key },
+#include "inststruct/instcode.def"
+		};
+
+		if (instcodemap.find(code) != instcodemap.end()) {
+			// Convert to InstStruct::Element
+			std::vector<InstStruct::Element> eltlist;
+
+			if (!convert(parseinfo, list, eltlist))
+				return nullptr;
+
+			std::vector<InstStruct::Element*> newlist;
+			for (auto &e : eltlist) {
+				newlist.emplace_back(new InstStruct::Element(std::move(e)));
+			}
+
+			return new InstStruct::Instruction(instcodemap.at(code), newlist);
+		}
+
+		return nullptr;
+	}
 
 	void parseFuncInst(ParseInfo &parseinfo, const std::string &code, const std::vector<std::string> &list)
 	{
@@ -856,9 +824,9 @@ namespace CVM
 				parseinfo.putErrorLine(PEC_URCmd, line);
 			}
 			InstStruct::LineLabel labelkey = parseLineLabel(parseinfo, line);
-			size_t id = parseinfo.currfunc_creater.labelkeytable[labelkey.data()];
-			Config::LineCountType line = parseinfo.currfunc_creater.current_line;
-			parseinfo.currfunc_creater.labelkeytable.setLine(id, line);
+			size_t id = parseinfo.currfunc_creater.currfunc->labelkeytable[labelkey.data()];
+			Config::LineCountType xline = parseinfo.currfunc_creater.current_line;
+			parseinfo.currfunc_creater.currfunc->labelkeytable.setLine(id, xline);
 		}
 		else if (std::isblank(fc)) {
 			std::string cmd;
@@ -904,32 +872,5 @@ namespace CVM
 		}
 
 		parseinfo.currfunc_creater.over();
-	}
-}
-
-namespace CVM
-{
-	InstStruct::Instruction* parseFuncInstBase(ParseInfo& parseinfo, const std::string &code, const std::vector<std::string> &list)
-	{
-		using ParseInstProcess = std::function<InstStruct::Instruction*(ParseInfo &, const std::vector<InstStruct::Element> &)>;
-		using ParseInstMap = std::map<std::string, ParseInstProcess>;
-
-		using namespace InstStruct;
-
-		// Convert to InstStruct::Element
-		std::vector<InstStruct::Element> eltlist;
-
-		if (!convert(parseinfo, list, eltlist))
-			return nullptr;
-
-		std::vector<InstStruct::Element*> newlist;
-		for (auto &e : eltlist) {
-			newlist.emplace_back(new Element(std::move(e)));
-		}
-
-#define InstCode(key) if (code == #key) return new Instruction(i_##key, newlist);
-#define InstCodeDebug(key) if (code == ("db_" #key)) return new Instruction(id_##key, newlist);
-#include "inststruct/instcode.def"
-		return nullptr;
 	}
 }

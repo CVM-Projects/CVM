@@ -100,7 +100,7 @@ namespace CVM::InstStruct
 		}
 
 	private:
-		ElementType _type;
+		ElementType _type = ElementType::ET_Unknown;
 		std::variant<
 #define InstPart(key) key,
 #include "instpart.def"
