@@ -34,9 +34,9 @@ namespace CVM
 				++endptr;
 			if (ptr == endptr)
 				return false;
-			if (!PriLib::Convert::to_integer<NumType>(PriLib::StringViewRange(ptr, endptr).toString() /* TODO */, result))
+			if (!PriLib::Convert::to_integer<NumType>(PriLib::StringView(ptr, endptr).toString() /* TODO */, result))
 				return false;
-			parseunit.currview = PriLib::StringView(endptr);
+			parseunit.currview = PriLib::CharPtrView(endptr);
 			return true;
 		}
 		static bool ParseStackOffset(ParseUnit &parseunit, StackOffset &result) {
@@ -48,11 +48,11 @@ namespace CVM
 		static bool ParseIdentifier(ParseUnit &parseunit, HashID &result) {
 			if (!hasIdentifierPrefix(parseunit.parseinfo, parseunit.currview.get()))
 				return false;
-			PriLib::StringView::OffsetType begin = isIdentifierEscapePrefixChar(parseunit.parseinfo, parseunit.currview[0]) ? 1 : 0;
-			PriLib::StringView::OffsetType end = begin;
+			PriLib::CharPtrView::OffsetType begin = isIdentifierEscapePrefixChar(parseunit.parseinfo, parseunit.currview[0]) ? 1 : 0;
+			PriLib::CharPtrView::OffsetType end = begin;
 			while (isIdentifierChar(parseunit.parseinfo, parseunit.currview[end]))
 				++end;
-			PriLib::StringViewRange identstr(parseunit.currview, begin, end);
+			PriLib::StringView identstr(parseunit.currview, begin, end);
 			result = getGlobalInfo(parseunit.parseinfo).hashStringPool.insert(identstr);
 			parseunit.currview += end;
 			return true;
@@ -173,7 +173,7 @@ namespace CVM
 			}
 
 			result = nword;
-			parseunit.currview = PriLib::StringView(word);
+			parseunit.currview = PriLib::CharPtrView(word);
 
 			return true;
 		}
@@ -409,8 +409,8 @@ namespace CVM
 			const char *endptr = parseunit.currview.get();
 			while (isalnum(*endptr) || (*endptr == '_'))
 				++endptr;
-			PriLib::StringViewRange result(parseunit.currview, PriLib::StringView(endptr));
-			parseunit.currview = PriLib::StringView(endptr);
+			PriLib::StringView result(parseunit.currview, PriLib::CharPtrView(endptr));
+			parseunit.currview = PriLib::CharPtrView(endptr);
 			if (!IsEndChar(parseunit))
 				return std::nullopt;
 			return LineLabel(getGlobalInfo(parseunit.parseinfo).hashStringPool.insert(result));
@@ -436,7 +436,7 @@ namespace CVM
 					return std::nullopt;
 				}
 			} while (*endptr == ':' && ++endptr);
-			parseunit.currview = PriLib::StringView(endptr);
+			parseunit.currview = PriLib::CharPtrView(endptr);
 			if (!IsEndChar(parseunit))
 				return std::nullopt;
 			return ArrayData(std::move(data));
@@ -474,7 +474,7 @@ namespace CVM
 					break;
 				}
 			}
-			parseunit.currview = PriLib::StringView(endptr);
+			parseunit.currview = PriLib::CharPtrView(endptr);
 			if (!IsEndChar(parseunit))
 				return std::nullopt;
 			BigInteger data;

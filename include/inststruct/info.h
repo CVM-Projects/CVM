@@ -33,7 +33,7 @@ namespace CVM
 		struct FileContext {
 			GlobalInfo *globalInfo;
 			FileID fileID;
-			FileLiteralDataPoolMap *fileLiteralDataPoolMap;
+			LiteralDataPoolMap *fileLiteralDataPoolMap;
 		};
 	}
 }

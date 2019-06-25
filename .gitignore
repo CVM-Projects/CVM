@@ -32,6 +32,6 @@
 *.app
 
 # Directories
-out
 .vs
+.idea
 build

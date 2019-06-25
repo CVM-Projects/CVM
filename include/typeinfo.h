@@ -88,6 +88,13 @@ namespace CVM
 		}
 	};
 
+	DefineExplicitTypeWithValue(MemoryIndex, Config::MemorySizeType, 0);
+	inline MemoryIndex& operator+=(MemoryIndex& lhs, const MemorySize& rhs) {
+		lhs.data += rhs.data;
+		return lhs;
+	}
+
+
 	inline bool operator>(const MemorySize &lhs, const MemorySize &rhs) { return lhs.compare(rhs) > 0; }
 	inline bool operator>=(const MemorySize &lhs, const MemorySize &rhs) { return lhs.compare(rhs) >= 0; }
 	inline bool operator<(const MemorySize &lhs, const MemorySize &rhs) { return lhs.compare(rhs) < 0; }

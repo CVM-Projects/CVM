@@ -162,7 +162,7 @@ CVM::Runtime::LocalEnvironment * createVM(PriLib::TextFile &cmsfile, CVM::Virtua
 
 		// Create LiteralDataPool
 		LiteralDataPoolCreator &creator = *globalinfo->literalDataPoolCreator;
-		creator.merge(globalinfo->literalDataPool);
+		creator.mergeTo(FileID(0), globalinfo->literalDataPool);
 		globalinfo->literalDataPoolCreator.release();
 		println(globalinfo->literalDataPool.toString());
 
@@ -202,10 +202,12 @@ int main(int argc, char *argv[])
 
 	PriLib::TextFile cmsfile;
 
-	cmsfile.open(argv[1], PriLib::File::Read);
+	const char* filename = argv[1];
+
+	cmsfile.open(filename, PriLib::File::Read);
 
 	if (cmsfile.bad()) {
-		putError("Error in open file.");
+		putError((std::string("Error in open file '") + filename + "'.").c_str());
 	}
 
 	// Run 'main'
