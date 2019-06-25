@@ -186,10 +186,10 @@ namespace CVM
 
 			protected:
 				ConstDataPointer get_datapointer(Environment &env) const {
-					return ConstDataPointer(env.GEnv().getDataSectionMap().at(data).first);
+					return ConstDataPointer(env.GEnv().getDataSectionMap().at((FileID(0), DataID(data))).first);
 				}
 				MemorySize get_memorysize(Environment &env) const {
-					return MemorySize(env.GEnv().getDataSectionMap().at(data).second);
+					return env.GEnv().getDataSectionMap().at((FileID(0), DataID(data))).second;
 				}
 			};
 
@@ -243,7 +243,7 @@ namespace CVM
 					: data(data) {}
 
 				ConstDataPointer get_datapointer(Environment &env) const {
-					auto dp = env.GEnv().getDataSectionMap().at(data).first;
+					auto dp = env.GEnv().getDataSectionMap().at((FileID(0), DataID(data))).first;
 					return ConstDataPointer(dp);
 				}
 			};

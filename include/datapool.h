@@ -43,7 +43,7 @@ namespace CVM
 	{
 		class FlatLiteralDataPoolMap {
 		public:
-			using DataType = std::pair<MemorySize, const uint8_t*>;
+			using DataType = std::pair<MemoryIndex, MemorySize>;
 
 		public:
 			FlatLiteralDataPoolMap() = default;
@@ -74,9 +74,9 @@ namespace CVM
 		LiteralDataPool& operator=(const LiteralDataPool &) = delete;
 
 		// TODO: This function is temp.
-		std::pair<const uint8_t*, uint32_t> at(Config::DataIndexType index) const {
-			const auto &result = (*_dataPoolMap)[(FileID(0), DataID(index))];
-			return std::make_pair(result.second, result.first.data);
+		std::pair<const uint8_t*, MemorySize> at(const FileDataID & filedataid) const {
+			const auto &result = (*_dataPoolMap)[filedataid];
+			return std::make_pair(_data.get(result.first.data), result.second);
 		}
 
 		bool has(const FileDataID &filedataid) const {

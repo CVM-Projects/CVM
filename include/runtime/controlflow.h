@@ -40,7 +40,7 @@ namespace CVM
 
 		private:
 			Config::LineCountType ProgramCounter = 0;
-			bool isIncProgramCounter;
+			bool isIncProgramCounter = false;
 			const InstFunction &Func;
 		};
 	}

@@ -7,7 +7,7 @@ namespace CVM {
 	using ErrorCode = int;
 
 	struct ParseUnit {
-		explicit ParseUnit(ParseInfo &parseinfo, const PriLib::StringView &raw)
+		explicit ParseUnit(ParseInfo &parseinfo, const PriLib::CharPtrView &raw)
 				: parseinfo(parseinfo), raw(raw), currview(raw) {}
 
 		ParseUnit(const ParseUnit &parseunit) = default;
@@ -18,8 +18,8 @@ namespace CVM {
 		}
 
 		ParseInfo &parseinfo;
-		const PriLib::StringView &raw;
-		PriLib::StringView currview;
+		const PriLib::CharPtrView &raw;
+		PriLib::CharPtrView currview;
 		ErrorCode errorcode = 0;
 	};
 }

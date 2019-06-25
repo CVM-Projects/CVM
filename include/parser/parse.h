@@ -21,6 +21,6 @@ namespace CVM
 	bool isIdentifierEscapePrefixChar(ParseInfo &parseinfo, char c);
 	bool hasIdentifierPrefix(ParseInfo &parseinfo, const char *str);
 	bool hasSignedNumberPrefix(ParseInfo &parseinfo, const char *str);
-	bool matchPrefix(ParseUnit &parseunit, const PriLib::StringView &substr);
+	bool matchPrefix(ParseUnit &parseunit, const PriLib::CharPtrView &substr);
 	bool matchPrefix(ParseUnit &parseunit, char subchar);
 }

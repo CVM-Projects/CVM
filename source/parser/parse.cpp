@@ -172,8 +172,8 @@ namespace CVM
 		return std::isdigit(str[0]) || ((str[0] == '+' || str[0] == '-') && std::isdigit(str[1]));
 	}
 
-	bool matchPrefix(ParseUnit &parseunit, const PriLib::StringView &substr) {
-		PriLib::StringView::OffsetType offset = 0;
+	bool matchPrefix(ParseUnit &parseunit, const PriLib::CharPtrView &substr) {
+		PriLib::CharPtrView::OffsetType offset = 0;
 		while (parseunit.currview[offset] && substr[offset]) {
 			if (parseunit.currview[offset] != substr[offset])
 				return false;
@@ -661,7 +661,7 @@ namespace CVM
 							if (check(list, { InstStruct::ET_DataLabel, InstStruct::ET_IntegerData, InstStruct::ET_IntegerData }) ||
 							    check(list, { InstStruct::ET_DataLabel, InstStruct::ET_IntegerData })) {
 								const auto &di = getFromElement<InstStruct::DataLabel>(list[0]);
-								if (!parseinfo.literalDataPoolCreator.has(FileID(0), DataID(di.data()))) {
+								if (!parseinfo.literalDataPoolCreator.has(DataID(di.data()))) {
 									uint8_t *buffer = nullptr;
 									size_t msize = 0;
 									const auto &dat = getFromElement<InstStruct::IntegerData>(list[1]);
@@ -677,7 +677,7 @@ namespace CVM
 										}))
 											delete[] buffer;
 									}
-									parseinfo.literalDataPoolCreator.insert((FileID(0), DataID(di.data())), std::make_pair(MemorySize(msize), buffer)); // TODO
+									parseinfo.literalDataPoolCreator.insert(DataID(di.data()), std::make_pair(MemorySize(msize), buffer)); // TODO
 //									parseinfo.datamap[di.index()] = std::make_pair(buffer, static_cast<uint32_t>(msize));
 								}
 								else {
@@ -694,12 +694,12 @@ namespace CVM
 						[](ParseInfo &parseinfo, const std::vector<InstStruct::Element> &list) {
 							if (check(list, { InstStruct::ET_DataLabel, InstStruct::ET_ArrayData })) {
 								const auto &di = getFromElement<InstStruct::DataLabel>(list[0]);
-								if (!parseinfo.literalDataPoolCreator.has(FileID(0), DataID(di.data()))) {
+								if (!parseinfo.literalDataPoolCreator.has(DataID(di.data()))) {
 									const auto &data = getFromElement<InstStruct::ArrayData>(list[1]);
 									auto &vec = data.data();
 									uint8_t *buffer = createMemory(parseinfo, MemorySize(vec.size()));
 									PriLib::Memory::copyTo(buffer, vec.data(), vec.size());
-									parseinfo.literalDataPoolCreator.insert((FileID(0), DataID(di.data())), std::make_pair(MemorySize(static_cast<uint32_t>(vec.size())), buffer)); // TODO
+									parseinfo.literalDataPoolCreator.insert(DataID(di.data()), std::make_pair(MemorySize(static_cast<uint32_t>(vec.size())), buffer)); // TODO
 								}
 								else {
 									parseinfo.putErrorLine(PEC_DUDataId);
@@ -716,7 +716,7 @@ namespace CVM
 						[](ParseInfo &parseinfo, const std::vector<InstStruct::Element> &list) {
 							if (check(list, { InstStruct::ET_DataLabel, InstStruct::ET_String })) {
 								const auto &di = getFromElement<InstStruct::DataLabel>(list[0]);
-								if (!parseinfo.literalDataPoolCreator.has(FileID(0), DataID(di.data()))) {
+								if (!parseinfo.literalDataPoolCreator.has(DataID(di.data()))) {
 									const auto &str = getFromElement<InstStruct::String>(list[1]);
 									const std::string &nword = str.data();
 									size_t msize = nword.size() + 1;
@@ -724,7 +724,7 @@ namespace CVM
 									for (size_t i = 0; i < nword.size(); ++i) {
 										buffer[i] = (uint8_t)nword[i];
 									}
-									parseinfo.literalDataPoolCreator.insert((FileID(0), DataID(di.data())), std::make_pair(MemorySize(msize), buffer)); // TODO
+									parseinfo.literalDataPoolCreator.insert(DataID(di.data()), std::make_pair(MemorySize(msize), buffer)); // TODO
 								}
 								else {
 									parseinfo.putErrorLine(PEC_DUDataId);
